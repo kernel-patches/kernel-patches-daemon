@@ -1,0 +1,41 @@
+{
+    "id": 970926,
+    "url": "https://patchwork.test/api/1.1/series/970926/",
+    "web_url": "https://patchwork.test/project/netdevbpf/list/?series=970926",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.test/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "name": "[bpf-next] bpf: clear user buf when bpf_d_path failed",
+    "date": "2025-06-11T15:48:58",
+    "submitter": {
+        "id": 216065,
+        "url": "https://patchwork.test/api/1.1/people/216065/",
+        "name": "Tao Chen",
+        "email": "chen.dylane@linux.dev"
+    },
+    "version": 1,
+    "total": 1,
+    "received_total": 1,
+    "received_all": true,
+    "mbox": "https://patchwork.test/series/970926/mbox/",
+    "cover_letter": null,
+    "patches": [
+        {
+            "id": 14114605,
+            "url": "https://patchwork.test/api/1.1/patches/14114605/",
+            "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611154859.259682-1-chen.dylane@linux.dev/",
+            "msgid": "<20250611154859.259682-1-chen.dylane@linux.dev>",
+            "date": "2025-06-11T15:48:58",
+            "name": "[bpf-next] bpf: clear user buf when bpf_d_path failed",
+            "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611154859.259682-1-chen.dylane@linux.dev/mbox/"
+        }
+    ]
+}
