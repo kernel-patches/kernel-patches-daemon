@@ -1,0 +1,92 @@
+{
+    "id": 14114775,
+    "url": "https://patchwork.test/api/1.1/patches/14114775/",
+    "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611171535.2034440-1-yonghong.song@linux.dev/",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.test/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "msgid": "<20250611171535.2034440-1-yonghong.song@linux.dev>",
+    "date": "2025-06-11T17:15:34",
+    "name": "[bpf-next,v2,3/3] selftests/bpf: Fix xdp_do_redirect failure with 64KB page size",
+    "commit_ref": null,
+    "pull_url": null,
+    "state": "changes-requested",
+    "archived": false,
+    "hash": "70c808de4bdae179786cead1c8e1ce36458e2f6b",
+    "submitter": {
+        "id": 210263,
+        "url": "https://patchwork.test/api/1.1/people/210263/",
+        "name": "Yonghong Song",
+        "email": "yonghong.song@linux.dev"
+    },
+    "delegate": {
+        "id": 121173,
+        "url": "https://patchwork.test/api/1.1/users/121173/",
+        "username": "bpf",
+        "first_name": "BPF",
+        "last_name": "",
+        "email": "bpf@iogearbox.net"
+    },
+    "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611171535.2034440-1-yonghong.song@linux.dev/mbox/",
+    "series": [
+        {
+            "id": 970968,
+            "url": "https://patchwork.test/api/1.1/series/970968/",
+            "web_url": "https://patchwork.test/project/netdevbpf/list/?series=970968",
+            "date": "2025-06-11T17:15:19",
+            "name": "bpf: Fix a few test failures with 64K page size",
+            "version": 2,
+            "mbox": "https://patchwork.test/series/970968/mbox/"
+        }
+    ],
+    "comments": "https://patchwork.test/api/patches/14114775/comments/",
+    "check": "warning",
+    "checks": "https://patchwork.test/api/patches/14114775/checks/",
+    "tags": {},
+    "headers": {
+        "Received": [
+            "from 69-171-232-181.mail-mxout.facebook.com\n (69-171-232-181.mail-mxout.facebook.com [69.171.232.181])\n\t(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))\n\t(No client certificate requested)\n\tby smtp.subspace.kernel.org (Postfix) with ESMTPS id E26431CD208\n\tfor <bpf@vger.kernel.org>; Wed, 11 Jun 2025 17:15:48 +0000 (UTC)",
+            "by devvm16039.vll0.facebook.com (Postfix, from userid 128203)\n\tid 056A59680C77; Wed, 11 Jun 2025 10:15:35 -0700 (PDT)"
+        ],
+        "Authentication-Results": [
+            "smtp.subspace.kernel.org;\n arc=none smtp.client-ip=69.171.232.181",
+            "smtp.subspace.kernel.org;\n dmarc=fail (p=none dis=none) header.from=linux.dev",
+            "smtp.subspace.kernel.org;\n spf=fail smtp.mailfrom=linux.dev"
+        ],
+        "ARC-Seal": "i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;\n\tt=1749662150; cv=none;\n b=EX6Jq8P3VFj4+k08zD4Oofu4WRtyxpk8xW4t2wI4uqCJfR2NQJU7YG9PDDy3yng2pN65VDv62grnWacaQhSIcayEqmPlXoVg+jpLPNrZSgIlGFW9pvAo+C+V2a0TYX+vcTsTfgaHiRPKKbq/N5LZAnKwmEHjeaoijrJrJKoLKnY=",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; d=subspace.kernel.org;\n\ts=arc-20240116; t=1749662150; c=relaxed/simple;\n\tbh=jJgT63k4r+/mDJ1wI8n6mvKTyi6x10RwgW4AYPOjMNU=;\n\th=From:To:Cc:Subject:Date:Message-ID:In-Reply-To:References:\n\t MIME-Version;\n b=jny55tY3BEMQKCxQxa4mEz4nigGmYoOxdH7UgG0mw4uznXEBm0duBjpyNvoSLxILvFCCsSR7ualBa7M3L9IQYqhWjM9FS1Y0KslCdawLFNHqNgeCGZjUK9JPlvu2wVZtJQpkH6koy/Zkr3x1Sg4OIyWpB7jtsbWKyTQU6s+GaPs=",
+        "ARC-Authentication-Results": "i=1; smtp.subspace.kernel.org;\n dmarc=fail (p=none dis=none) header.from=linux.dev;\n spf=fail smtp.mailfrom=linux.dev; arc=none smtp.client-ip=69.171.232.181",
+        "From": "Yonghong Song <yonghong.song@linux.dev>",
+        "To": "bpf@vger.kernel.org",
+        "Cc": "Alexei Starovoitov <ast@kernel.org>,\n\tAndrii Nakryiko <andrii@kernel.org>,\n\tDaniel Borkmann <daniel@iogearbox.net>,\n\tkernel-team@fb.com,\n\tMartin KaFai Lau <martin.lau@kernel.org>",
+        "Subject": "[PATCH bpf-next v2 3/3] selftests/bpf: Fix xdp_do_redirect failure\n with 64KB page size",
+        "Date": "Wed, 11 Jun 2025 10:15:34 -0700",
+        "Message-ID": "<20250611171535.2034440-1-yonghong.song@linux.dev>",
+        "X-Mailer": "git-send-email 2.47.1",
+        "In-Reply-To": "<20250611171519.2033193-1-yonghong.song@linux.dev>",
+        "References": "<20250611171519.2033193-1-yonghong.song@linux.dev>",
+        "Precedence": "bulk",
+        "X-Mailing-List": "bpf@vger.kernel.org",
+        "List-Id": "<bpf.vger.kernel.org>",
+        "List-Subscribe": "<mailto:bpf+subscribe@vger.kernel.org>",
+        "List-Unsubscribe": "<mailto:bpf+unsubscribe@vger.kernel.org>",
+        "MIME-Version": "1.0",
+        "Content-Transfer-Encoding": "quoted-printable",
+        "X-Patchwork-Delegate": "bpf@iogearbox.net"
+    },
+    "content": "On arm64 with 64KB page size, the selftest xdp_do_redirect failed like\nbelow:\n  ...\n  test_xdp_do_redirect:PASS:pkt_count_tc 0 nsec\n  test_max_pkt_size:PASS:prog_run_max_size 0 nsec\n  test_max_pkt_size:FAIL:prog_run_too_big unexpected prog_run_too_big: actual -28 != expected -22\n\nWith 64KB page size, the xdp frame size will be much bigger so\nthe existing test will fail.\n\nAdjust various parameters so the test can also work on 64K page size.\n\nSigned-off-by: Yonghong Song <yonghong.song@linux.dev>\n---\n .../selftests/bpf/prog_tests/xdp_do_redirect.c      | 13 +++++++++++--\n 1 file changed, 11 insertions(+), 2 deletions(-)",
+    "diff": "diff --git a/tools/testing/selftests/bpf/prog_tests/xdp_do_redirect.c b/tools/testing/selftests/bpf/prog_tests/xdp_do_redirect.c\nindex 7dac044664ac..dd34b0cc4b4e 100644\n--- a/tools/testing/selftests/bpf/prog_tests/xdp_do_redirect.c\n+++ b/tools/testing/selftests/bpf/prog_tests/xdp_do_redirect.c\n@@ -66,16 +66,25 @@ static int attach_tc_prog(struct bpf_tc_hook *hook, int fd)\n #else\n #define MAX_PKT_SIZE 3408\n #endif\n+\n+#define PAGE_SIZE_4K  4096\n+#define PAGE_SIZE_64K 65536\n+\n static void test_max_pkt_size(int fd)\n {\n-\tchar data[MAX_PKT_SIZE + 1] = {};\n+\tchar data[PAGE_SIZE_64K + 1] = {};\n \tint err;\n \tDECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,\n \t\t\t    .data_in = &data,\n-\t\t\t    .data_size_in = MAX_PKT_SIZE,\n \t\t\t    .flags = BPF_F_TEST_XDP_LIVE_FRAMES,\n \t\t\t    .repeat = 1,\n \t\t);\n+\n+\tif (getpagesize() == PAGE_SIZE_64K)\n+\t\topts.data_size_in = MAX_PKT_SIZE + PAGE_SIZE_64K - PAGE_SIZE_4K;\n+\telse\n+\t\topts.data_size_in = MAX_PKT_SIZE;\n+\n \terr = bpf_prog_test_run_opts(fd, &opts);\n \tASSERT_OK(err, \"prog_run_max_size\");\n \n",
+    "prefixes": [
+        "bpf-next",
+        "v2",
+        "3/3"
+    ]
+}

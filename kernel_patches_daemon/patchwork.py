@@ -580,7 +580,8 @@ class Patchwork:
             params = {}
         while True:
             response = await self.__get(path, params=params)
-            items += await response.json()
+            j = await response.json()
+            items += j
 
             if "next" not in response.links:
                 break
@@ -695,9 +696,8 @@ class Patchwork:
     async def get_series_by_id(self, series_id: int) -> Series:
         # fetches directly only if series is not available in local scope
         if series_id not in self.known_series:
-            self.known_series[series_id] = Series(
-                self, await self.__get_object_by_id("series", series_id)
-            )
+            series_json = await self.__get_object_by_id("series", series_id)
+            self.known_series[series_id] = Series(self, series_json)
 
         return self.known_series[series_id]
 

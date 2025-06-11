@@ -133,7 +133,8 @@ class GithubSync(Stats):
 
     async def get_mapped_branches(self, series: Series) -> List[str]:
         for tag in self.tag_to_branch_mapping:
-            if tag in await series.all_tags():
+            series_tags = await series.all_tags()
+            if tag in series_tags:
                 mapped_branches = self.tag_to_branch_mapping[tag]
                 logging.info(f"Tag '{tag}' mapped to branch order {mapped_branches}")
                 return mapped_branches
@@ -208,7 +209,8 @@ class GithubSync(Stats):
             await loop.run_in_executor(None, worker.get_pulls)
             await loop.run_in_executor(None, worker.do_sync)
             worker._closed_prs = None
-            worker.branches = [x.name for x in worker.repo.get_branches()]
+            branches = worker.repo.get_branches()
+            worker.branches = [b.name for b in branches]
 
         mirror_done = time.time()
 

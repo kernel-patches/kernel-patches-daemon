@@ -1,0 +1,92 @@
+{
+    "id": 14114774,
+    "url": "https://patchwork.test/api/1.1/patches/14114774/",
+    "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611171529.2034330-1-yonghong.song@linux.dev/",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.test/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "msgid": "<20250611171529.2034330-1-yonghong.song@linux.dev>",
+    "date": "2025-06-11T17:15:29",
+    "name": "[bpf-next,v2,2/3] selftests/bpf: Fix two net related test failures with 64K page size",
+    "commit_ref": null,
+    "pull_url": null,
+    "state": "changes-requested",
+    "archived": false,
+    "hash": "3734274f90b6282e0c574a9ac2c9bda37ef5d6a0",
+    "submitter": {
+        "id": 210263,
+        "url": "https://patchwork.test/api/1.1/people/210263/",
+        "name": "Yonghong Song",
+        "email": "yonghong.song@linux.dev"
+    },
+    "delegate": {
+        "id": 121173,
+        "url": "https://patchwork.test/api/1.1/users/121173/",
+        "username": "bpf",
+        "first_name": "BPF",
+        "last_name": "",
+        "email": "bpf@iogearbox.net"
+    },
+    "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611171529.2034330-1-yonghong.song@linux.dev/mbox/",
+    "series": [
+        {
+            "id": 970968,
+            "url": "https://patchwork.test/api/1.1/series/970968/",
+            "web_url": "https://patchwork.test/project/netdevbpf/list/?series=970968",
+            "date": "2025-06-11T17:15:19",
+            "name": "bpf: Fix a few test failures with 64K page size",
+            "version": 2,
+            "mbox": "https://patchwork.test/series/970968/mbox/"
+        }
+    ],
+    "comments": "https://patchwork.test/api/patches/14114774/comments/",
+    "check": "warning",
+    "checks": "https://patchwork.test/api/patches/14114774/checks/",
+    "tags": {},
+    "headers": {
+        "Received": [
+            "from 66-220-144-178.mail-mxout.facebook.com\n (66-220-144-178.mail-mxout.facebook.com [66.220.144.178])\n\t(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))\n\t(No client certificate requested)\n\tby smtp.subspace.kernel.org (Postfix) with ESMTPS id 774B0137C37\n\tfor <bpf@vger.kernel.org>; Wed, 11 Jun 2025 17:15:42 +0000 (UTC)",
+            "by devvm16039.vll0.facebook.com (Postfix, from userid 128203)\n\tid E0EAE9680C54; Wed, 11 Jun 2025 10:15:29 -0700 (PDT)"
+        ],
+        "Authentication-Results": [
+            "smtp.subspace.kernel.org;\n arc=none smtp.client-ip=66.220.144.178",
+            "smtp.subspace.kernel.org;\n dmarc=fail (p=none dis=none) header.from=linux.dev",
+            "smtp.subspace.kernel.org;\n spf=fail smtp.mailfrom=linux.dev"
+        ],
+        "ARC-Seal": "i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;\n\tt=1749662145; cv=none;\n b=H1WJsmTVYK/pQCrvjiSyGJXScsH2kh3zzJFhoBu4l4Ez7VwqeePNmGMkPc4qMYe6d13tnC0uhXAY5UfuHykgA5UcOO9huji7LcDqCgHku0lcmr3CVs2hkFaHdwk2A2Gb/EdvUbXMH6girJSNofJtdgYqwCLL+pKaJKUiw4qhaIQ=",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; d=subspace.kernel.org;\n\ts=arc-20240116; t=1749662145; c=relaxed/simple;\n\tbh=jLp9gVJ6J82pb2dajEsxJQ0BNmXZ932mE7BpXCb6MY0=;\n\th=From:To:Cc:Subject:Date:Message-ID:In-Reply-To:References:\n\t MIME-Version;\n b=qv5p8hJPAywS1NwNCBhUoayN3awlHOs2ggVMu0kPzIkBSH14hvIaARYMb8nkEzENSjCLotoab99Q23TZ5FnukzQICrFiT/80rhuUu15sifa48WTku4pNsCjVIA6yT3TGI0iSY3iHYP0j0stnJfM6VWWDXyVFpi44GhzrLM9Hv5A=",
+        "ARC-Authentication-Results": "i=1; smtp.subspace.kernel.org;\n dmarc=fail (p=none dis=none) header.from=linux.dev;\n spf=fail smtp.mailfrom=linux.dev; arc=none smtp.client-ip=66.220.144.178",
+        "From": "Yonghong Song <yonghong.song@linux.dev>",
+        "To": "bpf@vger.kernel.org",
+        "Cc": "Alexei Starovoitov <ast@kernel.org>,\n\tAndrii Nakryiko <andrii@kernel.org>,\n\tDaniel Borkmann <daniel@iogearbox.net>,\n\tkernel-team@fb.com,\n\tMartin KaFai Lau <martin.lau@kernel.org>",
+        "Subject": "[PATCH bpf-next v2 2/3] selftests/bpf: Fix two net related test\n failures with 64K page size",
+        "Date": "Wed, 11 Jun 2025 10:15:29 -0700",
+        "Message-ID": "<20250611171529.2034330-1-yonghong.song@linux.dev>",
+        "X-Mailer": "git-send-email 2.47.1",
+        "In-Reply-To": "<20250611171519.2033193-1-yonghong.song@linux.dev>",
+        "References": "<20250611171519.2033193-1-yonghong.song@linux.dev>",
+        "Precedence": "bulk",
+        "X-Mailing-List": "bpf@vger.kernel.org",
+        "List-Id": "<bpf.vger.kernel.org>",
+        "List-Subscribe": "<mailto:bpf+subscribe@vger.kernel.org>",
+        "List-Unsubscribe": "<mailto:bpf+unsubscribe@vger.kernel.org>",
+        "MIME-Version": "1.0",
+        "Content-Transfer-Encoding": "quoted-printable",
+        "X-Patchwork-Delegate": "bpf@iogearbox.net"
+    },
+    "content": "When running BPF selftests on arm64 with a 64K page size, I encountered\nthe following two test failures:\n  sockmap_basic/sockmap skb_verdict change tail:FAIL\n  tc_change_tail:FAIL\n\nWith further debugging, I identified the root cause in the following\nkernel code within __bpf_skb_change_tail():\n\n    u32 max_len = BPF_SKB_MAX_LEN;\n    u32 min_len = __bpf_skb_min_len(skb);\n    int ret;\n\n    if (unlikely(flags || new_len > max_len || new_len < min_len))\n        return -EINVAL;\n\nWith a 4K page size, new_len = 65535 and max_len = 16064, the function\nreturns -EINVAL. However, With a 64K page size, max_len increases to\n261824, allowing execution to proceed further in the function. This is\nbecause BPF_SKB_MAX_LEN scales with the page size and larger page sizes\nresult in higher max_len values.\n\nUpdating the new_len parameter in both tests from 65535 to 256K (0x40000)\nresolves the failures.\n\nSigned-off-by: Yonghong Song <yonghong.song@linux.dev>\n---\n tools/testing/selftests/bpf/progs/test_sockmap_change_tail.c | 5 ++++-\n tools/testing/selftests/bpf/progs/test_tc_change_tail.c      | 5 ++++-\n 2 files changed, 8 insertions(+), 2 deletions(-)",
+    "diff": "diff --git a/tools/testing/selftests/bpf/progs/test_sockmap_change_tail.c b/tools/testing/selftests/bpf/progs/test_sockmap_change_tail.c\nindex 2796dd8545eb..e4554ef05441 100644\n--- a/tools/testing/selftests/bpf/progs/test_sockmap_change_tail.c\n+++ b/tools/testing/selftests/bpf/progs/test_sockmap_change_tail.c\n@@ -3,6 +3,9 @@\n #include <linux/bpf.h>\n #include <bpf/bpf_helpers.h>\n \n+#define PAGE_SIZE 65536 /* make it work on 64K page arches */\n+#define BPF_SKB_MAX_LEN (PAGE_SIZE << 2)\n+\n struct {\n \t__uint(type, BPF_MAP_TYPE_SOCKMAP);\n \t__uint(max_entries, 1);\n@@ -31,7 +34,7 @@ int prog_skb_verdict(struct __sk_buff *skb)\n \t\tchange_tail_ret = bpf_skb_change_tail(skb, skb->len + 1, 0);\n \t\treturn SK_PASS;\n \t} else if (data[0] == 'E') { /* Error */\n-\t\tchange_tail_ret = bpf_skb_change_tail(skb, 65535, 0);\n+\t\tchange_tail_ret = bpf_skb_change_tail(skb, BPF_SKB_MAX_LEN, 0);\n \t\treturn SK_PASS;\n \t}\n \treturn SK_PASS;\ndiff --git a/tools/testing/selftests/bpf/progs/test_tc_change_tail.c b/tools/testing/selftests/bpf/progs/test_tc_change_tail.c\nindex 28edafe803f0..47670bbd1766 100644\n--- a/tools/testing/selftests/bpf/progs/test_tc_change_tail.c\n+++ b/tools/testing/selftests/bpf/progs/test_tc_change_tail.c\n@@ -7,6 +7,9 @@\n #include <linux/udp.h>\n #include <linux/pkt_cls.h>\n \n+#define PAGE_SIZE 65536 /* make it work on 64K page arches */\n+#define BPF_SKB_MAX_LEN (PAGE_SIZE << 2)\n+\n long change_tail_ret = 1;\n \n static __always_inline struct iphdr *parse_ip_header(struct __sk_buff *skb, int *ip_proto)\n@@ -94,7 +97,7 @@ int change_tail(struct __sk_buff *skb)\n \t\t\tbpf_skb_change_tail(skb, len, 0);\n \t\treturn TCX_PASS;\n \t} else if (payload[0] == 'E') { /* Error */\n-\t\tchange_tail_ret = bpf_skb_change_tail(skb, 65535, 0);\n+\t\tchange_tail_ret = bpf_skb_change_tail(skb, BPF_SKB_MAX_LEN, 0);\n \t\treturn TCX_PASS;\n \t} else if (payload[0] == 'Z') { /* Zero */\n \t\tchange_tail_ret = bpf_skb_change_tail(skb, 0, 0);\n",
+    "prefixes": [
+        "bpf-next",
+        "v2",
+        "2/3"
+    ]
+}
