@@ -1,0 +1,67 @@
+{
+    "id": 970968,
+    "url": "https://patchwork.test/api/1.1/series/970968/",
+    "web_url": "https://patchwork.test/project/netdevbpf/list/?series=970968",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.test/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "name": "bpf: Fix a few test failures with 64K page size",
+    "date": "2025-06-11T17:15:19",
+    "submitter": {
+        "id": 210263,
+        "url": "https://patchwork.test/api/1.1/people/210263/",
+        "name": "Yonghong Song",
+        "email": "yonghong.song@linux.dev"
+    },
+    "version": 2,
+    "total": 3,
+    "received_total": 3,
+    "received_all": true,
+    "mbox": "https://patchwork.test/series/970968/mbox/",
+    "cover_letter": {
+        "id": 14064851,
+        "url": "https://patchwork.test/api/1.1/covers/14064851/",
+        "web_url": "https://patchwork.test/project/netdevbpf/cover/20250611171519.2033193-1-yonghong.song@linux.dev/",
+        "msgid": "<20250611171519.2033193-1-yonghong.song@linux.dev>",
+        "date": "2025-06-11T17:15:19",
+        "name": "[bpf-next,v2,0/3] bpf: Fix a few test failures with 64K page size",
+        "mbox": "https://patchwork.test/project/netdevbpf/cover/20250611171519.2033193-1-yonghong.song@linux.dev/mbox/"
+    },
+    "patches": [
+        {
+            "id": 14114773,
+            "url": "https://patchwork.test/api/1.1/patches/14114773/",
+            "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611171524.2033657-1-yonghong.song@linux.dev/",
+            "msgid": "<20250611171524.2033657-1-yonghong.song@linux.dev>",
+            "date": "2025-06-11T17:15:24",
+            "name": "[bpf-next,v2,1/3] bpf: Fix an issue in bpf_prog_test_run_xdp when page size greater than 4K",
+            "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611171524.2033657-1-yonghong.song@linux.dev/mbox/"
+        },
+        {
+            "id": 14114774,
+            "url": "https://patchwork.test/api/1.1/patches/14114774/",
+            "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611171529.2034330-1-yonghong.song@linux.dev/",
+            "msgid": "<20250611171529.2034330-1-yonghong.song@linux.dev>",
+            "date": "2025-06-11T17:15:29",
+            "name": "[bpf-next,v2,2/3] selftests/bpf: Fix two net related test failures with 64K page size",
+            "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611171529.2034330-1-yonghong.song@linux.dev/mbox/"
+        },
+        {
+            "id": 14114775,
+            "url": "https://patchwork.test/api/1.1/patches/14114775/",
+            "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611171535.2034440-1-yonghong.song@linux.dev/",
+            "msgid": "<20250611171535.2034440-1-yonghong.song@linux.dev>",
+            "date": "2025-06-11T17:15:34",
+            "name": "[bpf-next,v2,3/3] selftests/bpf: Fix xdp_do_redirect failure with 64KB page size",
+            "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611171535.2034440-1-yonghong.song@linux.dev/mbox/"
+        }
+    ]
+}
