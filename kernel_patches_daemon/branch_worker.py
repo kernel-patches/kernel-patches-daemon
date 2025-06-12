@@ -90,7 +90,7 @@ CI_DESCRIPTION = "vmtest"
 MERGE_CONFLICT_LABEL = "merge-conflict"
 UPSTREAM_REMOTE_NAME = "upstream"
 
-
+# fmt: off
 EMAIL_TEMPLATE_BASE: Final[str] = """\
 Dear patch submitter,
 
@@ -123,7 +123,7 @@ Matrix:     {github_actions_url}
 
 {inline_logs}\
 """
-
+# fmt: on
 
 # Context used to format email notification body
 EmailBodyContext = namedtuple(
