@@ -186,7 +186,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         series_mock.all_tags = AsyncMock(return_value=["tag"])
         subject_mock = MagicMock()
         subject_mock.subject = "Test subject"
-        subject_mock.latest_series = AsyncMock(return_value=series_mock)()
+        subject_mock.latest_series = AsyncMock(return_value=series_mock)
 
         return subject_mock, series_mock
 
@@ -206,7 +206,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
 
         subject_mock, series_mock = self._setup_sync_relevant_subject_mocks()
         series_mock.all_tags = AsyncMock(return_value=["multibranch-tag"])
-        subject_mock.branch = AsyncMock(return_value=series_prefix)()
+        subject_mock.branch = AsyncMock(return_value=series_prefix)
 
         pr_mock = MagicMock()
         pr_mock.head.ref = series_branch_name
