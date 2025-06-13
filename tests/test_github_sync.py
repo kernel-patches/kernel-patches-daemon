@@ -118,7 +118,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
                     gh.workers[TEST_BRANCH].ci_repo_dir.startswith(case.prefix),
                 )
 
-    def test_close_existing_prs_with_same_base(self) -> None:
+    def test_close_existing_prs_for_series(self) -> None:
         matching_pr_mock = MagicMock()
         matching_pr_mock.title = "matching"
         matching_pr_mock.head.ref = "test_branch=>remote_branch"
@@ -137,7 +137,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         input_pr_mock.head.ref = "test_branch=>other_remote_branch"
 
         workers = [copy.copy(branch_worker_mock) for _ in range(2)]
-        self._gh.close_existing_prs_with_same_base(workers, input_pr_mock)
+        self._gh.close_existing_prs_for_series(workers, input_pr_mock)
         for worker in workers:
             self.assertEqual(len(worker.prs), 1)
             self.assertTrue("irrelevant" in worker.prs)
@@ -212,7 +212,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         pr_mock.head.ref = series_branch_name
 
         self._gh.checkout_and_patch_safe = AsyncMock(return_value=pr_mock)
-        self._gh.close_existing_prs_with_same_base = MagicMock()
+        self._gh.close_existing_prs_for_series = MagicMock()
 
         worker_mock = self._gh.workers[TEST_BRANCH]
         worker_mock.sync_checks = AsyncMock()
@@ -229,7 +229,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
             worker_mock, series_branch_name, series_mock
         )
         worker_mock.sync_checks.assert_called_once_with(pr_mock, series_mock)
-        self._gh.close_existing_prs_with_same_base.assert_called_once_with(
+        self._gh.close_existing_prs_for_series.assert_called_once_with(
             list(self._gh.workers.values()), pr_mock
         )
 
@@ -246,7 +246,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         pr_mock.head.ref = good_branch_name
 
         self._gh.checkout_and_patch_safe = AsyncMock(return_value=pr_mock)
-        self._gh.close_existing_prs_with_same_base = MagicMock()
+        self._gh.close_existing_prs_for_series = MagicMock()
 
         bad_worker_mock = self._gh.workers[TEST_BRANCH]
         bad_worker_mock.sync_checks = AsyncMock()
@@ -274,7 +274,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
             good_worker_mock, good_branch_name, series_mock
         )
         good_worker_mock.sync_checks.assert_called_once_with(pr_mock, series_mock)
-        self._gh.close_existing_prs_with_same_base.assert_called_once_with(
+        self._gh.close_existing_prs_for_series.assert_called_once_with(
             list(self._gh.workers.values()), pr_mock
         )
 

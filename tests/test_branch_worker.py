@@ -34,7 +34,7 @@ from kernel_patches_daemon.branch_worker import (
     email_in_submitter_allowlist,
     EmailBodyContext,
     furnish_ci_email_body,
-    has_same_base_different_remote,
+    same_series_different_remote,
     HEAD_BASE_SEPARATOR,
     temporary_patch_file,
     UPSTREAM_REMOTE_NAME,
@@ -869,21 +869,23 @@ class TestSupportFunctions(unittest.TestCase):
             repo_mock.create_label.assert_not_called()
             repo_label_mock.edit.assert_called_once_with(name="label", color="00000")
 
-    def test_has_same_base_different_remote(self) -> None:
-        with self.subTest("same_base_different_remote"):
+    def same_series_different_remote(self) -> None:
+        with self.subTest("same_series_different_remote"):
             self.assertTrue(
-                has_same_base_different_remote("base=>remote", "base=>other_remote")
+                same_series_different_remote(
+                    "series/1=>remote", "series/1=>other_remote"
+                )
             )
 
-        with self.subTest("different_base_same_remote"):
+        with self.subTest("different_series_same_remote"):
             self.assertFalse(
-                has_same_base_different_remote("base=>remote", "other_base=>remote")
+                same_series_different_remote("series/1=>remote", "series/2=>remote")
             )
 
-        with self.subTest("different_base_different_remote"):
+        with self.subTest("different_series_different_remote"):
             self.assertFalse(
-                has_same_base_different_remote(
-                    "base=>remote", "other_base=>other_remote"
+                same_series_different_remote(
+                    "series/1=>remote", "series/2=>other_remote"
                 )
             )
 
