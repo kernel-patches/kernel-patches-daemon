@@ -15,12 +15,16 @@ from github import Auth
 from github.PullRequest import PullRequest
 from kernel_patches_daemon.branch_worker import (
     BranchWorker,
-    get_base_branch_from_ref,
-    has_same_base_different_remote,
-    HEAD_BASE_SEPARATOR,
+    parsed_pr_ref_ok,
+    same_series_different_target,
+    parse_pr_ref,
     NewPRWithNoChangeException,
 )
-from kernel_patches_daemon.config import BranchConfig, KPDConfig
+from kernel_patches_daemon.config import (
+    SERIES_TARGET_SEPARATOR,
+    BranchConfig,
+    KPDConfig,
+)
 from kernel_patches_daemon.github_logs import (
     BpfGithubLogExtractor,
     DefaultGithubLogExtractor,
@@ -143,20 +147,20 @@ class GithubSync(Stats):
         logging.info(f"Mapped to default branch order: {mapped_branches}")
         return mapped_branches
 
-    def close_existing_prs_with_same_base(
+    def close_existing_prs_for_series(
         self, workers: Sequence["BranchWorker"], pr: PullRequest
     ) -> None:
-        """Close existing pull requests with the same base, but different remote branch
+        """Close existing pull requests for the same series, but different target branch
 
         For given pull request, find all other pull requests with
-        the same base, but different remote branch and close them.
+        the same series name, but different remote branch and close them.
         """
 
         prs_to_close = [
             existing_pr
             for worker in workers
             for existing_pr in worker.prs.values()
-            if has_same_base_different_remote(pr.head.ref, existing_pr.head.ref)
+            if same_series_different_target(pr.head.ref, existing_pr.head.ref)
         ]
         # Remove matching PRs from other workers
         for pr_to_close in prs_to_close:
@@ -170,7 +174,7 @@ class GithubSync(Stats):
                     del worker.prs[pr_to_close.title]
 
     async def checkout_and_patch_safe(
-        self, worker, branch_name: str, series_to_apply: Series
+        self, worker: BranchWorker, branch_name: str, series_to_apply: Series
     ) -> Optional[PullRequest]:
         try:
             self.increment_counter("all_known_subjects")
@@ -221,6 +225,7 @@ class GithubSync(Stats):
                     continue
                 else:
                     logging.info(msg + "no more next, staying.")
+
             logging.info(f"Choosing branch {branch} to create/update PR.")
             pr = await self.checkout_and_patch_safe(worker, pr_branch_name, series)
             if pr is None:
@@ -231,7 +236,7 @@ class GithubSync(Stats):
             )
             await worker.sync_checks(pr, series)
             # Close out other PRs if exists
-            self.close_existing_prs_with_same_base(list(self.workers.values()), pr)
+            self.close_existing_prs_for_series(list(self.workers.values()), pr)
 
             break
         pass
@@ -285,11 +290,12 @@ class GithubSync(Stats):
                     continue
 
                 if worker._is_relevant_pr(pr):
+                    parsed_ref = parse_pr_ref(pr.head.ref)
                     # ignore unknown format branch/PRs.
-                    if "/" not in pr.head.ref or HEAD_BASE_SEPARATOR not in pr.head.ref:
+                    if parsed_pr_ref_ok(parsed_ref):
                         continue
 
-                    series_id = int(get_base_branch_from_ref(pr.head.ref.split("/")[1]))
+                    series_id = parsed_ref["series_id"]
                     series = await self.pw.get_series_by_id(series_id)
                     subject = self.pw.get_subject_by_series(series)
                     if subject_name != subject.subject:
@@ -297,7 +303,7 @@ class GithubSync(Stats):
                             f"Renaming {pr} from {subject_name} to {subject.subject} according to {series.id}"
                         )
                         pr.edit(title=subject.subject)
-                    branch_name = f"{await subject.branch}{HEAD_BASE_SEPARATOR}{worker.repo_branch}"
+                    branch_name = f"{await subject.branch}{SERIES_TARGET_SEPARATOR}{worker.repo_branch}"
                     latest_series = await subject.latest_series or series
                     pr = await self.checkout_and_patch_safe(
                         worker, branch_name, latest_series

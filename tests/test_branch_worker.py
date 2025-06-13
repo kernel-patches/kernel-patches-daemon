@@ -34,12 +34,15 @@ from kernel_patches_daemon.branch_worker import (
     email_in_submitter_allowlist,
     EmailBodyContext,
     furnish_ci_email_body,
-    has_same_base_different_remote,
-    HEAD_BASE_SEPARATOR,
+    same_series_different_target,
     temporary_patch_file,
     UPSTREAM_REMOTE_NAME,
 )
-from kernel_patches_daemon.config import EmailConfig
+from kernel_patches_daemon.config import (
+    EmailConfig,
+    SERIES_TARGET_SEPARATOR,
+    SERIES_ID_SEPARATOR,
+)
 from kernel_patches_daemon.github_logs import DefaultGithubLogExtractor
 from kernel_patches_daemon.patchwork import Series, Subject
 from kernel_patches_daemon.status import Status
@@ -486,15 +489,17 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             TestCase(
                 name="A branch fetch pattern: expired should be deleted, not expired should not be deleted.",
                 branches=[
-                    "test1" + HEAD_BASE_SEPARATOR + self._bw.repo_branch,
-                    "test2" + HEAD_BASE_SEPARATOR + self._bw.repo_branch,
+                    f"series{SERIES_ID_SEPARATOR}111111{SERIES_TARGET_SEPARATOR}{self._bw.repo_branch}",
+                    f"series{SERIES_ID_SEPARATOR}222222{SERIES_TARGET_SEPARATOR}{self._bw.repo_branch}",
                 ],
                 fcp_called_branches=[
-                    "test1" + HEAD_BASE_SEPARATOR + self._bw.repo_branch,
-                    "test2" + HEAD_BASE_SEPARATOR + self._bw.repo_branch,
+                    f"series{SERIES_ID_SEPARATOR}111111{SERIES_TARGET_SEPARATOR}{self._bw.repo_branch}",
+                    f"series{SERIES_ID_SEPARATOR}222222{SERIES_TARGET_SEPARATOR}{self._bw.repo_branch}",
                 ],
                 fcp_return_prs=[PR(updated_at=expired_time), PR()],
-                deleted_branches=["test1" + HEAD_BASE_SEPARATOR + self._bw.repo_branch],
+                deleted_branches=[
+                    f"series{SERIES_ID_SEPARATOR}111111{SERIES_TARGET_SEPARATOR}{self._bw.repo_branch}"
+                ],
                 # filter_closed_prs for both "test1=>repo_branch", "test2=>repo_branch"
                 # only delete "test1=>repo_branch"
             ),
@@ -869,21 +874,23 @@ class TestSupportFunctions(unittest.TestCase):
             repo_mock.create_label.assert_not_called()
             repo_label_mock.edit.assert_called_once_with(name="label", color="00000")
 
-    def test_has_same_base_different_remote(self) -> None:
-        with self.subTest("same_base_different_remote"):
+    def test_same_series_different_target(self) -> None:
+        with self.subTest("same_series_different_target"):
             self.assertTrue(
-                has_same_base_different_remote("base=>remote", "base=>other_remote")
+                same_series_different_target(
+                    "series/1=>target", "series/1=>other_target"
+                )
             )
 
-        with self.subTest("different_base_same_remote"):
+        with self.subTest("different_series_same_target"):
             self.assertFalse(
-                has_same_base_different_remote("base=>remote", "other_base=>remote")
+                same_series_different_target("series/1=>target", "series/2=>target")
             )
 
-        with self.subTest("different_base_different_remote"):
+        with self.subTest("different_series_different_target"):
             self.assertFalse(
-                has_same_base_different_remote(
-                    "base=>remote", "other_base=>other_remote"
+                same_series_different_target(
+                    "series/1=>target", "series/2=>other_target"
                 )
             )
 
