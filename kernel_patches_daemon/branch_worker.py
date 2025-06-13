@@ -351,9 +351,9 @@ async def send_email(
         email_send_fail_counter.add(1)
 
 
-def _is_pr_flagged(pr: PullRequest) -> bool:
-    for label in pr.get_labels():
-        if MERGE_CONFLICT_LABEL == label.name:
+def pr_has_label(pr: PullRequest, label: str) -> bool:
+    for l in pr.get_labels():
+        if l.name == label:
             return True
     return False
 
@@ -855,7 +855,7 @@ class BranchWorker(GithubConnector):
 
         if pr:
             if (not has_merge_conflict) or (
-                has_merge_conflict and not _is_pr_flagged(pr)
+                has_merge_conflict and not pr_has_label(pr, MERGE_CONFLICT_LABEL)
             ):
                 if message:
                     self._add_pull_request_comment(pr, message)
@@ -1109,7 +1109,7 @@ class BranchWorker(GithubConnector):
         pr.update()
         # if it's merge conflict - report failure
         ctx = BranchWorker.slugify_context(f"{CI_DESCRIPTION}-{self.repo_branch}")
-        if _is_pr_flagged(pr):
+        if pr_has_label(pr, MERGE_CONFLICT_LABEL):
             await series.set_check(
                 status=Status.CONFLICT,
                 target_url=pr.html_url,
