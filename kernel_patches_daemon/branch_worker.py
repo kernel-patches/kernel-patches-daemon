@@ -1100,7 +1100,8 @@ class BranchWorker(GithubConnector):
         return res
 
     async def subject_to_branch(self, subject: Subject) -> str:
-        return f"{await subject.branch}{SERIES_TARGET_SEPARATOR}{self.repo_branch}"
+        subj_branch = await subject.branch()
+        return f"{subj_branch}{SERIES_TARGET_SEPARATOR}{self.repo_branch}"
 
     async def sync_checks(self, pr: PullRequest, series: Series) -> None:
         # Make sure that we are working with up-to-date data (as opposed to

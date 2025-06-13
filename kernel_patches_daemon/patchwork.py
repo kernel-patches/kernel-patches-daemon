@@ -289,21 +289,18 @@ class Subject:
         self.pw_client = pw_client
         self.subject = subject
 
-    @property
     async def branch(self) -> Optional[str]:
-        relevant_series = await self.relevant_series
+        relevant_series = await self.relevant_series()
         if len(relevant_series) == 0:
             return None
         return f"series{SERIES_ID_SEPARATOR}{relevant_series[0].id}"
 
-    @property
     async def latest_series(self) -> Optional["Series"]:
-        relevant_series = await self.relevant_series
+        relevant_series = await self.relevant_series()
         if len(relevant_series) == 0:
             return None
         return relevant_series[-1]
 
-    @property
     @cached(cache=TTLCache(maxsize=1, ttl=600))
     async def relevant_series(self) -> List["Series"]:
         """
@@ -768,7 +765,7 @@ class Patchwork:
             async def fetch_latest_series(
                 subject_name, subject_obj
             ) -> Tuple[str, Series, Optional[Series]]:
-                return (subject_name, subject_obj, await subject_obj.latest_series)
+                return (subject_name, subject_obj, await subject_obj.latest_series())
 
             tasks = [fetch_latest_series(k, v) for k, v in subjects.items()]
             tasks = await asyncio.gather(*tasks)
