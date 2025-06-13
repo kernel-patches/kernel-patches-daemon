@@ -636,11 +636,13 @@ class TestSubject(PatchworkTestCase):
         init_pw_responses(m, DEFAULT_TEST_RESPONSES)
 
         s = Subject("foo", self._pw)
+
         # There is 2 relevant series
-        self.assertEqual(len(await s.relevant_series), 4)
+        relevant_series = await s.relevant_series()
+        self.assertEqual(len(relevant_series), 4)
 
         # Series are ordered from oldest to newest
-        series = (await s.relevant_series)[0]
+        series = relevant_series[0]
         self.assertEqual(series.id, FOO_SERIES_FIRST)
         # It has only 1 diff, diff 11
         self.assertEqual(len(await series.get_patches()), 1)
@@ -655,7 +657,7 @@ class TestSubject(PatchworkTestCase):
         init_pw_responses(m, DEFAULT_TEST_RESPONSES)
 
         s = Subject("foo", self._pw)
-        latest_series = none_throws(await s.latest_series)
+        latest_series = none_throws(await s.latest_series())
         # It is Series with ID FOO_SERIES_LAST
         self.assertEqual(latest_series.id, FOO_SERIES_LAST)
         # and has 3 diffs
@@ -670,6 +672,6 @@ class TestSubject(PatchworkTestCase):
         init_pw_responses(m, DEFAULT_TEST_RESPONSES)
 
         s = Subject("foo", self._pw)
-        branch = await s.branch
+        branch = await s.branch()
         # It is Series with ID 4
         self.assertEqual(branch, f"series/{FOO_SERIES_FIRST}")

@@ -398,21 +398,22 @@ def create_color_labels(labels_cfg: Dict[str, str], repo: Repository) -> None:
             repo.create_label(name=label, color=color)
 
 
-def get_base_branch_from_ref(ref: str) -> str:
-    return ref.split(HEAD_BASE_SEPARATOR)[0]
+def parse_pr_ref(ref: str) -> List[str]:
+    # "series123=>target" -> ["series123", "target"]
+    return ref.split(HEAD_BASE_SEPARATOR)
 
 
-def has_same_base_different_remote(ref: str, other_ref: str) -> bool:
+def same_series_different_remote(ref: str, other_ref: str) -> bool:
     if ref == other_ref:
         return False
+    series = parse_pr_ref(ref)[0]
+    other_series = parse_pr_ref(other_ref)[0]
+    return series == other_series
 
-    base = get_base_branch_from_ref(ref)
-    other_base = get_base_branch_from_ref(other_ref)
 
-    if base != other_base:
-        return False
-
-    return True
+def series_id_from_ref(ref: str) -> int:
+    series_str = parse_pr_ref(ref)[0]
+    return int(series_str.split("/")[1])
 
 
 def _reset_repo(repo, branch: str) -> None:
@@ -1081,7 +1082,8 @@ class BranchWorker(GithubConnector):
         return res
 
     async def subject_to_branch(self, subject: Subject) -> str:
-        return f"{await subject.branch}{HEAD_BASE_SEPARATOR}{self.repo_branch}"
+        subj_branch = await subject.branch()
+        return f"{subj_branch}{HEAD_BASE_SEPARATOR}{self.repo_branch}"
 
     async def sync_checks(self, pr: PullRequest, series: Series) -> None:
         # Make sure that we are working with up-to-date data (as opposed to

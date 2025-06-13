@@ -15,8 +15,8 @@ from github import Auth
 from github.PullRequest import PullRequest
 from kernel_patches_daemon.branch_worker import (
     BranchWorker,
-    get_base_branch_from_ref,
-    has_same_base_different_remote,
+    same_series_different_remote,
+    series_id_from_ref,
     HEAD_BASE_SEPARATOR,
     NewPRWithNoChangeException,
 )
@@ -133,7 +133,8 @@ class GithubSync(Stats):
 
     async def get_mapped_branches(self, series: Series) -> List[str]:
         for tag in self.tag_to_branch_mapping:
-            if tag in await series.all_tags():
+            series_tags = await series.all_tags()
+            if tag in series_tags:
                 mapped_branches = self.tag_to_branch_mapping[tag]
                 logging.info(f"Tag '{tag}' mapped to branch order {mapped_branches}")
                 return mapped_branches
@@ -142,20 +143,20 @@ class GithubSync(Stats):
         logging.info(f"Mapped to default branch order: {mapped_branches}")
         return mapped_branches
 
-    def close_existing_prs_with_same_base(
+    def close_existing_prs_for_series(
         self, workers: Sequence["BranchWorker"], pr: PullRequest
     ) -> None:
-        """Close existing pull requests with the same base, but different remote branch
+        """Close existing pull requests for the same series, but different target branch
 
         For given pull request, find all other pull requests with
-        the same base, but different remote branch and close them.
+        the same series name, but different remote branch and close them.
         """
 
         prs_to_close = [
             existing_pr
             for worker in workers
             for existing_pr in worker.prs.values()
-            if has_same_base_different_remote(pr.head.ref, existing_pr.head.ref)
+            if same_series_different_remote(pr.head.ref, existing_pr.head.ref)
         ]
         # Remove matching PRs from other workers
         for pr_to_close in prs_to_close:
@@ -169,7 +170,7 @@ class GithubSync(Stats):
                     del worker.prs[pr_to_close.title]
 
     async def checkout_and_patch_safe(
-        self, worker, branch_name: str, series_to_apply: Series
+        self, worker: BranchWorker, branch_name: str, series_to_apply: Series
     ) -> Optional[PullRequest]:
         try:
             self.increment_counter("all_known_subjects")
@@ -185,6 +186,87 @@ class GithubSync(Stats):
                 f"Could not create PR for series {series_to_apply.id} merging {e.base_branch} into {e.target_branch} as PR would introduce no changes"
             )
             return None
+
+    async def select_target_branches_for_subject(
+        self, subject: Subject, tag_mapped_branches: List[str]
+    ) -> List[str]:
+        if len(tag_mapped_branches) == 1:
+            return tag_mapped_branches
+
+        def has_merge_conflict_label(pr: PullRequest) -> bool:
+            for label in pr.get_labels():
+                if label.name == "merge-conflict":
+                    return True
+            return False
+
+        # Check if a single relevant open PR without merge conflicts exists.
+        # If yes, then pick it without trying other target branches.
+        subject_pr_targets = []
+        for branch in tag_mapped_branches:
+            worker = self.workers[branch]
+            subj_branch = await worker.subject_to_branch(subject)
+            for pr in worker.prs.values():
+                if pr.head.ref == subj_branch and not has_merge_conflict_label(pr):
+                    subject_pr_targets.append(branch)
+
+        if len(subject_pr_targets) == 1:
+            return [subject_pr_targets[0]]
+
+        # If no sticky target is determined, then return all branches
+        return tag_mapped_branches
+
+    async def sync_relevant_subject(self, subject: Subject) -> None:
+        """
+        1. Get Subject's latest series
+        2. Get series tags
+        3. Map tags to a branches
+        4. Start from first branch, try to apply and generate PR,
+           if fails continue to next branch, if no more branches, generate a merge-conflict PR
+        """
+        series = none_throws(await subject.latest_series())
+        tags = await series.all_tags()
+        logging.info(f"Processing {series.id}: {subject.subject} (tags: {tags})")
+
+        mapped_branches = await self.get_mapped_branches(series)
+        if len(mapped_branches) == 0:
+            logging.info(
+                f"Skipping {series.id}: {subject.subject} for no mapped branches."
+            )
+            return
+
+        target_branches = await self.select_target_branches_for_subject(
+            subject, mapped_branches
+        )
+        last_branch = target_branches[-1]
+        for branch in target_branches:
+            worker = self.workers[branch]
+            # PR branch name == sid of the first known series
+            pr_branch_name = await worker.subject_to_branch(subject)
+            (applied, _, _) = await worker.try_apply_mailbox_series(
+                pr_branch_name, series
+            )
+            if not applied:
+                msg = f"Failed to apply series to {branch}, "
+                if branch != last_branch:
+                    logging.info(msg + "moving to next.")
+                    continue
+                else:
+                    logging.info(msg + "no more next, staying.")
+
+            logging.info(f"Choosing branch {branch} to create/update PR.")
+            pr = await self.checkout_and_patch_safe(worker, pr_branch_name, series)
+            if pr is None:
+                continue
+
+            logging.info(
+                f"Created/updated {pr} ({pr.head.ref}): {pr.url} for series {series.id}"
+            )
+            await worker.sync_checks(pr, series)
+            # Close out other PRs if exists
+            self.close_existing_prs_for_series(list(self.workers.values()), pr)
+
+            break
+        pass
 
     async def sync_patches(self) -> None:
         """
@@ -208,7 +290,8 @@ class GithubSync(Stats):
             await loop.run_in_executor(None, worker.get_pulls)
             await loop.run_in_executor(None, worker.do_sync)
             worker._closed_prs = None
-            worker.branches = [x.name for x in worker.repo.get_branches()]
+            branches = worker.repo.get_branches()
+            worker.branches = [b.name for b in branches]
 
         mirror_done = time.time()
 
@@ -223,52 +306,8 @@ class GithubSync(Stats):
 
         pw_done = time.time()
 
-        # 1. Get Subject's latest series
-        # 2. Get series tags
-        # 3. Map tags to a branches
-        # 4. Start from first branch, try to apply and generate PR,
-        #    if fails continue to next branch, if no more branches, generate a merge-conflict PR
         for subject in self.subjects:
-            series = none_throws(await subject.latest_series)
-            logging.info(
-                f"Processing {series.id}: {subject.subject} (tags: {await series.all_tags()})"
-            )
-
-            mapped_branches = await self.get_mapped_branches(series)
-            # series to apply - last known series
-            if len(mapped_branches) == 0:
-                logging.info(
-                    f"Skipping {series.id}: {subject.subject} for no mapped branches."
-                )
-                continue
-            last_branch = mapped_branches[-1]
-            for branch in mapped_branches:
-                worker = self.workers[branch]
-                # PR branch name == sid of the first known series
-                pr_branch_name = await worker.subject_to_branch(subject)
-                apply_mbox = await worker.try_apply_mailbox_series(
-                    pr_branch_name, series
-                )
-                if not apply_mbox[0]:
-                    msg = f"Failed to apply series to {branch}, "
-                    if branch != last_branch:
-                        logging.info(msg + "moving to next.")
-                        continue
-                    else:
-                        logging.info(msg + "no more next, staying.")
-                logging.info(f"Choosing branch {branch} to create/update PR.")
-                pr = await self.checkout_and_patch_safe(worker, pr_branch_name, series)
-                if pr is None:
-                    continue
-
-                logging.info(
-                    f"Created/updated {pr} ({pr.head.ref}): {pr.url} for series {series.id}"
-                )
-                await worker.sync_checks(pr, series)
-                # Close out other PRs if exists
-                self.close_existing_prs_with_same_base(list(self.workers.values()), pr)
-
-                break
+            await self.sync_relevant_subject(subject)
 
         # sync old subjects
         subject_names = {x.subject for x in self.subjects}
@@ -282,7 +321,7 @@ class GithubSync(Stats):
                     if "/" not in pr.head.ref or HEAD_BASE_SEPARATOR not in pr.head.ref:
                         continue
 
-                    series_id = int(get_base_branch_from_ref(pr.head.ref.split("/")[1]))
+                    series_id = series_id_from_ref(pr.head.ref)
                     series = await self.pw.get_series_by_id(series_id)
                     subject = self.pw.get_subject_by_series(series)
                     if subject_name != subject.subject:
@@ -290,8 +329,8 @@ class GithubSync(Stats):
                             f"Renaming {pr} from {subject_name} to {subject.subject} according to {series.id}"
                         )
                         pr.edit(title=subject.subject)
-                    branch_name = f"{await subject.branch}{HEAD_BASE_SEPARATOR}{worker.repo_branch}"
-                    latest_series = await subject.latest_series or series
+                    branch_name = await worker.subject_to_branch(subject)
+                    latest_series = await subject.latest_series() or series
                     pr = await self.checkout_and_patch_safe(
                         worker, branch_name, latest_series
                     )

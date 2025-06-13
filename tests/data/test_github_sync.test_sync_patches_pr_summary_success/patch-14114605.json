@@ -1,0 +1,88 @@
+{
+    "id": 14114605,
+    "url": "https://patchwork.test/api/1.1/patches/14114605/",
+    "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611154859.259682-1-chen.dylane@linux.dev/",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.test/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "msgid": "<20250611154859.259682-1-chen.dylane@linux.dev>",
+    "date": "2025-06-11T15:48:58",
+    "name": "[bpf-next] bpf: clear user buf when bpf_d_path failed",
+    "commit_ref": "3b55a9e6738b7b82a7c57ebaa484aabd0c9d36bd",
+    "pull_url": null,
+    "state": "new",
+    "archived": false,
+    "hash": "ecb10e6ecea01d3f770e4d08eb251179b0f9a98b",
+    "submitter": {
+        "id": 216065,
+        "url": "https://patchwork.test/api/1.1/people/216065/",
+        "name": "Tao Chen",
+        "email": "chen.dylane@linux.dev"
+    },
+    "delegate": {
+        "id": 121173,
+        "url": "https://patchwork.test/api/1.1/users/121173/",
+        "username": "bpf",
+        "first_name": "BPF",
+        "last_name": "",
+        "email": "bpf@iogearbox.net"
+    },
+    "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611154859.259682-1-chen.dylane@linux.dev/mbox/",
+    "series": [
+        {
+            "id": 970926,
+            "url": "https://patchwork.test/api/1.1/series/970926/",
+            "web_url": "https://patchwork.test/project/netdevbpf/list/?series=970926",
+            "date": "2025-06-11T15:48:58",
+            "name": "[bpf-next] bpf: clear user buf when bpf_d_path failed",
+            "version": 1,
+            "mbox": "https://patchwork.test/series/970926/mbox/"
+        }
+    ],
+    "comments": "https://patchwork.test/api/patches/14114605/comments/",
+    "check": "success",
+    "checks": "https://patchwork.test/api/patches/14114605/checks/",
+    "tags": {},
+    "headers": {
+        "Received": "from out-186.mta0.migadu.com (out-186.mta0.migadu.com\n [91.218.175.186])\n\t(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))\n\t(No client certificate requested)\n\tby smtp.subspace.kernel.org (Postfix) with ESMTPS id 29219198E75\n\tfor <bpf@vger.kernel.org>; Wed, 11 Jun 2025 15:49:31 +0000 (UTC)",
+        "Authentication-Results": [
+            "smtp.subspace.kernel.org;\n arc=none smtp.client-ip=91.218.175.186",
+            "smtp.subspace.kernel.org;\n dmarc=pass (p=none dis=none) header.from=linux.dev",
+            "smtp.subspace.kernel.org;\n spf=pass smtp.mailfrom=linux.dev",
+            "smtp.subspace.kernel.org;\n\tdkim=pass (1024-bit key) header.d=linux.dev header.i=@linux.dev\n header.b=\"BLMetV01\""
+        ],
+        "ARC-Seal": "i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;\n\tt=1749656974; cv=none;\n b=H3sJmO/4HOlIx6kUFl6H/+BRA9KPHHH4Q7GjlSA/LngQ6EFecK1QUciBapIR6C34s0H1sz1+glg3v1exuzPTkszlKJv44cGH+VioXoRre8Y0iWC1KVwdc7RHvgffJ0XPGihrNjrcuJjt4YmUCnouwVszIm4By1xzu3Sb6+nLec8=",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; d=subspace.kernel.org;\n\ts=arc-20240116; t=1749656974; c=relaxed/simple;\n\tbh=Vsu5Xaf2CfmWYXrEWUU8kTg6xy3/CnahfubB8AomyEw=;\n\th=From:To:Cc:Subject:Date:Message-ID:MIME-Version;\n b=dncJRD9nOpjZrsdcvYkxd2CfccDyNQ8uHadiFb/G4K5K4GAr1MRjBv/suIeI85s0iKBmv5NZ3r2PFI1g9Yus7+jBZ5z/wo42zqDVLhXSK87Dx3X+clSbiW9VqQ7wzQM1/2xFRgNIlZ12hswHopIjCQCr+w52ofYIXiH5Ug7o85Q=",
+        "ARC-Authentication-Results": "i=1; smtp.subspace.kernel.org;\n dmarc=pass (p=none dis=none) header.from=linux.dev;\n spf=pass smtp.mailfrom=linux.dev;\n dkim=pass (1024-bit key) header.d=linux.dev header.i=@linux.dev\n header.b=BLMetV01; arc=none smtp.client-ip=91.218.175.186",
+        "X-Report-Abuse": "Please report any abuse attempt to abuse@migadu.com and\n include these headers.",
+        "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed; d=linux.dev; s=key1;\n\tt=1749656960;\n\th=from:from:reply-to:subject:subject:date:date:message-id:message-id:\n\t to:to:cc:cc:mime-version:mime-version:\n\t content-transfer-encoding:content-transfer-encoding;\n\tbh=NkpbyMsiJRwWnx6iOR+RLlbhyzNlbJ3e38I3A+4NmfI=;\n\tb=BLMetV01lS4FXWjpoxALr+a7Mi0irlvKqYcAZBywjBIwgNGKzGMwf6SP0SwobrqhyTbR8H\n\tNQ/nTgeRdr9+LbZ4t/A+vxRUTO28kF4R6uvFYTrAwmTj5i/qgFhOAX9bHiICSohUcwmfK3\n\tWvRPHYKGvp0Puq6S/5gBm2Q5AFHG7m4=",
+        "From": "Tao Chen <chen.dylane@linux.dev>",
+        "To": "kpsingh@kernel.org,\n\tmattbobrowski@google.com,\n\tast@kernel.org,\n\tdaniel@iogearbox.net,\n\tandrii@kernel.org,\n\tmartin.lau@linux.dev,\n\teddyz87@gmail.com,\n\tsong@kernel.org,\n\tyonghong.song@linux.dev,\n\tjohn.fastabend@gmail.com,\n\tsdf@fomichev.me,\n\thaoluo@google.com,\n\tjolsa@kernel.org,\n\trostedt@goodmis.org,\n\tmhiramat@kernel.org,\n\tmathieu.desnoyers@efficios.com",
+        "Cc": "bpf@vger.kernel.org,\n\tlinux-kernel@vger.kernel.org,\n\tlinux-trace-kernel@vger.kernel.org,\n\tTao Chen <chen.dylane@linux.dev>",
+        "Subject": "[PATCH bpf-next] bpf: clear user buf when bpf_d_path failed",
+        "Date": "Wed, 11 Jun 2025 23:48:58 +0800",
+        "Message-ID": "<20250611154859.259682-1-chen.dylane@linux.dev>",
+        "Precedence": "bulk",
+        "X-Mailing-List": "bpf@vger.kernel.org",
+        "List-Id": "<bpf.vger.kernel.org>",
+        "List-Subscribe": "<mailto:bpf+subscribe@vger.kernel.org>",
+        "List-Unsubscribe": "<mailto:bpf+unsubscribe@vger.kernel.org>",
+        "MIME-Version": "1.0",
+        "Content-Transfer-Encoding": "8bit",
+        "X-Migadu-Flow": "FLOW_OUT",
+        "X-Patchwork-Delegate": "bpf@iogearbox.net"
+    },
+    "content": "The bpf_d_path() function may fail. If it does,\nclear the user buf, like bpf_probe_read etc.\n\nSigned-off-by: Tao Chen <chen.dylane@linux.dev>\n---\n kernel/trace/bpf_trace.c | 5 ++++-\n 1 file changed, 4 insertions(+), 1 deletion(-)",
+    "diff": "diff --git a/kernel/trace/bpf_trace.c b/kernel/trace/bpf_trace.c\nindex 0998cbbb963..bb1003cb271 100644\n--- a/kernel/trace/bpf_trace.c\n+++ b/kernel/trace/bpf_trace.c\n@@ -916,11 +916,14 @@ BPF_CALL_3(bpf_d_path, struct path *, path, char *, buf, u32, sz)\n \t * potentially broken verifier.\n \t */\n \tlen = copy_from_kernel_nofault(&copy, path, sizeof(*path));\n-\tif (len < 0)\n+\tif (len < 0) {\n+\t\tmemset(buf, 0, sz);\n \t\treturn len;\n+\t}\n \n \tp = d_path(&copy, buf, sz);\n \tif (IS_ERR(p)) {\n+\t\tmemset(buf, 0, sz);\n \t\tlen = PTR_ERR(p);\n \t} else {\n \t\tlen = buf + sz - p;\n",
+    "prefixes": [
+        "bpf-next"
+    ]
+}

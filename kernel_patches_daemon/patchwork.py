@@ -288,21 +288,18 @@ class Subject:
         self.pw_client = pw_client
         self.subject = subject
 
-    @property
     async def branch(self) -> Optional[str]:
-        relevant_series = await self.relevant_series
+        relevant_series = await self.relevant_series()
         if len(relevant_series) == 0:
             return None
         return f"series/{relevant_series[0].id}"
 
-    @property
     async def latest_series(self) -> Optional["Series"]:
-        relevant_series = await self.relevant_series
+        relevant_series = await self.relevant_series()
         if len(relevant_series) == 0:
             return None
         return relevant_series[-1]
 
-    @property
     @cached(cache=TTLCache(maxsize=1, ttl=600))
     async def relevant_series(self) -> List["Series"]:
         """
@@ -580,7 +577,8 @@ class Patchwork:
             params = {}
         while True:
             response = await self.__get(path, params=params)
-            items += await response.json()
+            j = await response.json()
+            items += j
 
             if "next" not in response.links:
                 break
@@ -695,9 +693,8 @@ class Patchwork:
     async def get_series_by_id(self, series_id: int) -> Series:
         # fetches directly only if series is not available in local scope
         if series_id not in self.known_series:
-            self.known_series[series_id] = Series(
-                self, await self.__get_object_by_id("series", series_id)
-            )
+            series_json = await self.__get_object_by_id("series", series_id)
+            self.known_series[series_id] = Series(self, series_json)
 
         return self.known_series[series_id]
 
@@ -767,7 +764,7 @@ class Patchwork:
             async def fetch_latest_series(
                 subject_name, subject_obj
             ) -> Tuple[str, Series, Optional[Series]]:
-                return (subject_name, subject_obj, await subject_obj.latest_series)
+                return (subject_name, subject_obj, await subject_obj.latest_series())
 
             tasks = [fetch_latest_series(k, v) for k, v in subjects.items()]
             tasks = await asyncio.gather(*tasks)

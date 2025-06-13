@@ -1,0 +1,92 @@
+{
+    "id": 14114773,
+    "url": "https://patchwork.test/api/1.1/patches/14114773/",
+    "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611171524.2033657-1-yonghong.song@linux.dev/",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.test/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "msgid": "<20250611171524.2033657-1-yonghong.song@linux.dev>",
+    "date": "2025-06-11T17:15:24",
+    "name": "[bpf-next,v2,1/3] bpf: Fix an issue in bpf_prog_test_run_xdp when page size greater than 4K",
+    "commit_ref": null,
+    "pull_url": null,
+    "state": "changes-requested",
+    "archived": false,
+    "hash": "3d9e0c54fee868ec1c6ac264e57d215139d12f22",
+    "submitter": {
+        "id": 210263,
+        "url": "https://patchwork.test/api/1.1/people/210263/",
+        "name": "Yonghong Song",
+        "email": "yonghong.song@linux.dev"
+    },
+    "delegate": {
+        "id": 121173,
+        "url": "https://patchwork.test/api/1.1/users/121173/",
+        "username": "bpf",
+        "first_name": "BPF",
+        "last_name": "",
+        "email": "bpf@iogearbox.net"
+    },
+    "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611171524.2033657-1-yonghong.song@linux.dev/mbox/",
+    "series": [
+        {
+            "id": 970968,
+            "url": "https://patchwork.test/api/1.1/series/970968/",
+            "web_url": "https://patchwork.test/project/netdevbpf/list/?series=970968",
+            "date": "2025-06-11T17:15:19",
+            "name": "bpf: Fix a few test failures with 64K page size",
+            "version": 2,
+            "mbox": "https://patchwork.test/series/970968/mbox/"
+        }
+    ],
+    "comments": "https://patchwork.test/api/patches/14114773/comments/",
+    "check": "warning",
+    "checks": "https://patchwork.test/api/patches/14114773/checks/",
+    "tags": {},
+    "headers": {
+        "Received": [
+            "from 66-220-144-178.mail-mxout.facebook.com\n (66-220-144-178.mail-mxout.facebook.com [66.220.144.178])\n\t(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))\n\t(No client certificate requested)\n\tby smtp.subspace.kernel.org (Postfix) with ESMTPS id C2F7D176FB0\n\tfor <bpf@vger.kernel.org>; Wed, 11 Jun 2025 17:15:36 +0000 (UTC)",
+            "by devvm16039.vll0.facebook.com (Postfix, from userid 128203)\n\tid C89EC9680C3C; Wed, 11 Jun 2025 10:15:24 -0700 (PDT)"
+        ],
+        "Authentication-Results": [
+            "smtp.subspace.kernel.org;\n arc=none smtp.client-ip=66.220.144.178",
+            "smtp.subspace.kernel.org;\n dmarc=fail (p=none dis=none) header.from=linux.dev",
+            "smtp.subspace.kernel.org;\n spf=fail smtp.mailfrom=linux.dev"
+        ],
+        "ARC-Seal": "i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;\n\tt=1749662139; cv=none;\n b=MWtGjiv5fK+cfyuRZs91UdoeCkok6sC9xRNWjzHP/4OuyfIi7nYt9Uh9ABf7wvrPKCM+umpE8wW6C60TCiDu/tL2LQ+7CHkUu/UkgWIYHMbgQnPsdkAKexzFzaSt2eIpmLBx9Lxcjo91TG/QqgulAIBmdRvGGClMqQHN+LNN3PU=",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; d=subspace.kernel.org;\n\ts=arc-20240116; t=1749662139; c=relaxed/simple;\n\tbh=tsR3mgpai7tGsrvkBO1E4u9z0EoTaC8wsDyWMpIm5wA=;\n\th=From:To:Cc:Subject:Date:Message-ID:In-Reply-To:References:\n\t MIME-Version;\n b=TxC1UmhxgG3EnDDN74/3y6l5LD5NtwQf/Y8Wi7dhKf1aZ5sfeS+7I+xehvuoeaGIfcMqEIY2sj9k+4isAjND4bqCZohdKcd/69RPXFTkbL9LcgS6Xneh1fDwfGGcvTkuWmkczGmzlWNpu7p8FtkI5xrwa0WgWCoUbGtGqiqbhP4=",
+        "ARC-Authentication-Results": "i=1; smtp.subspace.kernel.org;\n dmarc=fail (p=none dis=none) header.from=linux.dev;\n spf=fail smtp.mailfrom=linux.dev; arc=none smtp.client-ip=66.220.144.178",
+        "From": "Yonghong Song <yonghong.song@linux.dev>",
+        "To": "bpf@vger.kernel.org",
+        "Cc": "Alexei Starovoitov <ast@kernel.org>,\n\tAndrii Nakryiko <andrii@kernel.org>,\n\tDaniel Borkmann <daniel@iogearbox.net>,\n\tkernel-team@fb.com,\n\tMartin KaFai Lau <martin.lau@kernel.org>",
+        "Subject": "[PATCH bpf-next v2 1/3] bpf: Fix an issue in bpf_prog_test_run_xdp\n when page size greater than 4K",
+        "Date": "Wed, 11 Jun 2025 10:15:24 -0700",
+        "Message-ID": "<20250611171524.2033657-1-yonghong.song@linux.dev>",
+        "X-Mailer": "git-send-email 2.47.1",
+        "In-Reply-To": "<20250611171519.2033193-1-yonghong.song@linux.dev>",
+        "References": "<20250611171519.2033193-1-yonghong.song@linux.dev>",
+        "Precedence": "bulk",
+        "X-Mailing-List": "bpf@vger.kernel.org",
+        "List-Id": "<bpf.vger.kernel.org>",
+        "List-Subscribe": "<mailto:bpf+subscribe@vger.kernel.org>",
+        "List-Unsubscribe": "<mailto:bpf+unsubscribe@vger.kernel.org>",
+        "MIME-Version": "1.0",
+        "Content-Transfer-Encoding": "quoted-printable",
+        "X-Patchwork-Delegate": "bpf@iogearbox.net"
+    },
+    "content": "The bpf selftest xdp_adjust_tail/xdp_adjust_frags_tail_grow failed on\narm64 with 64KB page:\n   xdp_adjust_tail/xdp_adjust_frags_tail_grow:FAIL\n\nIn bpf_prog_test_run_xdp(), the xdp->frame_sz is set to 4K, but later on\nwhen constructing frags, with 64K page size, the frag data_len could\nbe more than 4K. This will cause problems in bpf_xdp_frags_increase_tail().\n\nTo fix the failure, the xdp->frame_sz is set to be PAGE_SIZE so kernel\ncan test different page size properly. With the kernel change, the user\nspace and bpf prog needs adjustment. Currently, the MAX_SKB_FRAGS default\nvalue is 17, so for 4K page, the maximum packet size will be less than 68K.\nTo test 64K page, a bigger maximum packet size than 68K is desired. So two\ndifferent functions are implemented for subtest xdp_adjust_frags_tail_grow.\nDepending on different page size, different data input/output sizes are used\nto adapt with different page size.\n\nSigned-off-by: Yonghong Song <yonghong.song@linux.dev>\n---\n net/bpf/test_run.c                            |  2 +-\n .../bpf/prog_tests/xdp_adjust_tail.c          | 95 +++++++++++++++++--\n .../bpf/progs/test_xdp_adjust_tail_grow.c     |  8 +-\n 3 files changed, 96 insertions(+), 9 deletions(-)",
+    "diff": "diff --git a/net/bpf/test_run.c b/net/bpf/test_run.c\nindex aaf13a7d58ed..9728dbd4c66c 100644\n--- a/net/bpf/test_run.c\n+++ b/net/bpf/test_run.c\n@@ -1255,7 +1255,7 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,\n \t\theadroom -= ctx->data;\n \t}\n \n-\tmax_data_sz = 4096 - headroom - tailroom;\n+\tmax_data_sz = PAGE_SIZE - headroom - tailroom;\n \tif (size > max_data_sz) {\n \t\t/* disallow live data mode for jumbo frames */\n \t\tif (do_live)\ndiff --git a/tools/testing/selftests/bpf/prog_tests/xdp_adjust_tail.c b/tools/testing/selftests/bpf/prog_tests/xdp_adjust_tail.c\nindex e361129402a1..133bde28a489 100644\n--- a/tools/testing/selftests/bpf/prog_tests/xdp_adjust_tail.c\n+++ b/tools/testing/selftests/bpf/prog_tests/xdp_adjust_tail.c\n@@ -37,21 +37,25 @@ static void test_xdp_adjust_tail_shrink(void)\n \tbpf_object__close(obj);\n }\n \n-static void test_xdp_adjust_tail_grow(void)\n+static void test_xdp_adjust_tail_grow(bool is_64k_pagesize)\n {\n \tconst char *file = \"./test_xdp_adjust_tail_grow.bpf.o\";\n \tstruct bpf_object *obj;\n-\tchar buf[4096]; /* avoid segfault: large buf to hold grow results */\n+\tchar buf[8192]; /* avoid segfault: large buf to hold grow results */\n \t__u32 expect_sz;\n \tint err, prog_fd;\n \tLIBBPF_OPTS(bpf_test_run_opts, topts,\n \t\t.data_in = &pkt_v4,\n-\t\t.data_size_in = sizeof(pkt_v4),\n \t\t.data_out = buf,\n \t\t.data_size_out = sizeof(buf),\n \t\t.repeat = 1,\n \t);\n \n+\tif (is_64k_pagesize)\n+\t\ttopts.data_size_in = sizeof(pkt_v4) - 1;\n+\telse\n+\t\ttopts.data_size_in = sizeof(pkt_v4);\n+\n \terr = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);\n \tif (!ASSERT_OK(err, \"test_xdp_adjust_tail_grow\"))\n \t\treturn;\n@@ -208,7 +212,7 @@ static void test_xdp_adjust_frags_tail_shrink(void)\n \tbpf_object__close(obj);\n }\n \n-static void test_xdp_adjust_frags_tail_grow(void)\n+static void test_xdp_adjust_frags_tail_grow_4k(void)\n {\n \tconst char *file = \"./test_xdp_adjust_tail_grow.bpf.o\";\n \t__u32 exp_size;\n@@ -279,16 +283,93 @@ static void test_xdp_adjust_frags_tail_grow(void)\n \tbpf_object__close(obj);\n }\n \n+static void test_xdp_adjust_frags_tail_grow_64k(void)\n+{\n+\tconst char *file = \"./test_xdp_adjust_tail_grow.bpf.o\";\n+\t__u32 exp_size;\n+\tstruct bpf_program *prog;\n+\tstruct bpf_object *obj;\n+\tint err, i, prog_fd;\n+\t__u8 *buf;\n+\tLIBBPF_OPTS(bpf_test_run_opts, topts);\n+\n+\tobj = bpf_object__open(file);\n+\tif (libbpf_get_error(obj))\n+\t\treturn;\n+\n+\tprog = bpf_object__next_program(obj, NULL);\n+\tif (bpf_object__load(obj))\n+\t\tgoto out;\n+\n+\tprog_fd = bpf_program__fd(prog);\n+\n+\tbuf = malloc(262144);\n+\tif (!ASSERT_OK_PTR(buf, \"alloc buf 256Kb\"))\n+\t\tgoto out;\n+\n+\t/* Test case add 10 bytes to last frag */\n+\tmemset(buf, 1, 262144);\n+\texp_size = 90000 + 10;\n+\n+\ttopts.data_in = buf;\n+\ttopts.data_out = buf;\n+\ttopts.data_size_in = 90000;\n+\ttopts.data_size_out = 262144;\n+\terr = bpf_prog_test_run_opts(prog_fd, &topts);\n+\n+\tASSERT_OK(err, \"90Kb+10b\");\n+\tASSERT_EQ(topts.retval, XDP_TX, \"90Kb+10b retval\");\n+\tASSERT_EQ(topts.data_size_out, exp_size, \"90Kb+10b size\");\n+\n+\tfor (i = 0; i < 90000; i++) {\n+\t\tif (buf[i] != 1)\n+\t\t\tASSERT_EQ(buf[i], 1, \"90Kb+10b-old\");\n+\t}\n+\n+\tfor (i = 90000; i < 90010; i++) {\n+\t\tif (buf[i] != 0)\n+\t\t\tASSERT_EQ(buf[i], 0, \"90Kb+10b-new\");\n+\t}\n+\n+\tfor (i = 90010; i < 262144; i++) {\n+\t\tif (buf[i] != 1)\n+\t\t\tASSERT_EQ(buf[i], 1, \"90Kb+10b-untouched\");\n+\t}\n+\n+\t/* Test a too large grow */\n+\tmemset(buf, 1, 262144);\n+\texp_size = 90001;\n+\n+\ttopts.data_in = topts.data_out = buf;\n+\ttopts.data_size_in = 90001;\n+\ttopts.data_size_out = 262144;\n+\terr = bpf_prog_test_run_opts(prog_fd, &topts);\n+\n+\tASSERT_OK(err, \"90Kb+10b\");\n+\tASSERT_EQ(topts.retval, XDP_DROP, \"90Kb+10b retval\");\n+\tASSERT_EQ(topts.data_size_out, exp_size, \"90Kb+10b size\");\n+\n+\tfree(buf);\n+out:\n+\tbpf_object__close(obj);\n+}\n+\n void test_xdp_adjust_tail(void)\n {\n+\tint page_size = getpagesize();\n+\n \tif (test__start_subtest(\"xdp_adjust_tail_shrink\"))\n \t\ttest_xdp_adjust_tail_shrink();\n \tif (test__start_subtest(\"xdp_adjust_tail_grow\"))\n-\t\ttest_xdp_adjust_tail_grow();\n+\t\ttest_xdp_adjust_tail_grow(page_size == 65536);\n \tif (test__start_subtest(\"xdp_adjust_tail_grow2\"))\n \t\ttest_xdp_adjust_tail_grow2();\n \tif (test__start_subtest(\"xdp_adjust_frags_tail_shrink\"))\n \t\ttest_xdp_adjust_frags_tail_shrink();\n-\tif (test__start_subtest(\"xdp_adjust_frags_tail_grow\"))\n-\t\ttest_xdp_adjust_frags_tail_grow();\n+\tif (test__start_subtest(\"xdp_adjust_frags_tail_grow\")) {\n+\t\tif (page_size == 65536)\n+\t\t\ttest_xdp_adjust_frags_tail_grow_64k();\n+\t\telse\n+\t\t\ttest_xdp_adjust_frags_tail_grow_4k();\n+\t}\n }\ndiff --git a/tools/testing/selftests/bpf/progs/test_xdp_adjust_tail_grow.c b/tools/testing/selftests/bpf/progs/test_xdp_adjust_tail_grow.c\nindex dc74d8cf9e3f..93d55a2ca340 100644\n--- a/tools/testing/selftests/bpf/progs/test_xdp_adjust_tail_grow.c\n+++ b/tools/testing/selftests/bpf/progs/test_xdp_adjust_tail_grow.c\n@@ -19,7 +19,9 @@ int _xdp_adjust_tail_grow(struct xdp_md *xdp)\n \t/* Data length determine test case */\n \n \tif (data_len == 54) { /* sizeof(pkt_v4) */\n-\t\toffset = 4096; /* test too large offset */\n+\t\toffset = 4096; /* test too large offset, 4k page size */\n+\t} else if (data_len == 53) { /* sizeof(pkt_v4) - 1 */\n+\t\toffset = 65536; /* test too large offset, 64k page size */\n \t} else if (data_len == 74) { /* sizeof(pkt_v6) */\n \t\toffset = 40;\n \t} else if (data_len == 64) {\n@@ -31,6 +33,10 @@ int _xdp_adjust_tail_grow(struct xdp_md *xdp)\n \t\toffset = 10;\n \t} else if (data_len == 9001) {\n \t\toffset = 4096;\n+\t} else if (data_len == 90000) {\n+\t\toffset = 10;\n+\t} else if (data_len == 90001) {\n+\t\toffset = 65536;\n \t} else {\n \t\treturn XDP_ABORTED; /* No matching test */\n \t}\n",
+    "prefixes": [
+        "bpf-next",
+        "v2",
+        "1/3"
+    ]
+}
