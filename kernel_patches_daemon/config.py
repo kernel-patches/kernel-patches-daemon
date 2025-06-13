@@ -17,6 +17,9 @@ from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
+SERIES_TARGET_SEPARATOR = "=>"
+SERIES_ID_SEPARATOR = "/"
+
 
 class UnsupportedConfigVersion(ValueError):
     def __init__(self, version: int) -> None:

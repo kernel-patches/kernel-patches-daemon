@@ -37,7 +37,11 @@ from github.PullRequest import PullRequest
 from github.Repository import Repository
 from github.WorkflowJob import WorkflowJob
 
-from kernel_patches_daemon.config import EmailConfig
+from kernel_patches_daemon.config import (
+    SERIES_ID_SEPARATOR,
+    SERIES_TARGET_SEPARATOR,
+    EmailConfig,
+)
 from kernel_patches_daemon.github_connector import GithubConnector
 from kernel_patches_daemon.github_logs import GithubFailedJobLog, GithubLogExtractor
 from kernel_patches_daemon.patchwork import Patchwork, Series, Subject
@@ -79,7 +83,7 @@ errors: metrics.Counter = meter.create_counter(name="errors")
 ALREADY_MERGED_LOOKBACK = 100
 BRANCH_TTL = 172800  # 1 week
 PULL_REQUEST_TTL = timedelta(days=7)
-HEAD_BASE_SEPARATOR = "=>"
+
 KNOWN_OK_COMMENT_EXCEPTIONS = {
     "Commenting is disabled on issues with more than 2500 comments"
 }
@@ -398,21 +402,36 @@ def create_color_labels(labels_cfg: Dict[str, str], repo: Repository) -> None:
             repo.create_label(name=label, color=color)
 
 
-def get_base_branch_from_ref(ref: str) -> str:
-    return ref.split(HEAD_BASE_SEPARATOR)[0]
+def parse_pr_ref(ref: str) -> Dict[str, Any]:
+    # "series/123456=>target-branch" ->
+    # {
+    #   "series": "series/123456",
+    #   "series_id": 123456,
+    #   "target": "target-branch",
+    #  }
+    res = {}
+    tmp = ref.split(SERIES_TARGET_SEPARATOR, maxsplit=1)
+    res["series"] = tmp[0]
+    if len(tmp) >= 2:
+        res["target"] = tmp[1]
+
+    tmp = res["series"].split("/", maxsplit=1)
+    if len(tmp) >= 2:
+        res["series_id"] = int(tmp[1])
+
+    return res
 
 
-def has_same_base_different_remote(ref: str, other_ref: str) -> bool:
+def parsed_pr_ref_ok(parsed_ref: Dict[str, Any]) -> bool:
+    return "target" in parsed_ref and "series_id" in parsed_ref
+
+
+def same_series_different_target(ref: str, other_ref: str) -> bool:
     if ref == other_ref:
         return False
-
-    base = get_base_branch_from_ref(ref)
-    other_base = get_base_branch_from_ref(other_ref)
-
-    if base != other_base:
-        return False
-
-    return True
+    ref1 = parse_pr_ref(ref)
+    ref2 = parse_pr_ref(other_ref)
+    return ref1["series"] == ref2["series"] and ref1["target"] != ref2["target"]
 
 
 def _reset_repo(repo, branch: str) -> None:
@@ -1081,7 +1100,7 @@ class BranchWorker(GithubConnector):
         return res
 
     async def subject_to_branch(self, subject: Subject) -> str:
-        return f"{await subject.branch}{HEAD_BASE_SEPARATOR}{self.repo_branch}"
+        return f"{await subject.branch}{SERIES_TARGET_SEPARATOR}{self.repo_branch}"
 
     async def sync_checks(self, pr: PullRequest, series: Series) -> None:
         # Make sure that we are working with up-to-date data (as opposed to
@@ -1224,9 +1243,10 @@ class BranchWorker(GithubConnector):
                 # that are not belong to any known open prs
                 continue
 
-            if HEAD_BASE_SEPARATOR in branch:
-                split = branch.split(HEAD_BASE_SEPARATOR)
-                if len(split) > 1 and split[1] == self.repo_branch:
+            parsed_ref = parse_pr_ref(branch)
+
+            if parsed_pr_ref_ok(parsed_ref):
+                if parsed_ref["target"] == self.repo_branch:
                     # which have our repo_branch as target
                     # that doesn't have any closed PRs
                     # with last update within defined TTL
