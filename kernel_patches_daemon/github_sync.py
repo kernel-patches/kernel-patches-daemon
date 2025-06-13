@@ -187,6 +187,55 @@ class GithubSync(Stats):
             )
             return None
 
+    async def sync_relevant_subject(self, subject: Subject) -> None:
+        """
+        1. Get Subject's latest series
+        2. Get series tags
+        3. Map tags to a branches
+        4. Start from first branch, try to apply and generate PR,
+           if fails continue to next branch, if no more branches, generate a merge-conflict PR
+        """
+        series = none_throws(await subject.latest_series)
+        tags = await series.all_tags()
+        logging.info(f"Processing {series.id}: {subject.subject} (tags: {tags})")
+
+        mapped_branches = await self.get_mapped_branches(series)
+        if len(mapped_branches) == 0:
+            logging.info(
+                f"Skipping {series.id}: {subject.subject} for no mapped branches."
+            )
+            return
+
+        last_branch = mapped_branches[-1]
+        for branch in mapped_branches:
+            worker = self.workers[branch]
+            # PR branch name == sid of the first known series
+            pr_branch_name = await worker.subject_to_branch(subject)
+            (applied, _, _) = await worker.try_apply_mailbox_series(
+                pr_branch_name, series
+            )
+            if not applied:
+                msg = f"Failed to apply series to {branch}, "
+                if branch != last_branch:
+                    logging.info(msg + "moving to next.")
+                    continue
+                else:
+                    logging.info(msg + "no more next, staying.")
+            logging.info(f"Choosing branch {branch} to create/update PR.")
+            pr = await self.checkout_and_patch_safe(worker, pr_branch_name, series)
+            if pr is None:
+                continue
+
+            logging.info(
+                f"Created/updated {pr} ({pr.head.ref}): {pr.url} for series {series.id}"
+            )
+            await worker.sync_checks(pr, series)
+            # Close out other PRs if exists
+            self.close_existing_prs_with_same_base(list(self.workers.values()), pr)
+
+            break
+        pass
+
     async def sync_patches(self) -> None:
         """
         One subject = one branch
@@ -225,52 +274,8 @@ class GithubSync(Stats):
 
         pw_done = time.time()
 
-        # 1. Get Subject's latest series
-        # 2. Get series tags
-        # 3. Map tags to a branches
-        # 4. Start from first branch, try to apply and generate PR,
-        #    if fails continue to next branch, if no more branches, generate a merge-conflict PR
         for subject in self.subjects:
-            series = none_throws(await subject.latest_series)
-            logging.info(
-                f"Processing {series.id}: {subject.subject} (tags: {await series.all_tags()})"
-            )
-
-            mapped_branches = await self.get_mapped_branches(series)
-            # series to apply - last known series
-            if len(mapped_branches) == 0:
-                logging.info(
-                    f"Skipping {series.id}: {subject.subject} for no mapped branches."
-                )
-                continue
-            last_branch = mapped_branches[-1]
-            for branch in mapped_branches:
-                worker = self.workers[branch]
-                # PR branch name == sid of the first known series
-                pr_branch_name = await worker.subject_to_branch(subject)
-                apply_mbox = await worker.try_apply_mailbox_series(
-                    pr_branch_name, series
-                )
-                if not apply_mbox[0]:
-                    msg = f"Failed to apply series to {branch}, "
-                    if branch != last_branch:
-                        logging.info(msg + "moving to next.")
-                        continue
-                    else:
-                        logging.info(msg + "no more next, staying.")
-                logging.info(f"Choosing branch {branch} to create/update PR.")
-                pr = await self.checkout_and_patch_safe(worker, pr_branch_name, series)
-                if pr is None:
-                    continue
-
-                logging.info(
-                    f"Created/updated {pr} ({pr.head.ref}): {pr.url} for series {series.id}"
-                )
-                await worker.sync_checks(pr, series)
-                # Close out other PRs if exists
-                self.close_existing_prs_with_same_base(list(self.workers.values()), pr)
-
-                break
+            await self.sync_relevant_subject(subject)
 
         # sync old subjects
         subject_names = {x.subject for x in self.subjects}
