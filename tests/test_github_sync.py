@@ -14,10 +14,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from aioresponses import aioresponses
 
-from kernel_patches_daemon.branch_worker import NewPRWithNoChangeException
+from kernel_patches_daemon.branch_worker import (
+    MERGE_CONFLICT_LABEL,
+    NewPRWithNoChangeException,
+)
 from kernel_patches_daemon.config import KPDConfig, SERIES_TARGET_SEPARATOR
 from kernel_patches_daemon.github_sync import GithubSync
-from tests.common.patchwork_mock import init_pw_responses, load_test_data, PatchworkMock
+from tests.common.patchwork_mock import (
+    init_pw_responses,
+    load_test_data,
+    PatchworkMock,
+)
 
 TEST_BRANCH = "test-branch"
 TEST_BPF_NEXT_BRANCH = "test-bpf-next"
@@ -279,6 +286,45 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         self._gh.close_existing_prs_for_series.assert_called_once_with(
             list(self._gh.workers.values()), pr_mock
         )
+
+    def _setup_test_select_target_branches_for_subject(self):
+        series_prefix = "series/123123"
+        subject_mock = MagicMock()
+        subject_mock.subject = "Test subject"
+        subject_mock.branch = AsyncMock(return_value=series_prefix)
+
+        pr_mock = MagicMock()
+        pr_mock.head.ref = (
+            f"{series_prefix}{SERIES_TARGET_SEPARATOR}{TEST_BPF_NEXT_BRANCH}"
+        )
+
+        worker_mock = self._gh.workers[TEST_BPF_NEXT_BRANCH]
+        worker_mock.prs = {subject_mock.subject: pr_mock}
+
+        return subject_mock, pr_mock
+
+    async def test_select_target_branches_for_subject(self) -> None:
+        subject_mock, _ = self._setup_test_select_target_branches_for_subject()
+        mapped_branches = [TEST_BRANCH, TEST_BPF_NEXT_BRANCH]
+
+        selected_branches = await self._gh.select_target_branches_for_subject(
+            subject_mock, mapped_branches
+        )
+
+        self.assertEqual(selected_branches, [TEST_BPF_NEXT_BRANCH])
+
+    async def test_select_target_branches_for_subject_merge_conflict(self) -> None:
+        subject_mock, pr_mock = self._setup_test_select_target_branches_for_subject()
+        label = MagicMock()
+        label.name = MERGE_CONFLICT_LABEL
+        pr_mock.get_labels = MagicMock(return_value=[label])
+        mapped_branches = [TEST_BRANCH, TEST_BPF_NEXT_BRANCH]
+
+        selected_branches = await self._gh.select_target_branches_for_subject(
+            subject_mock, mapped_branches
+        )
+
+        self.assertEqual(selected_branches, mapped_branches)
 
     @aioresponses()
     async def test_sync_patches_pr_summary_success(self, m: aioresponses) -> None:

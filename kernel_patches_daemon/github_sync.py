@@ -14,8 +14,10 @@ from typing import Dict, Final, List, Optional, Sequence
 from github import Auth
 from github.PullRequest import PullRequest
 from kernel_patches_daemon.branch_worker import (
+    MERGE_CONFLICT_LABEL,
     BranchWorker,
     parsed_pr_ref_ok,
+    pr_has_label,
     same_series_different_target,
     parse_pr_ref,
     NewPRWithNoChangeException,
@@ -191,6 +193,30 @@ class GithubSync(Stats):
             )
             return None
 
+    async def select_target_branches_for_subject(
+        self, subject: Subject, tag_mapped_branches: List[str]
+    ) -> List[str]:
+        if len(tag_mapped_branches) == 1:
+            return tag_mapped_branches
+
+        # Check if a single relevant open PR without merge conflicts exists.
+        # If yes, then pick it without trying other target branches.
+        subject_pr_targets = []
+        for branch in tag_mapped_branches:
+            worker = self.workers[branch]
+            subj_branch = await worker.subject_to_branch(subject)
+            for pr in worker.prs.values():
+                if pr.head.ref == subj_branch and not pr_has_label(
+                    pr, MERGE_CONFLICT_LABEL
+                ):
+                    subject_pr_targets.append(branch)
+
+        if len(subject_pr_targets) == 1:
+            return subject_pr_targets
+
+        # If no sticky target is determined, then return all branches
+        return tag_mapped_branches
+
     async def sync_relevant_subject(self, subject: Subject) -> None:
         """
         1. Get Subject's latest series
@@ -210,8 +236,11 @@ class GithubSync(Stats):
             )
             return
 
-        last_branch = mapped_branches[-1]
-        for branch in mapped_branches:
+        target_branches = await self.select_target_branches_for_subject(
+            subject, mapped_branches
+        )
+        last_branch = target_branches[-1]
+        for branch in target_branches:
             worker = self.workers[branch]
             # PR branch name == sid of the first known series
             pr_branch_name = await worker.subject_to_branch(subject)
