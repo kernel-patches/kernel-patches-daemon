@@ -16,7 +16,7 @@ from aioresponses import aioresponses
 
 from kernel_patches_daemon.branch_worker import NewPRWithNoChangeException
 from kernel_patches_daemon.config import KPDConfig
-from kernel_patches_daemon.github_sync import GithubSync
+from kernel_patches_daemon.github_sync import GithubSync, HEAD_BASE_SEPARATOR
 from tests.common.patchwork_mock import init_pw_responses, load_test_data, PatchworkMock
 
 TEST_BRANCH = "test-branch"
@@ -47,6 +47,7 @@ TEST_CONFIG: Dict[str, Any] = {
     },
     "tag_to_branch_mapping": {
         "bpf-next": [TEST_BPF_NEXT_BRANCH],
+        "multibranch-tag": [TEST_BRANCH, TEST_BPF_NEXT_BRANCH],
         "__DEFAULT__": [TEST_BRANCH],
     },
     "base_directory": "/tmp",
@@ -176,6 +177,105 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
             await self._gh.checkout_and_patch_safe(
                 branch_worker_mock, pr_branch_name, series
             )
+        )
+
+    def _setup_sync_relevant_subject_mocks(self):
+        """Helper method to set up common mocks for sync_relevant_subject tests."""
+        series_mock = MagicMock()
+        series_mock.id = 12345
+        series_mock.all_tags = AsyncMock(return_value=["tag"])
+        subject_mock = MagicMock()
+        subject_mock.subject = "Test subject"
+        subject_mock.latest_series = AsyncMock(return_value=series_mock)()
+
+        return subject_mock, series_mock
+
+    async def test_sync_relevant_subject_no_mapped_branches(self) -> None:
+        subject_mock, series_mock = self._setup_sync_relevant_subject_mocks()
+        self._gh.get_mapped_branches = AsyncMock(return_value=[])
+        self._gh.checkout_and_patch_safe = AsyncMock()
+
+        await self._gh.sync_relevant_subject(subject_mock)
+
+        self._gh.get_mapped_branches.assert_called_once_with(series_mock)
+        self._gh.checkout_and_patch_safe.assert_not_called()
+
+    async def test_sync_relevant_subject_success_first_branch(self) -> None:
+        series_prefix = "series/987654"
+        series_branch_name = f"{series_prefix}{HEAD_BASE_SEPARATOR}{TEST_BRANCH}"
+
+        subject_mock, series_mock = self._setup_sync_relevant_subject_mocks()
+        series_mock.all_tags = AsyncMock(return_value=["multibranch-tag"])
+        subject_mock.branch = AsyncMock(return_value=series_prefix)()
+
+        pr_mock = MagicMock()
+        pr_mock.head.ref = series_branch_name
+
+        self._gh.checkout_and_patch_safe = AsyncMock(return_value=pr_mock)
+        self._gh.close_existing_prs_with_same_base = MagicMock()
+
+        worker_mock = self._gh.workers[TEST_BRANCH]
+        worker_mock.sync_checks = AsyncMock()
+        worker_mock.try_apply_mailbox_series = AsyncMock(
+            return_value=(True, None, None)
+        )
+
+        await self._gh.sync_relevant_subject(subject_mock)
+
+        worker_mock.try_apply_mailbox_series.assert_called_once_with(
+            series_branch_name, series_mock
+        )
+        self._gh.checkout_and_patch_safe.assert_called_once_with(
+            worker_mock, series_branch_name, series_mock
+        )
+        worker_mock.sync_checks.assert_called_once_with(pr_mock, series_mock)
+        self._gh.close_existing_prs_with_same_base.assert_called_once_with(
+            list(self._gh.workers.values()), pr_mock
+        )
+
+    async def test_sync_relevant_subject_success_second_branch(self) -> None:
+        """Test sync_relevant_subject when series fails on first branch but succeeds on second."""
+        series_prefix = "series/333333"
+        bad_branch_name = f"{series_prefix}{HEAD_BASE_SEPARATOR}{TEST_BRANCH}"
+        good_branch_name = f"{series_prefix}{HEAD_BASE_SEPARATOR}{TEST_BPF_NEXT_BRANCH}"
+
+        subject_mock, series_mock = self._setup_sync_relevant_subject_mocks()
+        series_mock.all_tags = AsyncMock(return_value=["multibranch-tag"])
+
+        pr_mock = MagicMock()
+        pr_mock.head.ref = good_branch_name
+
+        self._gh.checkout_and_patch_safe = AsyncMock(return_value=pr_mock)
+        self._gh.close_existing_prs_with_same_base = MagicMock()
+
+        bad_worker_mock = self._gh.workers[TEST_BRANCH]
+        bad_worker_mock.sync_checks = AsyncMock()
+        bad_worker_mock.subject_to_branch = AsyncMock(return_value=bad_branch_name)
+        bad_worker_mock.try_apply_mailbox_series = AsyncMock(
+            return_value=(False, None, None)
+        )
+
+        good_worker_mock = self._gh.workers[TEST_BPF_NEXT_BRANCH]
+        good_worker_mock.sync_checks = AsyncMock()
+        good_worker_mock.subject_to_branch = AsyncMock(return_value=good_branch_name)
+        good_worker_mock.try_apply_mailbox_series = AsyncMock(
+            return_value=(True, None, None)
+        )
+
+        await self._gh.sync_relevant_subject(subject_mock)
+
+        bad_worker_mock.try_apply_mailbox_series.assert_called_once_with(
+            bad_branch_name, series_mock
+        )
+        good_worker_mock.try_apply_mailbox_series.assert_called_once_with(
+            good_branch_name, series_mock
+        )
+        self._gh.checkout_and_patch_safe.assert_called_once_with(
+            good_worker_mock, good_branch_name, series_mock
+        )
+        good_worker_mock.sync_checks.assert_called_once_with(pr_mock, series_mock)
+        self._gh.close_existing_prs_with_same_base.assert_called_once_with(
+            list(self._gh.workers.values()), pr_mock
         )
 
     @aioresponses()
