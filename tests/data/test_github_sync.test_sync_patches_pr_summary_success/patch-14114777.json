@@ -1,0 +1,96 @@
+{
+    "id": 14114777,
+    "url": "https://patchwork.test/api/1.1/patches/14114777/",
+    "web_url": "https://patchwork.test/project/netdevbpf/patch/20250611-rcu-fix-task_cls_state-v3-1-3d30e1de753f@posteo.net/",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.test/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "msgid": "<20250611-rcu-fix-task_cls_state-v3-1-3d30e1de753f@posteo.net>",
+    "date": "2025-06-11T17:20:43",
+    "name": "[bpf-next,v3] net: Fix RCU usage in task_cls_state() for BPF programs",
+    "commit_ref": "7f12c33850482521c961c5c15a50ebe9b9a88d1e",
+    "pull_url": null,
+    "state": "accepted",
+    "archived": false,
+    "hash": "fb8bc5714a26b9ad4011597046c855b5a4857807",
+    "submitter": {
+        "id": 211324,
+        "url": "https://patchwork.test/api/1.1/people/211324/",
+        "name": "Charalampos Mitrodimas",
+        "email": "charmitro@posteo.net"
+    },
+    "delegate": {
+        "id": 121173,
+        "url": "https://patchwork.test/api/1.1/users/121173/",
+        "username": "bpf",
+        "first_name": "BPF",
+        "last_name": "",
+        "email": "bpf@iogearbox.net"
+    },
+    "mbox": "https://patchwork.test/project/netdevbpf/patch/20250611-rcu-fix-task_cls_state-v3-1-3d30e1de753f@posteo.net/mbox/",
+    "series": [
+        {
+            "id": 970970,
+            "url": "https://patchwork.test/api/1.1/series/970970/",
+            "web_url": "https://patchwork.test/project/netdevbpf/list/?series=970970",
+            "date": "2025-06-11T17:20:43",
+            "name": "[bpf-next,v3] net: Fix RCU usage in task_cls_state() for BPF programs",
+            "version": 3,
+            "mbox": "https://patchwork.test/series/970970/mbox/"
+        }
+    ],
+    "comments": "https://patchwork.test/api/patches/14114777/comments/",
+    "check": "warning",
+    "checks": "https://patchwork.test/api/patches/14114777/checks/",
+    "tags": {},
+    "headers": {
+        "Received": [
+            "from mout02.posteo.de (mout02.posteo.de [185.67.36.66])\n\t(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))\n\t(No client certificate requested)\n\tby smtp.subspace.kernel.org (Postfix) with ESMTPS id EACDA222561\n\tfor <bpf@vger.kernel.org>; Wed, 11 Jun 2025 17:21:08 +0000 (UTC)",
+            "from submission (posteo.de [185.67.36.169])\n\tby mout02.posteo.de (Postfix) with ESMTPS id 5B212240101\n\tfor <bpf@vger.kernel.org>; Wed, 11 Jun 2025 19:21:07 +0200 (CEST)",
+            "from customer (localhost [127.0.0.1])\n\tby submission (posteo.de) with ESMTPSA id 4bHXW323xjz9rxQ;\n\tWed, 11 Jun 2025 19:21:03 +0200 (CEST)"
+        ],
+        "Authentication-Results": [
+            "smtp.subspace.kernel.org;\n arc=none smtp.client-ip=185.67.36.66",
+            "smtp.subspace.kernel.org;\n dmarc=pass (p=none dis=none) header.from=posteo.net",
+            "smtp.subspace.kernel.org;\n spf=pass smtp.mailfrom=posteo.net",
+            "smtp.subspace.kernel.org;\n\tdkim=pass (3072-bit key) header.d=posteo.net header.i=@posteo.net\n header.b=\"A5Md52u3\""
+        ],
+        "ARC-Seal": "i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;\n\tt=1749662471; cv=none;\n b=qnOH5IEg/mKwGuevTWBRHpoZXI8EjsMxKdNg7Nw1sWc7U3KWQDEpi18dlZ2vuKm6ZWfrIy+qBjG2SXrX95fTYD7cEtSX6fMkdC4+0SX86tU6HV4FqEWWVR8JH3G3shzOpvYCHwPcvHhoRS8zvNc+aevrTlNeG/92bMyjgp9zysw=",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; d=subspace.kernel.org;\n\ts=arc-20240116; t=1749662471; c=relaxed/simple;\n\tbh=u5Kk1jfvzFrOwlCXwYxoep/9dBDPOwrOQVQdE3Geobw=;\n\th=From:Date:Subject:MIME-Version:Content-Type:Message-Id:To:Cc;\n b=C9Woqk2GWImZm18X++r/v4f+Tz/54iG9LqN25UikQcgsMFIukmRLqJQg90gSjQ5bUQV24yO0UtWDI+MiwtjV3dnD+OC1F71HTTF8tTGm2zDTuPFor1ACjLJQc6FeXKuHNgKT/hyt7Ku/CbRtHN+FLzcARj1WeYpRKAn8t6xKGBY=",
+        "ARC-Authentication-Results": "i=1; smtp.subspace.kernel.org;\n dmarc=pass (p=none dis=none) header.from=posteo.net;\n spf=pass smtp.mailfrom=posteo.net;\n dkim=pass (3072-bit key) header.d=posteo.net header.i=@posteo.net\n header.b=A5Md52u3; arc=none smtp.client-ip=185.67.36.66",
+        "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/simple; d=posteo.net;\n\ts=1984.ea087b; t=1749662467;\n\tbh=u5Kk1jfvzFrOwlCXwYxoep/9dBDPOwrOQVQdE3Geobw=;\n\th=From:Date:Subject:MIME-Version:Content-Type:\n\t Content-Transfer-Encoding:Message-Id:To:Cc:From;\n\tb=A5Md52u3STlkO+A8jTT+13k1GA3nD1EBgT6khcCenX/tpCDQSURx9JPPCVEBBHfXb\n\t eZzOT1HsHBVaGUqYPzH02x4srcEGZer2OgO0WGiv6/dueoIu4mcT8Pu6NXpP2Ndhxq\n\t yq5/9d83/1d0Qz5W58Oqj7yjbCwIcjq3oL1yaIx28k1hClgRVafa/GdYJVtb2nmOhJ\n\t GlPPnpmIArGpb0ls3pFhioBSjphuortNfRRXyibVYOozphg/KxuQ5k+8OXh0QMWoOC\n\t TjYVvv62gb/mCO8W+dpH3oPPUOcGi2Mx++WS/ldb4SLfBDidrseF7OVhgYMvi5pFAp\n\t xQRM30E1zv/K7YuEcXOb+nQr8jaHLir+p64PvyIH3QZN0B8nfE7Gpf8QoupLV+wDNb\n\t V8c4lRb+/aLqXNaqd8oAMP45JlSvR6nfEtEyHEinPQMeJB5aemwbxl1SgZYFLDjoYD\n\t kWR2mzs87p7pGq9RKP419oYEJ8aMqwSALe52YeKvIpFpxcxQUOP",
+        "From": "Charalampos Mitrodimas <charmitro@posteo.net>",
+        "Date": "Wed, 11 Jun 2025 17:20:43 +0000",
+        "Subject": "[PATCH bpf-next v3] net: Fix RCU usage in task_cls_state() for BPF\n programs",
+        "Precedence": "bulk",
+        "X-Mailing-List": "bpf@vger.kernel.org",
+        "List-Id": "<bpf.vger.kernel.org>",
+        "List-Subscribe": "<mailto:bpf+subscribe@vger.kernel.org>",
+        "List-Unsubscribe": "<mailto:bpf+unsubscribe@vger.kernel.org>",
+        "MIME-Version": "1.0",
+        "Content-Type": "text/plain; charset=\"utf-8\"",
+        "Content-Transfer-Encoding": "7bit",
+        "Message-Id": "<20250611-rcu-fix-task_cls_state-v3-1-3d30e1de753f@posteo.net>",
+        "X-B4-Tracking": "v=1; b=H4sIAOq6SWgC/4XNQQ6CMBAF0KuQrq1ppxWIK+9hDCllkEZDSac2G\n sLdLax0YVz+yf9vZkYYHBI7FjMLmBw5P+agdgWzgxmvyF2XMwMBB1GKmgf74L178mjo1tg7NRR\n NRC6wq1SvVdVJZHk8BcytDT5fch4cRR9e258k1+tfMkkuOZi11upSqPY0eYro9yNGtpoJPhwpf\n zqQHWmq3oKuQYH5cpZleQNGtF7QBQEAAA==",
+        "X-Change-ID": "20250608-rcu-fix-task_cls_state-0ed73f437d1e",
+        "To": "\"David S. Miller\" <davem@davemloft.net>,\n Eric Dumazet <edumazet@google.com>, Jakub Kicinski <kuba@kernel.org>,\n Paolo Abeni <pabeni@redhat.com>, Simon Horman <horms@kernel.org>,\n Martin KaFai Lau <martin.lau@linux.dev>,\n Daniel Borkmann <daniel@iogearbox.net>,\n John Fastabend <john.fastabend@gmail.com>,\n Alexei Starovoitov <ast@kernel.org>, Andrii Nakryiko <andrii@kernel.org>,\n Eduard Zingerman <eddyz87@gmail.com>, Song Liu <song@kernel.org>,\n Yonghong Song <yonghong.song@linux.dev>, KP Singh <kpsingh@kernel.org>,\n Stanislav Fomichev <sdf@fomichev.me>, Hao Luo <haoluo@google.com>,\n Jiri Olsa <jolsa@kernel.org>, Feng Yang <yangfeng@kylinos.cn>,\n Tejun Heo <tj@kernel.org>",
+        "Cc": "netdev@vger.kernel.org, linux-kernel@vger.kernel.org,\n bpf@vger.kernel.org, syzbot+b4169a1cfb945d2ed0ec@syzkaller.appspotmail.com,\n Charalampos Mitrodimas <charmitro@posteo.net>",
+        "X-Developer-Signature": "v=1; a=ed25519-sha256; t=1749662443; l=2729;\n i=charmitro@posteo.net; s=20250526; h=from:subject:message-id;\n bh=u5Kk1jfvzFrOwlCXwYxoep/9dBDPOwrOQVQdE3Geobw=;\n b=cOJU/Y97B/mIsiD6ycUzLbHOj+hDqh9honeXQ3bF5ZN1FpCw/P9xFzMlBjxDgS6XhO9jdIj0R\n BW5omZ1EtlGBMPPQfoVetlQvPuxjKIUWGThuj0Mz8r5uXn4WqXjI4A4",
+        "X-Developer-Key": "i=charmitro@posteo.net; a=ed25519;\n pk=PNHEh5o1dcr5kfKoZhfwdsfm3CxVfRje7vFYKIW0Mp4=",
+        "X-Patchwork-Delegate": "bpf@iogearbox.net"
+    },
+    "content": "The commit ee971630f20f (\"bpf: Allow some trace helpers for all prog\ntypes\") made bpf_get_cgroup_classid_curr helper available to all BPF\nprogram types, not just networking programs.\n\nThis helper calls __task_get_classid() which internally calls\ntask_cls_state() requiring rcu_read_lock_bh_held(). This works in\nnetworking/tc context where RCU BH is held, but triggers an RCU\nwarning when called from other contexts like BPF syscall programs that\nrun under rcu_read_lock_trace():\n\n  WARNING: suspicious RCU usage\n  6.15.0-rc4-syzkaller-g079e5c56a5c4 #0 Not tainted\n  -----------------------------\n  net/core/netclassid_cgroup.c:24 suspicious rcu_dereference_check() usage!\n\nFix this by also accepting rcu_read_lock_held() and\nrcu_read_lock_trace_held() as valid RCU contexts in the\ntask_cls_state() function. This ensures the helper works correctly in\nall RCU contexts where it might be called, regular RCU, RCU BH (for\nnetworking), and RCU trace (for BPF syscall programs).\n\nReported-by: syzbot+b4169a1cfb945d2ed0ec@syzkaller.appspotmail.com\nCloses: https://syzkaller.appspot.com/bug?extid=b4169a1cfb945d2ed0ec\nFixes: ee971630f20f (\"bpf: Allow some trace helpers for all prog types\")\nSigned-off-by: Charalampos Mitrodimas <charmitro@posteo.net>\n---\nChanges in v3:\n- Add rcu_read_lock_held() check as well \n- Link to v2: https://lore.kernel.org/r/20250611-rcu-fix-task_cls_state-v2-1-1a7fc248232a@posteo.net\n\nChanges in v2:\n- Fix RCU usage in task_cls_state() instead of BPF helper\n- Add rcu_read_lock_trace_held() check to accept trace RCU as valid\n  context\n- Drop the approach of using task_cls_classid() which has in_interrupt()\n  check\n- Link to v1: https://lore.kernel.org/r/20250608-rcu-fix-task_cls_state-v1-1-2a2025b4603b@posteo.net\n---\n net/core/netclassid_cgroup.c | 4 +++-\n 1 file changed, 3 insertions(+), 1 deletion(-)\n\n\n---\nbase-commit: 079e5c56a5c41d285068939ff7b0041ab10386fa\nchange-id: 20250608-rcu-fix-task_cls_state-0ed73f437d1e\n\nBest regards,",
+    "diff": "diff --git a/net/core/netclassid_cgroup.c b/net/core/netclassid_cgroup.c\nindex d22f0919821e931fbdedf5a8a7a2998d59d73978..dff66d8fb325d28bb15f42641b9ec738b0022353 100644\n--- a/net/core/netclassid_cgroup.c\n+++ b/net/core/netclassid_cgroup.c\n@@ -21,7 +21,9 @@ static inline struct cgroup_cls_state *css_cls_state(struct cgroup_subsys_state\n struct cgroup_cls_state *task_cls_state(struct task_struct *p)\n {\n \treturn css_cls_state(task_css_check(p, net_cls_cgrp_id,\n-\t\t\t\t\t    rcu_read_lock_bh_held()));\n+\t\t\t\t\t    rcu_read_lock_held() ||\n+\t\t\t\t\t    rcu_read_lock_bh_held() ||\n+\t\t\t\t\t    rcu_read_lock_trace_held()));\n }\n EXPORT_SYMBOL_GPL(task_cls_state);\n \n",
+    "prefixes": [
+        "bpf-next",
+        "v3"
+    ]
+}

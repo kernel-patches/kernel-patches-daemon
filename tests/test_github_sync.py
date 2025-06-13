@@ -12,11 +12,15 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from aioresponses import aioresponses
+
 from kernel_patches_daemon.branch_worker import NewPRWithNoChangeException
 from kernel_patches_daemon.config import KPDConfig
-from kernel_patches_daemon.github_sync import GithubSync
+from kernel_patches_daemon.github_sync import GithubSync, HEAD_BASE_SEPARATOR
+from tests.common.patchwork_mock import init_pw_responses, load_test_data, PatchworkMock
 
 TEST_BRANCH = "test-branch"
+TEST_BPF_NEXT_BRANCH = "test-bpf-next"
 TEST_CONFIG: Dict[str, Any] = {
     "version": 3,
     "patchwork": {
@@ -32,9 +36,20 @@ TEST_CONFIG: Dict[str, Any] = {
             "upstream": "https://127.0.0.2:0/upstream_org/upstream_repo",
             "ci_repo": "ci-repo",
             "ci_branch": "test_ci_branch",
-        }
+        },
+        TEST_BPF_NEXT_BRANCH: {
+            "repo": "bpf-next-repo",
+            "github_oauth_token": "bpf-next-oauth-token",
+            "upstream": "https://127.0.0.3:0/kernel-patches/bpf-next",
+            "ci_repo": "bpf-next-ci-repo",
+            "ci_branch": "bpf-next-ci-branch",
+        },
     },
-    "tag_to_branch_mapping": {},
+    "tag_to_branch_mapping": {
+        "bpf-next": [TEST_BPF_NEXT_BRANCH],
+        "multibranch-tag": [TEST_BRANCH, TEST_BPF_NEXT_BRANCH],
+        "__DEFAULT__": [TEST_BRANCH],
+    },
     "base_directory": "/tmp",
 }
 
@@ -55,7 +70,7 @@ class GithubSyncMock(GithubSync):
         super().__init__(*args, **presets)
 
 
-class TestGihubSync(unittest.IsolatedAsyncioTestCase):
+class TestGithubSync(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         patcher = patch("kernel_patches_daemon.github_connector.Github")
         self._gh_mock = patcher.start()
@@ -103,7 +118,7 @@ class TestGihubSync(unittest.IsolatedAsyncioTestCase):
                     gh.workers[TEST_BRANCH].ci_repo_dir.startswith(case.prefix),
                 )
 
-    def test_close_existing_prs_with_same_base(self) -> None:
+    def test_close_existing_prs_for_series(self) -> None:
         matching_pr_mock = MagicMock()
         matching_pr_mock.title = "matching"
         matching_pr_mock.head.ref = "test_branch=>remote_branch"
@@ -122,7 +137,7 @@ class TestGihubSync(unittest.IsolatedAsyncioTestCase):
         input_pr_mock.head.ref = "test_branch=>other_remote_branch"
 
         workers = [copy.copy(branch_worker_mock) for _ in range(2)]
-        self._gh.close_existing_prs_with_same_base(workers, input_pr_mock)
+        self._gh.close_existing_prs_for_series(workers, input_pr_mock)
         for worker in workers:
             self.assertEqual(len(worker.prs), 1)
             self.assertTrue("irrelevant" in worker.prs)
@@ -163,3 +178,170 @@ class TestGihubSync(unittest.IsolatedAsyncioTestCase):
                 branch_worker_mock, pr_branch_name, series
             )
         )
+
+    def _setup_sync_relevant_subject_mocks(self):
+        """Helper method to set up common mocks for sync_relevant_subject tests."""
+        series_mock = MagicMock()
+        series_mock.id = 12345
+        series_mock.all_tags = AsyncMock(return_value=["tag"])
+        subject_mock = MagicMock()
+        subject_mock.subject = "Test subject"
+        subject_mock.latest_series = AsyncMock(return_value=series_mock)
+
+        return subject_mock, series_mock
+
+    async def test_sync_relevant_subject_no_mapped_branches(self) -> None:
+        subject_mock, series_mock = self._setup_sync_relevant_subject_mocks()
+        self._gh.get_mapped_branches = AsyncMock(return_value=[])
+        self._gh.checkout_and_patch_safe = AsyncMock()
+
+        await self._gh.sync_relevant_subject(subject_mock)
+
+        self._gh.get_mapped_branches.assert_called_once_with(series_mock)
+        self._gh.checkout_and_patch_safe.assert_not_called()
+
+    async def test_sync_relevant_subject_success_first_branch(self) -> None:
+        series_prefix = "series/987654"
+        series_branch_name = f"{series_prefix}{HEAD_BASE_SEPARATOR}{TEST_BRANCH}"
+
+        subject_mock, series_mock = self._setup_sync_relevant_subject_mocks()
+        series_mock.all_tags = AsyncMock(return_value=["multibranch-tag"])
+        subject_mock.branch = AsyncMock(return_value=series_prefix)
+
+        pr_mock = MagicMock()
+        pr_mock.head.ref = series_branch_name
+
+        self._gh.checkout_and_patch_safe = AsyncMock(return_value=pr_mock)
+        self._gh.close_existing_prs_for_series = MagicMock()
+
+        worker_mock = self._gh.workers[TEST_BRANCH]
+        worker_mock.sync_checks = AsyncMock()
+        worker_mock.try_apply_mailbox_series = AsyncMock(
+            return_value=(True, None, None)
+        )
+
+        await self._gh.sync_relevant_subject(subject_mock)
+
+        worker_mock.try_apply_mailbox_series.assert_called_once_with(
+            series_branch_name, series_mock
+        )
+        self._gh.checkout_and_patch_safe.assert_called_once_with(
+            worker_mock, series_branch_name, series_mock
+        )
+        worker_mock.sync_checks.assert_called_once_with(pr_mock, series_mock)
+        self._gh.close_existing_prs_for_series.assert_called_once_with(
+            list(self._gh.workers.values()), pr_mock
+        )
+
+    async def test_sync_relevant_subject_success_second_branch(self) -> None:
+        """Test sync_relevant_subject when series fails on first branch but succeeds on second."""
+        series_prefix = "series/333333"
+        bad_branch_name = f"{series_prefix}{HEAD_BASE_SEPARATOR}{TEST_BRANCH}"
+        good_branch_name = f"{series_prefix}{HEAD_BASE_SEPARATOR}{TEST_BPF_NEXT_BRANCH}"
+
+        subject_mock, series_mock = self._setup_sync_relevant_subject_mocks()
+        series_mock.all_tags = AsyncMock(return_value=["multibranch-tag"])
+
+        pr_mock = MagicMock()
+        pr_mock.head.ref = good_branch_name
+
+        self._gh.checkout_and_patch_safe = AsyncMock(return_value=pr_mock)
+        self._gh.close_existing_prs_for_series = MagicMock()
+
+        bad_worker_mock = self._gh.workers[TEST_BRANCH]
+        bad_worker_mock.sync_checks = AsyncMock()
+        bad_worker_mock.subject_to_branch = AsyncMock(return_value=bad_branch_name)
+        bad_worker_mock.try_apply_mailbox_series = AsyncMock(
+            return_value=(False, None, None)
+        )
+
+        good_worker_mock = self._gh.workers[TEST_BPF_NEXT_BRANCH]
+        good_worker_mock.sync_checks = AsyncMock()
+        good_worker_mock.subject_to_branch = AsyncMock(return_value=good_branch_name)
+        good_worker_mock.try_apply_mailbox_series = AsyncMock(
+            return_value=(True, None, None)
+        )
+
+        await self._gh.sync_relevant_subject(subject_mock)
+
+        bad_worker_mock.try_apply_mailbox_series.assert_called_once_with(
+            bad_branch_name, series_mock
+        )
+        good_worker_mock.try_apply_mailbox_series.assert_called_once_with(
+            good_branch_name, series_mock
+        )
+        self._gh.checkout_and_patch_safe.assert_called_once_with(
+            good_worker_mock, good_branch_name, series_mock
+        )
+        good_worker_mock.sync_checks.assert_called_once_with(pr_mock, series_mock)
+        self._gh.close_existing_prs_for_series.assert_called_once_with(
+            list(self._gh.workers.values()), pr_mock
+        )
+
+    @aioresponses()
+    async def test_sync_patches_pr_summary_success(self, m: aioresponses) -> None:
+        """
+        This is a kind of an integration test, attempting to cover most of the
+        github_sync.sync_patches() happy-path code.
+        For patchwork mocking, it uses real response examples stored at tests/data/
+        """
+
+        test_data = load_test_data(
+            "tests/data/test_github_sync.test_sync_patches_pr_summary_success"
+        )
+        init_pw_responses(m, test_data)
+
+        # Set up mocks and test data
+        patchwork = PatchworkMock(
+            server="patchwork.test",
+            api_version="1.1",
+            search_patterns=[{"archived": False, "project": 399, "delegate": 121173}],
+            auth_token="mocktoken",
+        )
+        patchwork.since = "2025-06-11T00:00:00"
+        self._gh.pw = patchwork
+
+        worker = self._gh.workers[TEST_BRANCH]
+        worker.repo.get_branches.return_value = [MagicMock(name=TEST_BRANCH)]
+
+        worker = self._gh.workers[TEST_BPF_NEXT_BRANCH]
+        worker.repo.get_branches.return_value = [MagicMock(name=TEST_BPF_NEXT_BRANCH)]
+        worker.repo.create_pull.return_value = MagicMock(
+            html_url="https://github.com/org/repo/pull/98765"
+        )
+
+        m.post("https://patchwork.test/api/1.1/patches/14114605/checks/")
+
+        # Execute the function under test
+        await self._gh.sync_patches()
+
+        # Verify expected patches and series fetched from patchwork
+        get_requests = [key for key in m.requests.keys() if key[0] == "GET"]
+        touched_urls = set()
+        for req in get_requests:
+            touched_urls.add(str(req[1]))
+        self.assertIn("https://patchwork.test/api/1.1/series/970926/", touched_urls)
+        self.assertIn("https://patchwork.test/api/1.1/series/970968/", touched_urls)
+        self.assertIn("https://patchwork.test/api/1.1/series/970970/", touched_urls)
+        self.assertIn("https://patchwork.test/api/1.1/patches/14114605/", touched_urls)
+        self.assertIn("https://patchwork.test/api/1.1/patches/14114773/", touched_urls)
+        self.assertIn("https://patchwork.test/api/1.1/patches/14114774/", touched_urls)
+        self.assertIn("https://patchwork.test/api/1.1/patches/14114775/", touched_urls)
+        self.assertIn("https://patchwork.test/api/1.1/patches/14114777/", touched_urls)
+
+        # Verify that a single POST request was made to patchwork
+        # Updating state of a patch 14114605
+        post_requests = [key for key in m.requests.keys() if key[0] == "POST"]
+        self.assertEqual(1, len(post_requests))
+        post_calls = m.requests[post_requests[0]]
+        url = str(post_requests[0][1])
+        self.assertEqual("https://patchwork.test/api/1.1/patches/14114605/checks/", url)
+        self.assertEqual(1, len(post_calls))
+        post_data = post_calls[0].kwargs["data"]
+        expected_post_data = {
+            "target_url": "https://github.com/org/repo/pull/98765",
+            "context": "vmtest-test-bpf-next-PR",
+            "description": "PR summary",
+            "state": "success",
+        }
+        self.assertDictEqual(expected_post_data, post_data)
