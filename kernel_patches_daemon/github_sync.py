@@ -199,7 +199,7 @@ class GithubSync(Stats):
         4. Start from first branch, try to apply and generate PR,
            if fails continue to next branch, if no more branches, generate a merge-conflict PR
         """
-        series = none_throws(await subject.latest_series)
+        series = none_throws(await subject.latest_series())
         tags = await series.all_tags()
         logging.info(f"Processing {series.id}: {subject.subject} (tags: {tags})")
 
@@ -303,8 +303,8 @@ class GithubSync(Stats):
                             f"Renaming {pr} from {subject_name} to {subject.subject} according to {series.id}"
                         )
                         pr.edit(title=subject.subject)
-                    branch_name = f"{await subject.branch}{SERIES_TARGET_SEPARATOR}{worker.repo_branch}"
-                    latest_series = await subject.latest_series or series
+                    branch_name = await worker.subject_to_branch(subject)
+                    latest_series = await subject.latest_series() or series
                     pr = await self.checkout_and_patch_safe(
                         worker, branch_name, latest_series
                     )
