@@ -14,18 +14,18 @@ from typing import Dict, Final, List, Optional, Sequence
 from github import Auth
 from github.PullRequest import PullRequest
 from kernel_patches_daemon.branch_worker import (
-    MERGE_CONFLICT_LABEL,
     BranchWorker,
+    MERGE_CONFLICT_LABEL,
+    NewPRWithNoChangeException,
+    parse_pr_ref,
     parsed_pr_ref_ok,
     pr_has_label,
     same_series_different_target,
-    parse_pr_ref,
-    NewPRWithNoChangeException,
 )
 from kernel_patches_daemon.config import (
-    SERIES_TARGET_SEPARATOR,
     BranchConfig,
     KPDConfig,
+    SERIES_TARGET_SEPARATOR,
 )
 from kernel_patches_daemon.github_logs import (
     BpfGithubLogExtractor,

@@ -40,8 +40,8 @@ from kernel_patches_daemon.branch_worker import (
 )
 from kernel_patches_daemon.config import (
     EmailConfig,
-    SERIES_TARGET_SEPARATOR,
     SERIES_ID_SEPARATOR,
+    SERIES_TARGET_SEPARATOR,
 )
 from kernel_patches_daemon.github_logs import DefaultGithubLogExtractor
 from kernel_patches_daemon.patchwork import Series, Subject
