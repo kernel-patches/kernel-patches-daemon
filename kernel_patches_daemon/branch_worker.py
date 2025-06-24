@@ -38,9 +38,9 @@ from github.Repository import Repository
 from github.WorkflowJob import WorkflowJob
 
 from kernel_patches_daemon.config import (
+    EmailConfig,
     SERIES_ID_SEPARATOR,
     SERIES_TARGET_SEPARATOR,
-    EmailConfig,
 )
 from kernel_patches_daemon.github_connector import GithubConnector
 from kernel_patches_daemon.github_logs import GithubFailedJobLog, GithubLogExtractor
@@ -352,8 +352,8 @@ async def send_email(
 
 
 def pr_has_label(pr: PullRequest, label: str) -> bool:
-    for l in pr.get_labels():
-        if l.name == label:
+    for pr_label in pr.get_labels():
+        if pr_label.name == label:
             return True
     return False
 
