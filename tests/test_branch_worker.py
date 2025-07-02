@@ -34,6 +34,7 @@ from kernel_patches_daemon.branch_worker import (
     email_in_submitter_allowlist,
     EmailBodyContext,
     furnish_ci_email_body,
+    parse_pr_ref,
     same_series_different_target,
     temporary_patch_file,
     UPSTREAM_REMOTE_NAME,
@@ -1400,3 +1401,109 @@ class TestEmailNotification(unittest.TestCase):
         )
         self.assertEqual(expected_cmd, cmd)
         self.assertEqual(expected_email, email)
+
+
+class TestParsePrRef(unittest.TestCase):
+    def test_parse_pr_ref_comprehensive(self):
+        test_cases = [
+            (
+                "series/123456=>main",
+                {"series": "series/123456", "series_id": 123456, "target": "main"},
+            ),
+            (
+                "patch/789=>bpf-next",
+                {"series": "patch/789", "series_id": 789, "target": "bpf-next"},
+            ),
+            ("series/42", {"series": "series/42", "series_id": 42}),
+            ("series/abc=>target", {"series": "series/abc", "target": "target"}),
+            (
+                "series/999=>feature/branch-name",
+                {
+                    "series": "series/999",
+                    "series_id": 999,
+                    "target": "feature/branch-name",
+                },
+            ),
+            ("", {"series": ""}),
+            ("=>", {"series": "", "target": ""}),
+            ("series", {"series": "series"}),
+            ("=>target", {"series": "", "target": "target"}),
+            (
+                "series/123=>target=>extra",
+                {"series": "series/123", "series_id": 123, "target": "target=>extra"},
+            ),
+            (
+                "path/to/series/456=>target",
+                {"series": "path/to/series/456", "target": "target"},
+            ),
+            ("series/abc123=>target", {"series": "series/abc123", "target": "target"}),
+            ("series/123abc=>target", {"series": "series/123abc", "target": "target"}),
+            (
+                " series/123=>target ",
+                {"series": " series/123", "series_id": 123, "target": "target "},
+            ),
+            (
+                "series/1=>target",
+                {"series": "series/1", "series_id": 1, "target": "target"},
+            ),
+            (
+                "series/007=>target",
+                {"series": "series/007", "series_id": 7, "target": "target"},
+            ),
+            (
+                "series/000=>target",
+                {"series": "series/000", "series_id": 0, "target": "target"},
+            ),
+            ("series/12a34=>target", {"series": "series/12a34", "target": "target"}),
+            ("series/a1234=>target", {"series": "series/a1234", "target": "target"}),
+            ("series/abc=>target", {"series": "series/abc", "target": "target"}),
+            ("series/=>target", {"series": "series/", "target": "target"}),
+            (
+                "path/123/series/456=>target",
+                {"series": "path/123/series/456", "target": "target"},
+            ),
+            ("series/123!@#=>target", {"series": "series/123!@#", "target": "target"}),
+            (
+                "série/123=>tärget",
+                {"series": "série/123", "series_id": 123, "target": "tärget"},
+            ),
+            (
+                "series/999999999999999999999=>target",
+                {
+                    "series": "series/999999999999999999999",
+                    "series_id": 999999999999999999999,
+                    "target": "target",
+                },
+            ),
+            ("series/-123=>target", {"series": "series/-123", "target": "target"}),
+            (
+                "series/0=>target",
+                {"series": "series/0", "series_id": 0, "target": "target"},
+            ),
+            ("series/123.45=>target", {"series": "series/123.45", "target": "target"}),
+            ("series/1e5=>target", {"series": "series/1e5", "target": "target"}),
+            ("\n\r\t", {"series": "\n\r\t"}),
+            ("/" * 100, {"series": "/" * 100}),
+        ]
+
+        def validate_parsed_pr_ref(ref):
+            self.assertIsInstance(ref, dict)
+            self.assertIn("series", ref)
+            self.assertIsInstance(ref["series"], str)
+            if "target" in ref:
+                self.assertIsInstance(ref["target"], str)
+            if "series_id" in ref:
+                self.assertIsInstance(ref["series_id"], int)
+            valid_keys = {"series", "target", "series_id"}
+            self.assertTrue(set(result.keys()).issubset(valid_keys))
+
+        for test_input, expected in test_cases:
+            with self.subTest(input=test_input):
+                try:
+                    result = parse_pr_ref(test_input)
+                    validate_parsed_pr_ref(result)
+                    self.assertEqual(result, expected)
+                except Exception as e:
+                    self.fail(
+                        f"parse_pr_ref raised {type(e).__name__} for input '{test_input}': {e}"
+                    )
