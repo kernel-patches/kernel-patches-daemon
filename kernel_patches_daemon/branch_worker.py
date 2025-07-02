@@ -39,11 +39,10 @@ from github.WorkflowJob import WorkflowJob
 
 from kernel_patches_daemon.config import (
     EmailConfig,
-    SERIES_ID_SEPARATOR,
     SERIES_TARGET_SEPARATOR,
 )
 from kernel_patches_daemon.github_connector import GithubConnector
-from kernel_patches_daemon.github_logs import GithubFailedJobLog, GithubLogExtractor
+from kernel_patches_daemon.github_logs import GithubLogExtractor
 from kernel_patches_daemon.patchwork import Patchwork, Series, Subject
 from kernel_patches_daemon.stats import HistogramMetricTimer
 from kernel_patches_daemon.status import (
@@ -93,6 +92,12 @@ CI_VMTEST_NAME = "VM_Test"
 CI_DESCRIPTION = "vmtest"
 MERGE_CONFLICT_LABEL = "merge-conflict"
 UPSTREAM_REMOTE_NAME = "upstream"
+
+# We get 5k tokens per hour. When this value is checked, we should be
+# able to do at least one more sync loop. Depending on number of PRs,
+# one iteration can use more or less tokens, but generally BPF CI uses
+# 4k in 10-15 iterations, so 1k should be enough almost always.
+MIN_REMAINING_GITHUB_TOKENS = 1000
 
 # fmt: off
 EMAIL_TEMPLATE_BASE: Final[str] = """\
@@ -648,6 +653,12 @@ class BranchWorker(GithubConnector):
             pushed = True
 
         self._update_e2e_pr(title, base_branch, branch_name, pushed)
+
+    def can_do_sync(self) -> bool:
+        github_ratelimit = self.git.get_rate_limit()
+        if github_ratelimit.core.remaining < MIN_REMAINING_GITHUB_TOKENS:
+            return False
+        return True
 
     def do_sync(self) -> None:
         # fetch most recent upstream

@@ -25,7 +25,6 @@ from kernel_patches_daemon.branch_worker import (
 from kernel_patches_daemon.config import (
     BranchConfig,
     KPDConfig,
-    SERIES_TARGET_SEPARATOR,
 )
 from kernel_patches_daemon.github_logs import (
     BpfGithubLogExtractor,
@@ -280,13 +279,22 @@ class GithubSync(Stats):
         as separate commit
         """
 
+        sync_workers = [
+            (branch, worker)
+            for (branch, worker) in self.workers.items()
+            if worker.can_do_sync()
+        ]
+        if not sync_workers:
+            logger.warn("No branch workers that can_do_sync(), skipping sync_patches()")
+            return
+
         # sync mirror and fetch current states of PRs
         loop = asyncio.get_event_loop()
 
         self.drop_counters()
         sync_start = time.time()
 
-        for branch, worker in self.workers.items():
+        for branch, worker in sync_workers:
             logging.info(f"Refreshing repo info for {branch}.")
             await loop.run_in_executor(None, worker.fetch_repo_branch)
             await loop.run_in_executor(None, worker.get_pulls)
@@ -298,7 +306,7 @@ class GithubSync(Stats):
         mirror_done = time.time()
 
         with HistogramMetricTimer(patchwork_fetch_duration):
-            for branch, worker in self.workers.items():
+            for branch, worker in sync_workers:
                 await loop.run_in_executor(
                     None, worker.update_e2e_test_branch_and_update_pr, branch
                 )
@@ -313,7 +321,7 @@ class GithubSync(Stats):
 
         # sync old subjects
         subject_names = {x.subject for x in self.subjects}
-        for worker in self.workers.values():
+        for _, worker in sync_workers:
             for subject_name, pr in worker.prs.items():
                 if subject_name in subject_names:
                     continue
@@ -359,7 +367,7 @@ class GithubSync(Stats):
         self.set_counter("mirror_duration", mirror_done - sync_start)
         self.set_counter("pw_fetch_duration", pw_done - mirror_done)
         self.set_counter("patch_and_update_duration", patches_done - pw_done)
-        for worker in self.workers.values():
+        for _, worker in sync_workers:
             for pr in worker.prs.values():
                 if worker._is_relevant_pr(pr):
                     self.increment_counter("prs_total")
