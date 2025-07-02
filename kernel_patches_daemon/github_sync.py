@@ -321,7 +321,10 @@ class GithubSync(Stats):
                 if worker._is_relevant_pr(pr):
                     parsed_ref = parse_pr_ref(pr.head.ref)
                     # ignore unknown format branch/PRs.
-                    if parsed_pr_ref_ok(parsed_ref):
+                    if not parsed_pr_ref_ok(parsed_ref):
+                        logger.warning(
+                            f"Unexpected format of the branch name: {pr.head.ref}"
+                        )
                         continue
 
                     series_id = parsed_ref["series_id"]
