@@ -416,7 +416,7 @@ def parse_pr_ref(ref: str) -> Dict[str, Any]:
         res["target"] = tmp[1]
 
     tmp = res["series"].split("/", maxsplit=1)
-    if len(tmp) >= 2:
+    if len(tmp) >= 2 and tmp[1].isdigit():
         res["series_id"] = int(tmp[1])
 
     return res
