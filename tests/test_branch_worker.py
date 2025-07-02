@@ -227,9 +227,10 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             with self.subTest(msg=case.name):
                 self._bw.repo.get_pulls.reset_mock()
                 self._bw.repo.get_pulls.return_value = case.prs
-                with patch.object(BranchWorker, "add_pr") as ap, patch.object(
-                    BranchWorker, "_is_relevant_pr"
-                ) as rp:
+                with (
+                    patch.object(BranchWorker, "add_pr") as ap,
+                    patch.object(BranchWorker, "_is_relevant_pr") as rp,
+                ):
                     # set is_relevant return values
                     rp.side_effect = [pr.relevant for pr in case.prs]
 
@@ -328,9 +329,10 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             lr.remote.assert_called_with(UPSTREAM_REMOTE_NAME)
 
     def test_do_sync_reset_repo(self) -> None:
-        with patch.object(self._bw, "repo_local") as lr, patch(
-            "kernel_patches_daemon.branch_worker._reset_repo"
-        ) as rr:
+        with (
+            patch.object(self._bw, "repo_local") as lr,
+            patch("kernel_patches_daemon.branch_worker._reset_repo") as rr,
+        ):
             # Create a mock suitable to mock a git.RemoteReference
             remote_ref = "a/b/c/d"
             m = MagicMock()
@@ -426,9 +428,10 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
     def test_fetch_repo_path_doesnt_exist_full_sync(self) -> None:
         """When the repo does not exist yet, a full sync is performed."""
         fetch_params = ["somepath", "giturl", "branch"]
-        with patch.object(self._bw, "full_sync") as fr, patch(
-            "kernel_patches_daemon.branch_worker.os.path.exists"
-        ) as exists:
+        with (
+            patch.object(self._bw, "full_sync") as fr,
+            patch("kernel_patches_daemon.branch_worker.os.path.exists") as exists,
+        ):
             # path does not exists
             exists.return_value = False
             self._bw.fetch_repo(*fetch_params)
@@ -437,9 +440,10 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
     def test_fetch_repo_path_exists_no_full_sync(self) -> None:
         """If the repo already exist, we don't perform a full sync."""
         fetch_params = ["somepath", "giturl", "branch"]
-        with patch.object(self._bw, "full_sync") as fr, patch(
-            "kernel_patches_daemon.branch_worker.os.path.exists"
-        ) as exists:
+        with (
+            patch.object(self._bw, "full_sync") as fr,
+            patch("kernel_patches_daemon.branch_worker.os.path.exists") as exists,
+        ):
             # path does exists
             exists.return_value = True
             self._bw.fetch_repo(*fetch_params)
@@ -448,9 +452,10 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
     def test_fetch_repo_path_exists_git_exception(self) -> None:
         """When the repo exists but we hit a git command exception, we fallback on full sync."""
         fetch_params = ["somepath", "giturl", "branch"]
-        with patch.object(self._bw, "full_sync") as fr, patch(
-            "kernel_patches_daemon.branch_worker.os.path.exists"
-        ) as exists:
+        with (
+            patch.object(self._bw, "full_sync") as fr,
+            patch("kernel_patches_daemon.branch_worker.os.path.exists") as exists,
+        ):
             # path does exists
             exists.return_value = True
             self._git_repo_mock.init.return_value.git.fetch.side_effect = (
@@ -520,9 +525,11 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             with self.subTest(msg=case.name):
                 self._bw.branches = case.branches
                 self._bw.all_prs = {p: {} for p in case.all_prs}
-                with patch.object(self._bw, "filter_closed_pr") as fcp, patch.object(
-                    self._bw, "delete_branch"
-                ) as db, freeze_time(not_expired_time):
+                with (
+                    patch.object(self._bw, "filter_closed_pr") as fcp,
+                    patch.object(self._bw, "delete_branch") as db,
+                    freeze_time(not_expired_time),
+                ):
                     fcp.side_effect = case.fcp_return_prs
                     self._bw.expire_branches()
                     # check fcp and db are called with proper counts

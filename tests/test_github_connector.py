@@ -254,11 +254,14 @@ class TestGithubConnectorAuth(unittest.TestCase):
             munch.munchify({"token": "token1", "expires_at": expired_at_date}),
             munch.munchify({"token": "token2", "expires_at": expired_at_next}),
         ]
-        with patch.object(
-            AppInstallationAuth,
-            "_get_installation_authorization",
-            side_effect=side_effect,
-        ) as p, freeze_time(DEFAULT_FREEZE_DATE) as frozen_datetime:
+        with (
+            patch.object(
+                AppInstallationAuth,
+                "_get_installation_authorization",
+                side_effect=side_effect,
+            ) as p,
+            freeze_time(DEFAULT_FREEZE_DATE) as frozen_datetime,
+        ):
             gc = get_default_gc_app_auth_client()
             # Force generating a first token
             # pyre-fixme[16]: `github.MainClass.Github` has no attribute `__requester`.
@@ -286,11 +289,14 @@ class TestGithubConnectorAuth(unittest.TestCase):
             munch.munchify({"token": "token1", "expires_at": expired_at_date}),
             munch.munchify({"token": "token2", "expires_at": expired_at_next}),
         ]
-        with patch.object(
-            AppInstallationAuth,
-            "_get_installation_authorization",
-            side_effect=side_effect,
-        ) as p, freeze_time(DEFAULT_FREEZE_DATE) as frozen_datetime:
+        with (
+            patch.object(
+                AppInstallationAuth,
+                "_get_installation_authorization",
+                side_effect=side_effect,
+            ) as p,
+            freeze_time(DEFAULT_FREEZE_DATE) as frozen_datetime,
+        ):
             gc = get_default_gc_app_auth_client()
             # Force generating a first token
             # pyre-fixme[16]: `github.MainClass.Github` has no attribute `__requester`.
@@ -319,11 +325,14 @@ class TestGithubConnectorAuth(unittest.TestCase):
             munch.munchify({"token": "token1", "expires_at": expired_at_date}),
             munch.munchify({"token": "token2", "expires_at": expired_at_next}),
         ]
-        with patch.object(
-            AppInstallationAuth,
-            "_get_installation_authorization",
-            side_effect=side_effect,
-        ) as p, freeze_time(DEFAULT_FREEZE_DATE) as frozen_datetime:
+        with (
+            patch.object(
+                AppInstallationAuth,
+                "_get_installation_authorization",
+                side_effect=side_effect,
+            ) as p,
+            freeze_time(DEFAULT_FREEZE_DATE) as frozen_datetime,
+        ):
             gc_app_auth = get_default_gc_app_auth_client()
             gc_oauth = get_default_gc_oauth_client()
             # Force generating a first token
@@ -366,11 +375,14 @@ class TestGithubConnectorAuth(unittest.TestCase):
             munch.munchify({"token": "token1", "expires_at": expired_at_date}),
         ]
 
-        with patch.object(
-            AppInstallationAuth,
-            "_get_installation_authorization",
-            side_effect=side_effect,
-        ) as p, freeze_time(DEFAULT_FREEZE_DATE):
+        with (
+            patch.object(
+                AppInstallationAuth,
+                "_get_installation_authorization",
+                side_effect=side_effect,
+            ) as p,
+            freeze_time(DEFAULT_FREEZE_DATE),
+        ):
             gc_app_auth = get_default_gc_app_auth_client(
                 repo_url=f"https://127.0.0.1/{TEST_ORG}/{TEST_REPO}"
             )
@@ -417,11 +429,14 @@ class TestGithubConnectorAuth(unittest.TestCase):
                     munch.munchify({"token": "token1", "expires_at": expired_at_date}),
                 ]
 
-                with patch.object(
-                    AppInstallationAuth,
-                    "_get_installation_authorization",
-                    side_effect=side_effect,
-                ) as p, freeze_time(DEFAULT_FREEZE_DATE):
+                with (
+                    patch.object(
+                        AppInstallationAuth,
+                        "_get_installation_authorization",
+                        side_effect=side_effect,
+                    ) as p,
+                    freeze_time(DEFAULT_FREEZE_DATE),
+                ):
                     gc_app_auth = get_default_gc_app_auth_client(
                         repo_url=case.initial_url
                     )
