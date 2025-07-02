@@ -7,6 +7,7 @@
 # pyre-unsafe
 
 import copy
+import os
 import unittest
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
@@ -330,9 +331,11 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         For patchwork mocking, it uses real response examples stored at tests/data/
         """
 
-        test_data = load_test_data(
-            "tests/data/test_github_sync.test_sync_patches_pr_summary_success"
+        data_path = os.path.join(
+            os.path.dirname(__file__),
+            "data/test_github_sync.test_sync_patches_pr_summary_success",
         )
+        test_data = load_test_data(data_path)
         init_pw_responses(m, test_data)
 
         # Set up mocks and test data
