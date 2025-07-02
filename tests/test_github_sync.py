@@ -85,6 +85,10 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(patcher.stop)
 
         self._gh = GithubSyncMock()
+        for worker in self._gh.workers.values():
+            rate_limit = MagicMock()
+            rate_limit.core.remaining = 5000
+            worker.git.get_rate_limit = MagicMock(return_value=rate_limit)
 
     def test_init_with_base_directory(self) -> None:
         @dataclass
