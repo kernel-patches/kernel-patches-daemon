@@ -11,7 +11,7 @@ import datetime
 import re
 import unittest
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from aioresponses import aioresponses
 
@@ -261,6 +261,30 @@ class TestPatchwork(PatchworkTestCase):
                     parse_tags(case.title),
                     case.expected,
                 )
+
+    async def _test_lookback(
+        self, m: aioresponses, lookback: int, assert_func: Callable[[str], None]
+    ) -> None:
+        self._pw = get_default_pw_client(lookback_in_days=lookback)
+        m.get(re.compile(r"^.*$"), status=200, body=b"[]")
+        await self._pw.get_relevant_subjects()
+        for request in m.requests.keys():
+            url = str(request[1])
+            assert_func(url)
+
+    @aioresponses()
+    async def test_get_objects_with_lookback(self, m: aioresponses) -> None:
+        """
+        If lookback is > 0, the 'since' query parameter must be present in the requests.
+        """
+        await self._test_lookback(m, 7, lambda url: self.assertIn("since=", url))
+
+    @aioresponses()
+    async def test_get_objects_no_lookback(self, m: aioresponses) -> None:
+        """
+        If lookback is <= 0, the 'since' query parameter must not be present in the requests.
+        """
+        await self._test_lookback(m, -1, lambda url: self.assertNotIn("since=", url))
 
 
 class TestSeries(PatchworkTestCase):

@@ -37,13 +37,18 @@ class PatchworkMock(Patchwork):
         super().__init__(*args, **kwargs)
 
 
-def get_default_pw_client() -> PatchworkMock:
-    return PatchworkMock(
-        server="127.0.0.1",
-        api_version="1.1",
-        search_patterns=[{"archived": False, "project": PROJECT, "delegate": DELEGATE}],
-        auth_token="mocktoken",
-    )
+def get_default_pw_client(**kwargs) -> PatchworkMock:
+    default_params = {
+        "server": "127.0.0.1",
+        "api_version": "1.1",
+        "search_patterns": [
+            {"archived": False, "project": PROJECT, "delegate": DELEGATE}
+        ],
+        "auth_token": "mocktoken",
+        "lookback_in_days": 7,
+    }
+    default_params.update(kwargs)
+    return PatchworkMock(**default_params)
 
 
 def init_pw_responses(m: aioresponses, data: Dict[str, Any]) -> None:

@@ -504,7 +504,7 @@ class Patchwork:
         server: str,
         search_patterns: List[Dict[str, Any]],
         auth_token: Optional[str] = None,
-        lookback_in_days: int = 7,
+        lookback_in_days: int = -1,
         api_version: str = "1.2",
         http_retries: int = DEFAULT_HTTP_RETRIES,
     ) -> None:
@@ -513,7 +513,9 @@ class Patchwork:
         if not auth_token:
             logger.warning("Patchwork client runs in read-only mode")
         self.search_patterns = search_patterns
-        self.since = self.format_since(lookback_in_days)
+        self.since = (
+            self.format_since(lookback_in_days) if lookback_in_days > 0 else None
+        )
         # member variable initializations
         self.known_series: Dict[int, Series] = {}
         self.known_subjects: Dict[str, Subject] = {}
@@ -716,17 +718,20 @@ class Patchwork:
         for pattern in self.search_patterns:
             patch_filters = MultiDict(
                 [
-                    ("since", self.since),
                     ("archived", str(False)),
                     *[("state", val) for val in RELEVANT_STATES.values()],
                 ]
             )
+            if self.since is not None:
+                patch_filters.add("since", self.since)
             patch_filters.update({k: str(v) for k, v in pattern.items()})
             logger.info(
                 f"Searching for Patchwork patches that match the criteria: {patch_filters}"
             )
             all_patches = await self.__get_objects_recursive(
-                "patches", params=patch_filters
+                "patches",
+                # pyre-ignore
+                params=patch_filters,
             )
 
             series_ids = set()
