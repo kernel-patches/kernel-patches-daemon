@@ -20,9 +20,8 @@ disclosure of security bugs. In those cases, please go through the process
 outlined on that page and do not file a public issue.
 
 ## Coding Style
-* 2 spaces for indentation rather than tabs
-* 80 character line length
-* ...
+
+Coding style is enforced by [black](https://github.com/psf/black) formatter.
 
 ## License
 By contributing to Kernel Patches Daemon, you agree that your contributions will be licensed
