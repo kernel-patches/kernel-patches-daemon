@@ -1,26 +1,25 @@
-# Kernel Patches Daemon
+# Kernel Patches Daemon (KPD)
 
-Kernel Patches Daemon (`kpd`), watches patchwork for new series sent to the mailing
-list, applies the series on top of `repo`.
+Kernel Patches Daemon (KPD) is a service connecting [Patchwork](https://github.com/getpatchwork/patchwork) with a GitHub repository, primarily for the puprose of running automated continuous integration (CI) testing via [GitHub Actions](https://github.com/features/actions).
 
-`repo` maintains base branches by pulling updates from `<upstream>@<upstream_branch>`
-and applying the CI files from `<ci_repo>@<ci_branch>` to it.
+KPD watches Patchwork for new patch series and keeps them in sync with pull requests for a specified repository.
+It also updates series checks at Patchwork with CI workflow results, and can send email notifications to the authors of a patch.
 
-When `kpd` sees a new or updated series, it applies the patches from the series
-on top of one of the maintained branch and creates a PR against it.
+KPD was originally developed at Meta in order to facilitate automated testing  of [BPF subsystem](https://docs.cilium.io/en/latest/reference-guides/bpf/index.html) of the [Linux Kernel](https://kernel.org/) (see [BPF CI](https://github.com/kernel-patches/bpf/actions/workflows/test.yml)).
 
-This in turns triggers the Github workflows copied from `ci_repo`.
+There have been a number of talks at various Linux-related conferences about KPD, see the slide decks for an introduction and overview: 
+- ["KPD: Connect LKML to GitHub"](https://github.com/user-attachments/files/21110162/KPD_.Connect.LKML.to.GitHub.pdf) (Automated Testing Summit 2025)
+- ["Get Started with KPD"](https://github.com/user-attachments/files/21110192/Get.Started.with.KPD.pdf) (2024)
+- ["How BPF CI works?"](http://oldvger.kernel.org/bpfconf2022_material/lsfmmbpf2022-bpf-ci.pdf) (LSF/MM/BPF 2022)
 
-When the workflow runs are reporting back, `kpd` updates the relevant checks for
-this series on patchwork (when the configuration provides a `pw_token` and
-`pw_user`).
+Also [kdevops](https://github.com/linux-kdevops/kdevops) project has great documentation with [a page on KPD integration](https://github.com/linux-kdevops/kdevops/blob/main/docs/kernel-ci/kernel-ci-kpd.md).
 
 ## Configuration
-`kpd.conf.template` is an example config based on the setup of https://github.com/kernel-patches/bpf
 
-The branch `bpf-next` uses [Github personal token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-to authenticate, while the branch `bpf`
-uses [Github App](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app).
+See an example of the configuration files in `configs/` directory.
+
+You may use [Github personal token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+to authenticate KPD to github, but using [Github App](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app) is preferrable.
 
 When using a GH app, it needs to have the following read and write access:
 - Content (write to repo)
@@ -50,7 +49,7 @@ poetry run python -m kernel_patches_daemon --config <config_path> --label-color 
 Kernel Patches Daemon is available as pre-build image:
 
 ```
-$ docker pull ghcr.io/facebookincubator/kernel-patches-daemon:latest
+$ docker pull ghcr.io/kernel-patches/kernel-patches-daemon:latest
 ```
 
 To build Kernel Patches Daemon with [Docker](https://docs.docker.com/engine/install):
@@ -67,6 +66,3 @@ $ docker-compose up
 
 ## CONTRIBUTING
 See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
-
-## License
-Kernel Patches Daemon is BSD licensed, as found in the LICENSE file.
