@@ -208,5 +208,16 @@ class TestConfig(unittest.TestCase):
                 ),
             },
             base_directory="/repos",
+            mirror_dir=None,
+            linux_clone=False,
         )
         self.assertEqual(config, expected_config)
+
+    def test_linux_clone_enabled(self) -> None:
+        kpd_config_json = read_fixture("fixtures/kpd_config.json")
+        kpd_config_json["linux_clone"] = True
+
+        with patch("builtins.open", mock_open(read_data="TEST_KEY_FILE_CONTENT")):
+            config = KPDConfig.from_json(kpd_config_json)
+
+        self.assertTrue(config.linux_clone)

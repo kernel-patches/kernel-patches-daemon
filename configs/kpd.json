@@ -41,5 +41,7 @@
       "github_oauth_token": "<TOKEN>"
     }
   },
-  "base_directory": "/tmp/repos"
+  "base_directory": "/tmp/repos",
+  "mirror_dir": "/mirror/",
+  "linux_clone": true
 }
