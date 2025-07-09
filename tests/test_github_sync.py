@@ -126,6 +126,20 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
                     gh.workers[TEST_BRANCH].ci_repo_dir.startswith(case.prefix),
                 )
 
+    def test_init_with_mirror_dir(self) -> None:
+        config = copy.copy(TEST_CONFIG)
+        config["mirror_dir"] = "/mirror"
+        kpd_config = KPDConfig.from_json(config)
+        gh = GithubSyncMock(kpd_config=kpd_config)
+        self.assertEqual("/mirror", gh.workers[TEST_BRANCH].mirror_dir)
+
+    def test_init_with_mirror_fallback_repo(self) -> None:
+        config = copy.copy(TEST_CONFIG)
+        config["branches"][TEST_BRANCH]["mirror_fallback_repo"] = "linux.git"
+        kpd_config = KPDConfig.from_json(config)
+        gh = GithubSyncMock(kpd_config=kpd_config)
+        self.assertEqual("linux.git", gh.workers[TEST_BRANCH].mirror_fallback_repo)
+
     def test_close_existing_prs_for_series(self) -> None:
         matching_pr_mock = MagicMock()
         matching_pr_mock.title = "matching"
