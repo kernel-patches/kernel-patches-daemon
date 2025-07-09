@@ -547,6 +547,8 @@ class BranchWorker(GithubConnector):
         app_auth: Optional[Auth.AppInstallationAuth] = None,
         email: Optional[EmailConfig] = None,
         http_retries: Optional[int] = None,
+        linux_clone: bool = False,
+        mirror_dir: Optional[str] = None,
     ) -> None:
         super().__init__(
             repo_url=repo_url,
@@ -559,6 +561,8 @@ class BranchWorker(GithubConnector):
         self.email = email
 
         self.log_extractor = log_extractor
+        self.mirror_dir = mirror_dir
+        self.linux_clone = linux_clone
         self.ci_repo_url = ci_repo_url
         self.ci_repo_dir = _uniq_tmp_folder(ci_repo_url, ci_branch, base_directory)
         self.ci_branch = ci_branch
@@ -682,9 +686,24 @@ class BranchWorker(GithubConnector):
     def full_sync(self, path: str, url: str, branch: str) -> git.Repo:
         logging.info(f"Doing full clone from {redact_url(url)}, branch: {branch}")
 
+        multi_opts: Optional[List[str]] = None
+        if self.mirror_dir:
+            upstream_name = os.path.basename(self.upstream_url)
+            reference_path = os.path.join(self.mirror_dir, upstream_name)
+            fallback = None
+            if self.linux_clone:
+                fallback = os.path.join(self.mirror_dir, "linux.git")
+            if not os.path.exists(reference_path) and fallback and os.path.exists(fallback):
+                reference_path = fallback
+            if os.path.exists(reference_path):
+                multi_opts = ["--reference", reference_path]
+
         with HistogramMetricTimer(git_clone_duration, {"branch": branch}):
             shutil.rmtree(path, ignore_errors=True)
-            repo = git.Repo.clone_from(url, path)
+            if multi_opts:
+                repo = git.Repo.clone_from(url, path, multi_options=multi_opts)
+            else:
+                repo = git.Repo.clone_from(url, path)
             _reset_repo(repo, f"origin/{branch}")
 
         git_clone_counter.add(1, {"branch": branch})
