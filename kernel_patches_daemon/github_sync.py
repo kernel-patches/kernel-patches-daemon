@@ -114,6 +114,8 @@ class GithubSync(Stats):
                 ci_branch=branch_config.ci_branch,
                 log_extractor=_log_extractor_from_project(kpd_config.patchwork.project),
                 base_directory=kpd_config.base_directory,
+                mirror_dir=kpd_config.mirror_dir,
+                linux_clone=kpd_config.linux_clone,
                 http_retries=http_retries,
                 github_oauth_token=branch_config.github_oauth_token,
                 app_auth=github_app_auth_from_branch_config(branch_config),
