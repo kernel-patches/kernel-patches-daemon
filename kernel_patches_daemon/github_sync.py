@@ -130,6 +130,8 @@ class GithubSync(Stats):
                 "prs_total",  # All prs within the scope of work for this worker
                 "empty_pr",  # Series that would result in an empty PR creation
                 "all_known_subjects",  # All known subjects from PW and GH, including expired patches
+                "runs_successful",  # Successful KernelPatchesWorker.run() iteration
+                "runs_failed",  # Failed KernelPatchesWorker.run() iteration
             }
         )
 

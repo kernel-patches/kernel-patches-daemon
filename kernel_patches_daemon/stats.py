@@ -78,10 +78,15 @@ class Stats:
         for counter in DEFAULT_STATS | self.counters:
             self.stats[counter] = 0
 
-    def increment_counter(self, key: str, increment: int = 1) -> None:
-        try:
+    def increment_counter(
+        self, key: str, increment: int = 1, create: bool = False
+    ) -> None:
+        if key in self.stats:
             self.stats[key] += increment
-        except Exception:
+        elif create:
+            self.counters.add(key)
+            self.stats[key] = increment
+        else:
             self.stats[STATS_KEY_BUG] += 1
             logger.error(f"Failed to add {increment} increment to '{key}' stat")
 
