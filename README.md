@@ -7,7 +7,7 @@ It also updates series checks at Patchwork with CI workflow results, and can sen
 
 KPD was originally developed at Meta in order to facilitate automated testing  of [BPF subsystem](https://docs.cilium.io/en/latest/reference-guides/bpf/index.html) of the [Linux Kernel](https://kernel.org/) (see [BPF CI](https://github.com/kernel-patches/bpf/actions/workflows/test.yml)).
 
-There have been a number of talks at various Linux-related conferences about KPD, see the slide decks for an introduction and overview: 
+There have been a number of talks at various Linux-related conferences about KPD, see the slide decks for an introduction and overview:
 - ["KPD: Connect LKML to GitHub"](https://github.com/user-attachments/files/21110162/KPD_.Connect.LKML.to.GitHub.pdf) (Automated Testing Summit 2025)
 - ["Get Started with KPD"](https://github.com/user-attachments/files/21110192/Get.Started.with.KPD.pdf) (2024)
 - ["How BPF CI works?"](http://oldvger.kernel.org/bpfconf2022_material/lsfmmbpf2022-bpf-ci.pdf) (LSF/MM/BPF 2022)

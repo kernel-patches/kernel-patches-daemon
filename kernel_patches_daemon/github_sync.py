@@ -22,10 +22,7 @@ from kernel_patches_daemon.branch_worker import (
     pr_has_label,
     same_series_different_target,
 )
-from kernel_patches_daemon.config import (
-    BranchConfig,
-    KPDConfig,
-)
+from kernel_patches_daemon.config import BranchConfig, KPDConfig
 from kernel_patches_daemon.github_logs import (
     BpfGithubLogExtractor,
     DefaultGithubLogExtractor,

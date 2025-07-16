@@ -37,10 +37,7 @@ from github.PullRequest import PullRequest
 from github.Repository import Repository
 from github.WorkflowJob import WorkflowJob
 
-from kernel_patches_daemon.config import (
-    EmailConfig,
-    SERIES_TARGET_SEPARATOR,
-)
+from kernel_patches_daemon.config import EmailConfig, SERIES_TARGET_SEPARATOR
 from kernel_patches_daemon.github_connector import GithubConnector
 from kernel_patches_daemon.github_logs import GithubLogExtractor
 from kernel_patches_daemon.patchwork import Patchwork, Series, Subject
