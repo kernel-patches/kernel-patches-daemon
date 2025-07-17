@@ -5,11 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 import unittest
-from typing import Any, Dict
+from typing import Any, Dict, List
 from unittest.mock import AsyncMock, patch
 
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.daemon import KernelPatchesWorker
+from kernel_patches_daemon.stats import Stats
 
 TEST_CONFIG: Dict[str, Any] = {
     "version": 3,
@@ -40,8 +41,16 @@ class TestException(Exception):
     pass
 
 
+LOGGED_METRICS: List[Dict[str, Any]] = []
+
+
+def metrics_logger_mock(project: str, stats: Stats) -> None:
+    LOGGED_METRICS.append({project: stats})
+
+
 class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        LOGGED_METRICS.clear()
         self.github_patcher = patch("kernel_patches_daemon.github_connector.Github")
         self.github_mock = self.github_patcher.start()
         self.addCleanup(self.github_patcher.stop)
@@ -54,7 +63,9 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.git_patcher.stop)
 
         kpd_config = KPDConfig.from_json(TEST_CONFIG)
-        self.worker = KernelPatchesWorker(kpd_config, {})
+        self.worker = KernelPatchesWorker(
+            kpd_config, {}, metrics_logger=metrics_logger_mock
+        )
 
         self.worker.github_sync_worker.sync_patches = AsyncMock()
 
@@ -70,7 +81,9 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
 
         gh_sync = self.worker.github_sync_worker
         gh_sync.sync_patches.assert_called_once()
-        self.assertEqual(gh_sync.stats["runs_successful"], 1)
+        self.assertEqual(len(LOGGED_METRICS), 1)
+        stats = LOGGED_METRICS[0][self.worker.project]
+        self.assertEqual(stats["runs_successful"], 1)
 
     async def test_run_exception(self) -> None:
         """Test that stats are correctly collected when an exception occurs."""
@@ -85,5 +98,7 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         ):
             await self.worker.run()
 
-        self.assertEqual(gh_sync.stats["runs_failed"], 1)
-        self.assertEqual(gh_sync.stats["unhandled_ValueError"], 1)
+        self.assertEqual(len(LOGGED_METRICS), 1)
+        stats = LOGGED_METRICS[0][self.worker.project]
+        self.assertEqual(stats["runs_failed"], 1)
+        self.assertEqual(stats["unhandled_ValueError"], 1)

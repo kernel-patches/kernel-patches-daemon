@@ -36,16 +36,24 @@ class KernelPatchesWorker:
         self.loop_delay: Final[int] = loop_delay
         self.metrics_logger = metrics_logger
 
-    async def run_once(self) -> None:
-        await self.github_sync_worker.sync_patches()
-        logger.info("Submitting run metrics into metrics logger")
+    async def submit_metrics(self) -> None:
         if self.metrics_logger:
-            self.metrics_logger(self.project, self.github_sync_worker.stats)
+            logger.info("Submitting run metrics into metrics logger")
+            try:
+                self.metrics_logger(self.project, self.github_sync_worker.stats)
+            except Exception:
+                logger.exception(
+                    "Failed to submit run metrics into metrics logger", exc_info=True
+                )
+        else:
+            logger.warn(
+                "Not submitting run metrics because metrics logger is not configured"
+            )
 
     async def run(self) -> None:
         while True:
             try:
-                await self.run_once()
+                await self.github_sync_worker.sync_patches()
                 self.github_sync_worker.increment_counter("runs_successful")
             except Exception as e:
                 self.github_sync_worker.increment_counter("runs_failed")
@@ -56,6 +64,7 @@ class KernelPatchesWorker:
                 logger.exception(
                     "Unhandled exception in KernelPatchesWorker.run()", exc_info=True
                 )
+            await self.submit_metrics()
             logger.info(f"Waiting for {self.loop_delay} seconds before next run...")
             await asyncio.sleep(self.loop_delay)
 
