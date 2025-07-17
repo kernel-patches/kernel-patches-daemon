@@ -68,6 +68,7 @@ TEST_CI_REPO = "ci-repo"
 TEST_CI_REPO_URL = f"https://user:pass@127.0.0.1/ci-org/{TEST_CI_REPO}"
 TEST_CI_BRANCH = "test_ci_branch"
 TEST_BASE_DIRECTORY = "/repos"
+TEST_MIRROR_DIRECTORY = "/mirror"
 TEST_BRANCH = "test-branch"
 TEST_CONFIG: Dict[str, Any] = {
     "version": 2,
@@ -124,6 +125,8 @@ class BranchWorkerMock(BranchWorker):
             "ci_branch": TEST_CI_BRANCH,
             "log_extractor": DefaultGithubLogExtractor(),
             "base_directory": TEST_BASE_DIRECTORY,
+            "mirror_dir": None,
+            "linux_clone": False,
         }
         presets.update(kwargs)
 
@@ -463,6 +466,56 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             )
             self._bw.fetch_repo(*fetch_params)
             fr.assert_called_once_with(*fetch_params)
+
+    def test_full_sync_with_mirror_dir(self) -> None:
+        bw = BranchWorkerMock(mirror_dir=TEST_MIRROR_DIRECTORY)
+        reference = os.path.join(
+            TEST_MIRROR_DIRECTORY, os.path.basename(TEST_UPSTREAM_REPO_URL)
+        )
+        with (
+            patch("kernel_patches_daemon.branch_worker.os.path.exists") as exists,
+            patch("kernel_patches_daemon.branch_worker.shutil.rmtree") as rm,
+        ):
+            exists.side_effect = lambda p: p == reference
+            bw.upstream_url = TEST_UPSTREAM_REPO_URL
+            bw.full_sync("somepath", "giturl", "branch")
+            self._git_repo_mock.clone_from.assert_called_once_with(
+                "giturl",
+                "somepath",
+                multi_options=["--reference", reference],
+            )
+
+    def test_full_sync_with_linux_mirror_fallback(self) -> None:
+        bw = BranchWorkerMock(mirror_dir=TEST_MIRROR_DIRECTORY, linux_clone=True)
+        fallback = os.path.join(TEST_MIRROR_DIRECTORY, "linux.git")
+        with (
+            patch("kernel_patches_daemon.branch_worker.os.path.exists") as exists,
+            patch("kernel_patches_daemon.branch_worker.shutil.rmtree") as rm,
+        ):
+            exists.side_effect = lambda p: p == fallback
+            bw.upstream_url = TEST_UPSTREAM_REPO_URL
+            bw.full_sync("somepath", "giturl", "branch")
+            self._git_repo_mock.clone_from.assert_called_once_with(
+                "giturl",
+                "somepath",
+                multi_options=["--reference", fallback],
+            )
+
+    def test_full_sync_without_linux_mirror_fallback(self) -> None:
+        bw = BranchWorkerMock(mirror_dir=TEST_MIRROR_DIRECTORY, linux_clone=False)
+        fallback = os.path.join(TEST_MIRROR_DIRECTORY, "linux.git")
+        with (
+            patch("kernel_patches_daemon.branch_worker.os.path.exists") as exists,
+            patch("kernel_patches_daemon.branch_worker.shutil.rmtree") as rm,
+        ):
+            exists.side_effect = lambda p: p == fallback
+            bw.upstream_url = TEST_UPSTREAM_REPO_URL
+            bw.full_sync("somepath", "giturl", "branch")
+            # Without linux_mirror we should not use fallback
+            self._git_repo_mock.clone_from.assert_called_once_with(
+                "giturl",
+                "somepath",
+            )
 
     def test_expire_branches(self) -> None:
         """Only the branch that matches pattern and is expired should be deleted"""

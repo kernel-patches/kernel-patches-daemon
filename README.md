@@ -39,6 +39,21 @@ poetry install
 poetry run python -m unittest
 ```
 
+### Mirror setup
+
+To make more efficient use of network bandwidth consider having a mirror of your target git tree
+under /mirror/ or something like that and set the configuration attribute "mirror_dir" variable to the
+path where to find possible git trees.
+
+If your git tree is a linux clone set the "linux_clone" to true. In that case, in case your
+target exact basename repo is not in in the mirror path, for example {{ mirror_dir }}/linux-subsystem.git
+then the extra fallback path of {{ mirror_dir }}/linux.git will be used as a reference target.
+
+A reference target mirror path is only used if it exists. The mirror takes effect by leveraging
+the git clone --reference option when cloning. Using this can save considerable bandwidth and
+space, allowing kpd to run on thing guests on a corporate environment with for example an NFS
+mount for local git trees on a network.
+
 ## Running
 ```
 poetry run python -m kernel_patches_daemon --config <config_path> --label-color configs/labels.json
