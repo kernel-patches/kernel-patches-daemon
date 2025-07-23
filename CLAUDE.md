@@ -41,6 +41,9 @@ poetry run flake8
 # Run with configuration
 poetry run python -m kernel_patches_daemon --config <config_path> --label-color configs/labels.json
 
+# Dry run mode: List candidate patches only (useful for debugging)
+poetry run python -m kernel_patches_daemon --config <config_path> --label-color configs/labels.json --dry-run-list-candidates-only
+
 # Purge all PRs and branches (destructive)
 poetry run python -m kernel_patches_daemon --config <config_path> --action purge
 ```
@@ -83,6 +86,7 @@ docker pull ghcr.io/kernel-patches/kernel-patches-daemon:latest
 - Key sections: `patchwork`, `branches`, `tag_to_branch_mapping`, `mirror_dir`
 - Authentication: GitHub Apps preferred over personal tokens
 - Mirror setup: Uses `mirror_dir` with fallback repositories for bandwidth optimization
+- Lookback period: Recommended 14-21 days for kernel projects (default 7 may be too short)
 
 ### Testing Structure
 
@@ -92,6 +96,11 @@ docker pull ghcr.io/kernel-patches/kernel-patches-daemon:latest
 - Golden files for email template testing
 
 ## Development Notes
+
+### Debugging and Troubleshooting
+- Use `--dry-run-list-candidates-only` for debugging patch detection issues
+- Check project ID type consistency (should be strings in config, auto-converted to int)
+- Verify lookback period is appropriate for the project's patch lifecycle
 
 ### Code Style
 - Uses `black` formatter (enforced)
