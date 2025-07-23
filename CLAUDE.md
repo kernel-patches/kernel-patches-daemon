@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+For example prompts and case studies showing successful AI-assisted development patterns, see [PROMPTS.md](PROMPTS.md).
+
 ## Project Overview
 
 Kernel Patches Daemon (KPD) is a Python service that connects Patchwork with GitHub repositories for automated CI testing. It watches Patchwork for new patch series, creates GitHub pull requests, and syncs CI results back to Patchwork.
@@ -121,3 +123,30 @@ docker pull ghcr.io/kernel-patches/kernel-patches-daemon:latest
 - Tests must pass
 - Code must be formatted with black
 - PRs should target `main` branch
+- AI-generated code should include attribution tags:
+  - `🤖 Generated with [Claude Code](https://claude.ai/code)`
+  - `Co-Authored-By: Claude <noreply@anthropic.com>`
+
+## AI-Assisted Development Guidelines
+
+### Effective Prompting Strategies
+
+1. **Provide context**: Include relevant configuration files, error messages, and system information
+2. **Be specific**: Describe exact symptoms, reproduction steps, and expected behavior
+3. **Request systematic approaches**: Ask for diagnostic tools and step-by-step debugging
+4. **Include testing requirements**: Specify how the solution should be tested and validated
+
+### Common Development Patterns
+
+- **Debugging workflow**: Implement diagnostic tools (like `--dry-run-list-candidates-only`) before attempting fixes
+- **Configuration issues**: Check type consistency between config files and API responses
+- **Lei-based patchwork**: Be aware of kernel.org's subsystem-specific patchwork instances and their characteristics
+- **Documentation updates**: Always update README.md, CONFIG.md, and CLAUDE.md when making significant changes
+
+### Example Success Patterns
+
+See [PROMPTS.md](PROMPTS.md) for detailed case studies, including:
+- Debugging lei-based patchwork instance compatibility
+- Adding new debugging features
+- Fixing type mismatch bugs in API integration
+- Improving configuration handling for different deployment scenarios
