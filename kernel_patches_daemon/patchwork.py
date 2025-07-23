@@ -380,7 +380,7 @@ class Series:
                         # these values can be None so we need to filter them out first
                         if not patch[prop_name]:
                             return False
-                        if patch[prop_name]["id"] != expected_value:
+                        if patch[prop_name]["id"] != int(expected_value):
                             return False
                     except KeyError:
                         return False

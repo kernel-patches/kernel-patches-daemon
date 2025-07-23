@@ -87,6 +87,7 @@ docker pull ghcr.io/kernel-patches/kernel-patches-daemon:latest
 - Authentication: GitHub Apps preferred over personal tokens
 - Mirror setup: Uses `mirror_dir` with fallback repositories for bandwidth optimization
 - Lookback period: Recommended 14-21 days for kernel projects (default 7 may be too short)
+- Lei-based patchwork support: Works with kernel.org's new subsystem-specific instances
 
 ### Testing Structure
 
