@@ -110,5 +110,37 @@ $ docker-compose build
 $ docker-compose up
 ```
 
+## AI-Assisted Development
+
+KPD embraces AI-assisted development to accelerate feature development and debugging. The project provides comprehensive guidance for using generative AI tools effectively:
+
+- **[CLAUDE.md](CLAUDE.md)**: Guidelines for using Claude Code with this repository
+- **[PROMPTS.md](PROMPTS.md)**: Example prompts and case studies showing successful AI-assisted development patterns
+
+### Getting Started with Claude Code
+
+Claude Code can help with debugging complex issues, adding new features, and understanding the codebase. Here are some effective prompting strategies:
+
+**For debugging:**
+```
+I'm having trouble with KPD not detecting patches from [patchwork instance].
+Here's my configuration: [paste config]. When I run the dry-run command,
+I see [describe output]. Can you help debug this issue?
+```
+
+**For feature development:**
+```
+I want to add [feature description] to KPD. The feature should [describe requirements].
+Looking at the existing codebase, what's the best approach to implement this?
+```
+
+**For code understanding:**
+```
+Can you explain how KPD's patch synchronization works? I'm particularly interested
+in [specific aspect] and how it interacts with [related component].
+```
+
+See [PROMPTS.md](PROMPTS.md) for detailed examples and successful development patterns.
+
 ## CONTRIBUTING
 See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
