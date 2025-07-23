@@ -142,6 +142,22 @@ KPD validates configuration on startup and will report specific errors for:
 - Check lookback period is appropriate (7 days may be too short for kernel projects)
 - Confirm search patterns match the patches you expect to process
 - Use `--dry-run-list-candidates-only` to debug patch detection
+- Verify project IDs in search_patterns are correct strings
+- For lei-based patchwork instances, ensure proper API endpoint access
+
+## Lei-based Patchwork Instances
+
+KPD supports the new lei-based patchwork instances deployed by kernel.org for specific subsystems. These instances:
+- Use pseudo email addresses like `devnull+firmware.lei.pseudo@kernel.org`
+- May have different API response characteristics
+- Are designed to limit patch scope to specific subsystems
+- Work with the same KPD configuration format
+
+When configuring for lei-based instances:
+1. Use the standard patchwork.kernel.org server
+2. Specify the correct project ID for your subsystem
+3. Consider longer lookback periods (14-21 days) as patches may have extended review cycles
+4. Test with dry-run mode to verify patch detection
 
 ## Example Configuration
 
