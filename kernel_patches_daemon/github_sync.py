@@ -373,3 +373,43 @@ class GithubSync(Stats):
                 if worker._is_relevant_pr(pr):
                     self.increment_counter("prs_total")
                     processed_prs.add(1)
+
+    async def dry_run_list_candidates(self) -> None:
+        """
+        Dry run mode: List candidate patches only without processing them.
+        """
+        logger.info("Starting dry run to list candidate patches...")
+
+        # Fetch relevant subjects from Patchwork
+        self.subjects = await self.pw.get_relevant_subjects()
+
+        if not self.subjects:
+            logger.info("No candidate patches found.")
+            print("No candidate patches found.")
+            return
+
+        logger.info(f"Found {len(self.subjects)} candidate patch subjects:")
+        print(f"Found {len(self.subjects)} candidate patch subjects:")
+        print("=" * 60)
+
+        for i, subject in enumerate(self.subjects, 1):
+            print(f"{i}. Subject: {subject.subject}")
+
+            # Get the latest series for this subject
+            try:
+                latest_series = await subject.latest_series()
+                if latest_series:
+                    print(f"   Series ID: {latest_series.id}")
+                    print(f"   Series Name: {latest_series.name}")
+                    print(f"   Version: {latest_series.version}")
+                    print(f"   Date: {latest_series.date}")
+                    print(f"   URL: {latest_series.web_url}")
+                else:
+                    print("   No series found for this subject")
+            except Exception as e:
+                print(f"   Error fetching series: {e}")
+
+            print()
+
+        print("=" * 60)
+        logger.info("Dry run completed.")

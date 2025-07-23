@@ -77,9 +77,18 @@ poetry run python -m kernel_patches_daemon --config <config_path> --label-color 
 
 ### Debugging and Testing
 ```bash
+# Dry run mode: List candidate patches without processing them
+poetry run python -m kernel_patches_daemon --config <config_path> --label-color configs/labels.json --dry-run-list-candidates-only
+
 # Purge all existing PRs and branches (destructive operation)
 poetry run python -m kernel_patches_daemon --config <config_path> --action purge
 ```
+
+The dry-run mode is particularly useful for:
+- Debugging patch detection issues
+- Verifying configuration changes
+- Understanding what patches KPD would process
+- Testing with new patchwork instances
 
 ## Docker
 

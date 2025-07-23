@@ -96,6 +96,11 @@ def parse_args() -> argparse.Namespace:
         choices=["start", "purge"],
         help="Purge will kill all existing PRs and delete all branches",
     )
+    parser.add_argument(
+        "--dry-run-list-candidates-only",
+        action="store_true",
+        help="Dry run mode: list candidate patches only and exit",
+    )
     args = parser.parse_args()
     return args
 
@@ -130,6 +135,17 @@ if __name__ == "__main__":
             exit(0)
         except Exception:
             logger.exception("Failed to purge")
+            exit(1)
+
+    if args.dry_run_list_candidates_only:
+        try:
+            from kernel_patches_daemon.github_sync import GithubSync
+            github_sync = GithubSync(kpd_config=kpd_config, labels_cfg=labels_cfg)
+            import asyncio
+            asyncio.run(github_sync.dry_run_list_candidates())
+            exit(0)
+        except Exception:
+            logger.exception("Failed to list candidates")
             exit(1)
 
     daemon = KernelPatchesDaemon(
