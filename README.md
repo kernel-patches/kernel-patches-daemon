@@ -16,15 +16,7 @@ Also [kdevops](https://github.com/linux-kdevops/kdevops) project has great docum
 
 ## Configuration
 
-See an example of the configuration files in `configs/` directory.
-
-You may use [Github personal token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-to authenticate KPD to github, but using [Github App](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/about-authentication-with-a-github-app) is preferrable.
-
-When using a GH app, it needs to have the following read and write access:
-- Content (write to repo)
-- Pull request (create PRs)
-- Workflow
+See [CONFIG.md](CONFIG.md) for more details.
 
 ## Building
 ```
