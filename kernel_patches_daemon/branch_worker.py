@@ -544,6 +544,8 @@ class BranchWorker(GithubConnector):
         app_auth: Optional[Auth.AppInstallationAuth] = None,
         email: Optional[EmailConfig] = None,
         http_retries: Optional[int] = None,
+        mirror_fallback_repo: Optional[str] = None,
+        mirror_dir: Optional[str] = None,
     ) -> None:
         super().__init__(
             repo_url=repo_url,
@@ -556,6 +558,8 @@ class BranchWorker(GithubConnector):
         self.email = email
 
         self.log_extractor = log_extractor
+        self.mirror_dir = mirror_dir
+        self.mirror_fallback_repo = mirror_fallback_repo
         self.ci_repo_url = ci_repo_url
         self.ci_repo_dir = _uniq_tmp_folder(ci_repo_url, ci_branch, base_directory)
         self.ci_branch = ci_branch
@@ -679,9 +683,27 @@ class BranchWorker(GithubConnector):
     def full_sync(self, path: str, url: str, branch: str) -> git.Repo:
         logging.info(f"Doing full clone from {redact_url(url)}, branch: {branch}")
 
+        multi_opts: Optional[List[str]] = None
+        if self.mirror_dir:
+            upstream_name = os.path.basename(self.upstream_url)
+            reference_path = os.path.join(self.mirror_dir, upstream_name)
+
+            # If primary mirror doesn't exist, try fallback path
+            if not os.path.exists(reference_path) and self.mirror_fallback_repo:
+                fallback_path = os.path.join(self.mirror_dir, self.mirror_fallback_repo)
+                if os.path.exists(fallback_path):
+                    reference_path = fallback_path
+
+            # Use --reference-if-able when mirror path exists
+            if os.path.exists(reference_path):
+                multi_opts = ["--reference-if-able", reference_path]
+
         with HistogramMetricTimer(git_clone_duration, {"branch": branch}):
             shutil.rmtree(path, ignore_errors=True)
-            repo = git.Repo.clone_from(url, path)
+            if multi_opts:
+                repo = git.Repo.clone_from(url, path, multi_options=multi_opts)
+            else:
+                repo = git.Repo.clone_from(url, path)
             _reset_repo(repo, f"origin/{branch}")
 
         git_clone_counter.add(1, {"branch": branch})
