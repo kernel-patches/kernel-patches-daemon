@@ -1,0 +1,67 @@
+{
+    "id": 984880,
+    "url": "https://patchwork.kernel.org/api/1.1/series/984880/",
+    "web_url": "https://patchwork.kernel.org/project/netdevbpf/list/?series=984880",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.kernel.org/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "name": "Support kCFI + BPF on arm64",
+    "date": "2025-07-22T20:53:58",
+    "submitter": {
+        "id": 126311,
+        "url": "https://patchwork.kernel.org/api/1.1/people/126311/",
+        "name": "Sami Tolvanen",
+        "email": "samitolvanen@google.com"
+    },
+    "version": 13,
+    "total": 3,
+    "received_total": 3,
+    "received_all": true,
+    "mbox": "https://patchwork.kernel.org/series/984880/mbox/",
+    "cover_letter": {
+        "id": 14070911,
+        "url": "https://patchwork.kernel.org/api/1.1/covers/14070911/",
+        "web_url": "https://patchwork.kernel.org/project/netdevbpf/cover/20250722205357.3347626-5-samitolvanen@google.com/",
+        "msgid": "<20250722205357.3347626-5-samitolvanen@google.com>",
+        "date": "2025-07-22T20:53:58",
+        "name": "[bpf-next,v13,0/3] Support kCFI + BPF on arm64",
+        "mbox": "https://patchwork.kernel.org/project/netdevbpf/cover/20250722205357.3347626-5-samitolvanen@google.com/mbox/"
+    },
+    "patches": [
+        {
+            "id": 14165572,
+            "url": "https://patchwork.kernel.org/api/1.1/patches/14165572/",
+            "web_url": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-6-samitolvanen@google.com/",
+            "msgid": "<20250722205357.3347626-6-samitolvanen@google.com>",
+            "date": "2025-07-22T20:53:59",
+            "name": "[bpf-next,v13,1/3] cfi: add C CFI type macro",
+            "mbox": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-6-samitolvanen@google.com/mbox/"
+        },
+        {
+            "id": 14165573,
+            "url": "https://patchwork.kernel.org/api/1.1/patches/14165573/",
+            "web_url": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-7-samitolvanen@google.com/",
+            "msgid": "<20250722205357.3347626-7-samitolvanen@google.com>",
+            "date": "2025-07-22T20:54:00",
+            "name": "[bpf-next,v13,2/3] cfi: Move BPF CFI types and helpers to generic code",
+            "mbox": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-7-samitolvanen@google.com/mbox/"
+        },
+        {
+            "id": 14165574,
+            "url": "https://patchwork.kernel.org/api/1.1/patches/14165574/",
+            "web_url": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-8-samitolvanen@google.com/",
+            "msgid": "<20250722205357.3347626-8-samitolvanen@google.com>",
+            "date": "2025-07-22T20:54:01",
+            "name": "[bpf-next,v13,3/3] arm64/cfi,bpf: Support kCFI + BPF on arm64",
+            "mbox": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-8-samitolvanen@google.com/mbox/"
+        }
+    ]
+}

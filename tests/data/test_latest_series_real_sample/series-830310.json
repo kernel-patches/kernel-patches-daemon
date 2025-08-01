@@ -1,0 +1,49 @@
+{
+    "id": 830310,
+    "url": "https://patchwork.kernel.org/api/1.1/series/830310/",
+    "web_url": "https://patchwork.kernel.org/project/netdevbpf/list/?series=830310",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.kernel.org/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "name": "Support kCFI + BPF on arm64",
+    "date": "2024-02-27T15:11:14",
+    "submitter": {
+        "id": 186869,
+        "url": "https://patchwork.kernel.org/api/1.1/people/186869/",
+        "name": "Puranjay Mohan",
+        "email": "puranjay12@gmail.com"
+    },
+    "version": 1,
+    "total": 1,
+    "received_total": 1,
+    "received_all": true,
+    "mbox": "https://patchwork.kernel.org/series/830310/mbox/",
+    "cover_letter": {
+        "id": 13574001,
+        "url": "https://patchwork.kernel.org/api/1.1/covers/13574001/",
+        "web_url": "https://patchwork.kernel.org/project/netdevbpf/cover/20240227151115.4623-1-puranjay12@gmail.com/",
+        "msgid": "<20240227151115.4623-1-puranjay12@gmail.com>",
+        "date": "2024-02-27T15:11:14",
+        "name": "[bpf-next,0/1] Support kCFI + BPF on arm64",
+        "mbox": "https://patchwork.kernel.org/project/netdevbpf/cover/20240227151115.4623-1-puranjay12@gmail.com/mbox/"
+    },
+    "patches": [
+        {
+            "id": 13574002,
+            "url": "https://patchwork.kernel.org/api/1.1/patches/13574002/",
+            "web_url": "https://patchwork.kernel.org/project/netdevbpf/patch/20240227151115.4623-2-puranjay12@gmail.com/",
+            "msgid": "<20240227151115.4623-2-puranjay12@gmail.com>",
+            "date": "2024-02-27T15:11:15",
+            "name": "[bpf-next,1/1] arm64/cfi,bpf: Support kCFI + BPF on arm64",
+            "mbox": "https://patchwork.kernel.org/project/netdevbpf/patch/20240227151115.4623-2-puranjay12@gmail.com/mbox/"
+        }
+    ]
+}

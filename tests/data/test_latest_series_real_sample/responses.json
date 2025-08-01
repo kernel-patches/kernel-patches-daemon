@@ -1,0 +1,18 @@
+{
+  "https://patchwork.test/api/1.1/series/830310/": "series-830310.json",
+  "https://patchwork.test/api/1.1/series/984880/": "series-984880.json",
+  "https://patchwork.test/api/1.1/patches/13574002/": "patch-13574002.json",
+  "https://patchwork.test/api/1.1/patches/14165572/": "patch-14165572.json",
+  "https://patchwork.test/api/1.1/patches/14165573/": "patch-14165573.json",
+  "https://patchwork.test/api/1.1/patches/14165574/": "patch-14165574.json",
+  "https://patchwork.test/api/1.1/patches/?archived=False&delegate=121173&project=399&since=2025-07-20T00%253A00%253A00&state=1&state=13&state=15&state=2&state=5&state=7": [
+    "patch-13574002.json",
+    "patch-14165572.json",
+    "patch-14165573.json",
+    "patch-14165574.json"
+  ],
+  "https://patchwork.test/api/1.1/series/?q=Support+kCFI+%252B+BPF+on+arm64": [
+    "series-830310.json",
+    "series-984880.json"
+  ]
+}

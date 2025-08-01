@@ -1,0 +1,100 @@
+{
+    "id": 14165572,
+    "url": "https://patchwork.kernel.org/api/1.1/patches/14165572/",
+    "web_url": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-6-samitolvanen@google.com/",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.kernel.org/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "msgid": "<20250722205357.3347626-6-samitolvanen@google.com>",
+    "date": "2025-07-22T20:53:59",
+    "name": "[bpf-next,v13,1/3] cfi: add C CFI type macro",
+    "commit_ref": null,
+    "pull_url": null,
+    "state": "new",
+    "archived": false,
+    "hash": "7c2f280f9792ec91d1175c9d3364e04d6342d650",
+    "submitter": {
+        "id": 126311,
+        "url": "https://patchwork.kernel.org/api/1.1/people/126311/",
+        "name": "Sami Tolvanen",
+        "email": "samitolvanen@google.com"
+    },
+    "delegate": {
+        "id": 121173,
+        "url": "https://patchwork.kernel.org/api/1.1/users/121173/",
+        "username": "bpf",
+        "first_name": "BPF",
+        "last_name": "",
+        "email": "bpf@iogearbox.net"
+    },
+    "mbox": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-6-samitolvanen@google.com/mbox/",
+    "series": [
+        {
+            "id": 984880,
+            "url": "https://patchwork.kernel.org/api/1.1/series/984880/",
+            "web_url": "https://patchwork.kernel.org/project/netdevbpf/list/?series=984880",
+            "date": "2025-07-22T20:53:58",
+            "name": "Support kCFI + BPF on arm64",
+            "version": 13,
+            "mbox": "https://patchwork.kernel.org/series/984880/mbox/"
+        }
+    ],
+    "comments": "https://patchwork.kernel.org/api/patches/14165572/comments/",
+    "check": "warning",
+    "checks": "https://patchwork.kernel.org/api/patches/14165572/checks/",
+    "tags": {},
+    "headers": {
+        "Received": [
+            "from mail-pf1-f202.google.com (mail-pf1-f202.google.com\n [209.85.210.202])\n\t(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))\n\t(No client certificate requested)\n\tby smtp.subspace.kernel.org (Postfix) with ESMTPS id 9D092285040\n\tfor <bpf@vger.kernel.org>; Tue, 22 Jul 2025 20:54:04 +0000 (UTC)",
+            "by mail-pf1-f202.google.com with SMTP id\n d2e1a72fcca58-74913385dd8so8428932b3a.0\n        for <bpf@vger.kernel.org>; Tue, 22 Jul 2025 13:54:04 -0700 (PDT)"
+        ],
+        "Authentication-Results": [
+            "smtp.subspace.kernel.org;\n arc=none smtp.client-ip=209.85.210.202",
+            "smtp.subspace.kernel.org;\n dmarc=pass (p=reject dis=none) header.from=google.com",
+            "smtp.subspace.kernel.org;\n spf=pass smtp.mailfrom=flex--samitolvanen.bounces.google.com",
+            "smtp.subspace.kernel.org;\n\tdkim=pass (2048-bit key) header.d=google.com header.i=@google.com\n header.b=\"t1m50MBX\""
+        ],
+        "ARC-Seal": "i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;\n\tt=1753217646; cv=none;\n b=GAfN6AqBc5SV2z3trXgVD+9efiAGevy6lNcw6pKISIu58e9fqwJFXMANZOzEzN9mJA0vDvAh8OiJ3DdtC8Grwf6D+uMBL9v44x7hKGkf8yxv/lNeZVYDiIgYO01yOlgl0r6dJf1YGIMUBYArVEVAAZEqwsb0cYRIPMQXYWsTsdw=",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; d=subspace.kernel.org;\n\ts=arc-20240116; t=1753217646; c=relaxed/simple;\n\tbh=zd5DznBVI4sVvso/l/68ScJA/RSIQeiYIJRJ5CEjGgY=;\n\th=Date:In-Reply-To:Mime-Version:References:Message-ID:Subject:From:\n\t To:Cc:Content-Type;\n b=KLLy/QdYDw/j6+ekJfUrUdbOvcjCF0agDSR+t/eE1sfSOzzB97FkrjBDI1wE4x4ylykHGv9C90xWcVu4eezjl4YKxhJkOR89xqahyYbiPkoiX1jQTADnVrdi4xt0oEFlh64Unrrft/QUT92iRt/ieKdRkIcC9Ewxod34pcD6/a8=",
+        "ARC-Authentication-Results": "i=1; smtp.subspace.kernel.org;\n dmarc=pass (p=reject dis=none) header.from=google.com;\n spf=pass smtp.mailfrom=flex--samitolvanen.bounces.google.com;\n dkim=pass (2048-bit key) header.d=google.com header.i=@google.com\n header.b=t1m50MBX; arc=none smtp.client-ip=209.85.210.202",
+        "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed;\n        d=google.com; s=20230601; t=1753217644; x=1753822444;\n darn=vger.kernel.org;\n        h=cc:to:from:subject:message-id:references:mime-version:in-reply-to\n         :date:from:to:cc:subject:date:message-id:reply-to;\n        bh=ATtT7J3eGVlX0DAsIWIni7wioYwQuHnqhrVZz3llpO4=;\n        b=t1m50MBXZZaal5IVGJPr1t0vSbd5dNShxxt06B3FoyuXs6zdkCdof3r9sAl3WN/Oxx\n         yZkHUfCAWmDg+Uz2QO93PDRT47gB/DAiXqZQoWGbhiIKqdTu/W2IyzBet+UlpsJL8h2t\n         3r6qtnMaCbpdgluyfy27Gr6Upm4Q979JeJO+MkhtFwk2vLk6yYRwuewZ0MrKWAEGZAoW\n         C9iPPDRLQGbpoEOMaRhrJuRYIpUpBNwd1CEZo1VboLkZcrpZkDMhrZTtGXlcKiTb2SqO\n         1w7VpahmcbGkQYR2SXc4SzWPMah6uNCesyJck9jO7UbI4UEAgEKuZW7q4IKO3dyfmJIA\n         zEJw==",
+        "X-Google-DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed;\n        d=1e100.net; s=20230601; t=1753217644; x=1753822444;\n        h=cc:to:from:subject:message-id:references:mime-version:in-reply-to\n         :date:x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;\n        bh=ATtT7J3eGVlX0DAsIWIni7wioYwQuHnqhrVZz3llpO4=;\n        b=aFHgnNtc8gSSHwOq/sW5GIy+MOvx/THzqn7ZjEeMjcLH7mG81gCZcg1W4yCt7CgEot\n         KYPNuCL6ZEWXqzdISrCqMXeYWpGoxA8mLrliGC7OH5AYAah5FfUZxhlG5dNbFz+Q5PtW\n         LERO82v7cyWvILot7+MjvtqBFdSHv5dbUld14HtPIApQ+jWhoeNfcBYleMONYBglnjU8\n         fVsSOzwrMA1p9foN8rWdjusFoiGPpjrRXR/zKprYp6Ou+Nhb3IAHM4KRWfCu1A8MU4cR\n         d0xXNPoYyIXbzXaevYYpSSyZtxEPB+QFgkX+CJwPIWIfadEdDr5NJ0gRu8uyPAeVtqUa\n         imJA==",
+        "X-Gm-Message-State": "AOJu0Yzcz1E03Fv2ZsfugKhcN8v8LbGqDtA+WQq2ix1faOw3mZNuNKfU\n\tJx+ciqG6it5B2HRc8wm77OpaDF/KbBe4gdULG3OS5y+WbePhwJ2IhnuGA64iIW9w5Oo5hHCiAMh\n\thhuxSuUpn5fFCX0Lb1LidO8LaUwO2Y0yJ7esjJq5burkrOVduaenW/eLa8wn7631sYYuSXkehlX\n\tFu2g9dK0pfD+SMYu19mCtU6sV6kUpq6a7mAYaz4mpTxRyo33j+6fJ7Z6bytY7ryYSn",
+        "X-Google-Smtp-Source": "\n AGHT+IGcJ1yJH0fRzYxlDDUqZBhJPeXzC6DrCDd4ckApy9RMyQ4dsnkHLjAoOoLgwzZvQEvUMtYym8FpF7QRiypohqI=",
+        "X-Received": "from pfbbe3.prod.google.com\n ([2002:a05:6a00:1f03:b0:748:e071:298a])\n (user=samitolvanen job=prod-delivery.src-stubby-dispatcher) by\n 2002:a05:6a21:b95:b0:220:94b1:f1b8 with SMTP id\n adf61e73a8af0-23d48e6859amr495572637.0.1753217643988;\n Tue, 22 Jul 2025 13:54:03 -0700 (PDT)",
+        "Date": "Tue, 22 Jul 2025 20:53:59 +0000",
+        "In-Reply-To": "<20250722205357.3347626-5-samitolvanen@google.com>",
+        "Precedence": "bulk",
+        "X-Mailing-List": "bpf@vger.kernel.org",
+        "List-Id": "<bpf.vger.kernel.org>",
+        "List-Subscribe": "<mailto:bpf+subscribe@vger.kernel.org>",
+        "List-Unsubscribe": "<mailto:bpf+unsubscribe@vger.kernel.org>",
+        "Mime-Version": "1.0",
+        "References": "<20250722205357.3347626-5-samitolvanen@google.com>",
+        "X-Developer-Key": "i=samitolvanen@google.com; a=openpgp;\n fpr=35CCFB63B283D6D3AEB783944CB5F6848BBC56EE",
+        "X-Developer-Signature": "v=1; a=openpgp-sha256; l=5301;\n i=samitolvanen@google.com;\n h=from:subject; bh=Dmv7MBdL2t4YlIN+ZApIs9QGn/40RNGjIGDoX876EIY=;\n b=owGbwMvMwCUWxa662nLh8irG02pJDBn1v9LqNh54s6quo15jb5tZrkxbpfL6Jv22VLWgfzd6F\n GTfOOzoKGVhEONikBVTZGn5unrr7u9Oqa8+F0nAzGFlAhnCwMUpABOZcoLhn80avWDtm/9ExOK3\n JJcwrNkVbJq/Snrm8S09a9+8MG0wZWNk+CabYXP+em13pVXuzycBPey/Km8+XfDejO2F1Ak+b8+\n F3AA=",
+        "X-Mailer": "git-send-email 2.50.0.727.gbf7dc18ff4-goog",
+        "Message-ID": "<20250722205357.3347626-6-samitolvanen@google.com>",
+        "Subject": "[PATCH bpf-next v13 1/3] cfi: add C CFI type macro",
+        "From": "Sami Tolvanen <samitolvanen@google.com>",
+        "To": "bpf@vger.kernel.org, Puranjay Mohan <puranjay@kernel.org>,\n\tAlexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>",
+        "Cc": "Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will@kernel.org>,\n\tAndrii Nakryiko <andrii@kernel.org>, Mark Rutland <mark.rutland@arm.com>,\n\tlinux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,\n\tMaxwell Bland <mbland@motorola.com>, Sami Tolvanen <samitolvanen@google.com>,\n\tDao Huang <huangdao1@oppo.com>",
+        "Content-Type": "text/plain; charset=\"UTF-8\"",
+        "X-Patchwork-Delegate": "bpf@iogearbox.net"
+    },
+    "content": "From: Mark Rutland <mark.rutland@arm.com>\n\nCurrently x86 and riscv open-code 4 instances of the same logic to\ndefine a u32 variable with the KCFI typeid of a given function.\n\nReplace the duplicate logic with a common macro.\n\nSigned-off-by: Mark Rutland <mark.rutland@arm.com>\nCo-developed-by: Maxwell Bland <mbland@motorola.com>\nSigned-off-by: Maxwell Bland <mbland@motorola.com>\nCo-developed-by: Sami Tolvanen <samitolvanen@google.com>\nSigned-off-by: Sami Tolvanen <samitolvanen@google.com>\nTested-by: Dao Huang <huangdao1@oppo.com>\nAcked-by: Will Deacon <will@kernel.org>\n---\n arch/riscv/kernel/cfi.c       | 35 +++--------------------------------\n arch/x86/kernel/alternative.c | 31 +++----------------------------\n include/linux/cfi_types.h     | 23 +++++++++++++++++++++++\n 3 files changed, 29 insertions(+), 60 deletions(-)",
+    "diff": "diff --git a/arch/riscv/kernel/cfi.c b/arch/riscv/kernel/cfi.c\nindex 64bdd3e1ab8c..e7aec5f36dd5 100644\n--- a/arch/riscv/kernel/cfi.c\n+++ b/arch/riscv/kernel/cfi.c\n@@ -4,6 +4,7 @@\n  *\n  * Copyright (C) 2023 Google LLC\n  */\n+#include <linux/cfi_types.h>\n #include <linux/cfi.h>\n #include <asm/insn.h>\n \n@@ -82,41 +83,11 @@ struct bpf_insn;\n /* Must match bpf_func_t / DEFINE_BPF_PROG_RUN() */\n extern unsigned int __bpf_prog_runX(const void *ctx,\n \t\t\t\t    const struct bpf_insn *insn);\n-\n-/*\n- * Force a reference to the external symbol so the compiler generates\n- * __kcfi_typid.\n- */\n-__ADDRESSABLE(__bpf_prog_runX);\n-\n-/* u32 __ro_after_init cfi_bpf_hash = __kcfi_typeid___bpf_prog_runX; */\n-asm (\n-\"\t.pushsection\t.data..ro_after_init,\\\"aw\\\",@progbits\t\\n\"\n-\"\t.type\tcfi_bpf_hash,@object\t\t\t\t\\n\"\n-\"\t.globl\tcfi_bpf_hash\t\t\t\t\t\\n\"\n-\"\t.p2align\t2, 0x0\t\t\t\t\t\\n\"\n-\"cfi_bpf_hash:\t\t\t\t\t\t\t\\n\"\n-\"\t.word\t__kcfi_typeid___bpf_prog_runX\t\t\t\\n\"\n-\"\t.size\tcfi_bpf_hash, 4\t\t\t\t\t\\n\"\n-\"\t.popsection\t\t\t\t\t\t\\n\"\n-);\n+DEFINE_CFI_TYPE(cfi_bpf_hash, __bpf_prog_runX);\n \n /* Must match bpf_callback_t */\n extern u64 __bpf_callback_fn(u64, u64, u64, u64, u64);\n-\n-__ADDRESSABLE(__bpf_callback_fn);\n-\n-/* u32 __ro_after_init cfi_bpf_subprog_hash = __kcfi_typeid___bpf_callback_fn; */\n-asm (\n-\"\t.pushsection\t.data..ro_after_init,\\\"aw\\\",@progbits\t\\n\"\n-\"\t.type\tcfi_bpf_subprog_hash,@object\t\t\t\\n\"\n-\"\t.globl\tcfi_bpf_subprog_hash\t\t\t\t\\n\"\n-\"\t.p2align\t2, 0x0\t\t\t\t\t\\n\"\n-\"cfi_bpf_subprog_hash:\t\t\t\t\t\t\\n\"\n-\"\t.word\t__kcfi_typeid___bpf_callback_fn\t\t\t\\n\"\n-\"\t.size\tcfi_bpf_subprog_hash, 4\t\t\t\t\\n\"\n-\"\t.popsection\t\t\t\t\t\t\\n\"\n-);\n+DEFINE_CFI_TYPE(cfi_bpf_subprog_hash, __bpf_callback_fn);\n \n u32 cfi_get_func_hash(void *func)\n {\ndiff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c\nindex ea1d984166cd..a555665b4d9c 100644\n--- a/arch/x86/kernel/alternative.c\n+++ b/arch/x86/kernel/alternative.c\n@@ -2,6 +2,7 @@\n #define pr_fmt(fmt) \"SMP alternatives: \" fmt\n \n #include <linux/mmu_context.h>\n+#include <linux/cfi_types.h>\n #include <linux/perf_event.h>\n #include <linux/vmalloc.h>\n #include <linux/memory.h>\n@@ -1189,37 +1190,11 @@ struct bpf_insn;\n /* Must match bpf_func_t / DEFINE_BPF_PROG_RUN() */\n extern unsigned int __bpf_prog_runX(const void *ctx,\n \t\t\t\t    const struct bpf_insn *insn);\n-\n-KCFI_REFERENCE(__bpf_prog_runX);\n-\n-/* u32 __ro_after_init cfi_bpf_hash = __kcfi_typeid___bpf_prog_runX; */\n-asm (\n-\"\t.pushsection\t.data..ro_after_init,\\\"aw\\\",@progbits\t\\n\"\n-\"\t.type\tcfi_bpf_hash,@object\t\t\t\t\\n\"\n-\"\t.globl\tcfi_bpf_hash\t\t\t\t\t\\n\"\n-\"\t.p2align\t2, 0x0\t\t\t\t\t\\n\"\n-\"cfi_bpf_hash:\t\t\t\t\t\t\t\\n\"\n-\"\t.long\t__kcfi_typeid___bpf_prog_runX\t\t\t\\n\"\n-\"\t.size\tcfi_bpf_hash, 4\t\t\t\t\t\\n\"\n-\"\t.popsection\t\t\t\t\t\t\\n\"\n-);\n+DEFINE_CFI_TYPE(cfi_bpf_hash, __bpf_prog_runX);\n \n /* Must match bpf_callback_t */\n extern u64 __bpf_callback_fn(u64, u64, u64, u64, u64);\n-\n-KCFI_REFERENCE(__bpf_callback_fn);\n-\n-/* u32 __ro_after_init cfi_bpf_subprog_hash = __kcfi_typeid___bpf_callback_fn; */\n-asm (\n-\"\t.pushsection\t.data..ro_after_init,\\\"aw\\\",@progbits\t\\n\"\n-\"\t.type\tcfi_bpf_subprog_hash,@object\t\t\t\\n\"\n-\"\t.globl\tcfi_bpf_subprog_hash\t\t\t\t\\n\"\n-\"\t.p2align\t2, 0x0\t\t\t\t\t\\n\"\n-\"cfi_bpf_subprog_hash:\t\t\t\t\t\t\\n\"\n-\"\t.long\t__kcfi_typeid___bpf_callback_fn\t\t\t\\n\"\n-\"\t.size\tcfi_bpf_subprog_hash, 4\t\t\t\t\\n\"\n-\"\t.popsection\t\t\t\t\t\t\\n\"\n-);\n+DEFINE_CFI_TYPE(cfi_bpf_subprog_hash, __bpf_callback_fn);\n \n u32 cfi_get_func_hash(void *func)\n {\ndiff --git a/include/linux/cfi_types.h b/include/linux/cfi_types.h\nindex 6b8713675765..685f7181780f 100644\n--- a/include/linux/cfi_types.h\n+++ b/include/linux/cfi_types.h\n@@ -41,5 +41,28 @@\n \tSYM_TYPED_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)\n #endif\n \n+#else /* __ASSEMBLY__ */\n+\n+#ifdef CONFIG_CFI_CLANG\n+#define DEFINE_CFI_TYPE(name, func)\t\t\t\t\t\t\\\n+\t/*\t\t\t\t\t\t\t\t\t\\\n+\t * Force a reference to the function so the compiler generates\t\t\\\n+\t * __kcfi_typeid_<func>.\t\t\t\t\t\t\\\n+\t */\t\t\t\t\t\t\t\t\t\\\n+\t__ADDRESSABLE(func);\t\t\t\t\t\t\t\\\n+\t/* u32 name __ro_after_init = __kcfi_typeid_<func> */\t\t\t\\\n+\textern u32 name;\t\t\t\t\t\t\t\\\n+\tasm (\t\t\t\t\t\t\t\t\t\\\n+\t\"\t.pushsection\t.data..ro_after_init,\\\"aw\\\",\\%progbits\t\\n\"\t\\\n+\t\"\t.type\t\" #name \",\\%object\t\t\t\t\\n\"\t\\\n+\t\"\t.globl\t\" #name \"\t\t\t\t\t\\n\"\t\\\n+\t\"\t.p2align\t2, 0x0\t\t\t\t\t\\n\"\t\\\n+\t#name \":\t\t\t\t\t\t\t\\n\"\t\\\n+\t\"\t.4byte\t__kcfi_typeid_\" #func \"\t\t\t\t\\n\"\t\\\n+\t\"\t.size\t\" #name \", 4\t\t\t\t\t\\n\"\t\\\n+\t\"\t.popsection\t\t\t\t\t\t\\n\"\t\\\n+\t);\n+#endif\n+\n #endif /* __ASSEMBLY__ */\n #endif /* _LINUX_CFI_TYPES_H */\n",
+    "prefixes": [
+        "bpf-next",
+        "v13",
+        "1/3"
+    ]
+}

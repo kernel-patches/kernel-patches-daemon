@@ -8,6 +8,7 @@
 
 import copy
 import datetime
+import os
 import re
 import unittest
 from dataclasses import dataclass
@@ -31,6 +32,8 @@ from tests.common.patchwork_mock import (
     get_default_pw_client,
     get_dict_key,
     init_pw_responses,
+    load_test_data,
+    PatchworkMock,
 )
 
 
@@ -698,4 +701,27 @@ class TestSubject(PatchworkTestCase):
         s = Subject("foo", self._pw)
         branch = await s.branch()
         # It is Series with ID 4
-        self.assertEqual(branch, f"series/{FOO_SERIES_FIRST}")
+        self.assertEqual(branch, f"series/{FOO_SERIES_LAST}")
+
+    @aioresponses()
+    async def test_latest_series_real_sample(self, m: aioresponses) -> None:
+        data_path = os.path.join(
+            os.path.dirname(__file__),
+            "data/test_latest_series_real_sample",
+        )
+        test_data = load_test_data(data_path)
+        init_pw_responses(m, test_data)
+
+        patchwork = PatchworkMock(
+            server="patchwork.test",
+            api_version="1.1",
+            search_patterns=[{"archived": False, "project": 399, "delegate": 121173}],
+            auth_token="mocktoken",
+        )
+        s = Subject("Support kCFI + BPF on arm64", patchwork)
+
+        latest_series = none_throws(await s.latest_series())
+        branch = none_throws(await s.branch())
+
+        self.assertEqual(latest_series.id, 984880)
+        self.assertEqual(branch, "series/984880")
