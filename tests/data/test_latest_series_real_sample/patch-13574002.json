@@ -1,0 +1,99 @@
+{
+    "id": 13574002,
+    "url": "https://patchwork.kernel.org/api/1.1/patches/13574002/",
+    "web_url": "https://patchwork.kernel.org/project/netdevbpf/patch/20240227151115.4623-2-puranjay12@gmail.com/",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.kernel.org/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "msgid": "<20240227151115.4623-2-puranjay12@gmail.com>",
+    "date": "2024-02-27T15:11:15",
+    "name": "[bpf-next,1/1] arm64/cfi,bpf: Support kCFI + BPF on arm64",
+    "commit_ref": null,
+    "pull_url": null,
+    "state": "superseded",
+    "archived": false,
+    "hash": "e0f4a64cdbc1bc9ac631930b3388c9e9537ab20c",
+    "submitter": {
+        "id": 186869,
+        "url": "https://patchwork.kernel.org/api/1.1/people/186869/",
+        "name": "Puranjay Mohan",
+        "email": "puranjay12@gmail.com"
+    },
+    "delegate": {
+        "id": 121173,
+        "url": "https://patchwork.kernel.org/api/1.1/users/121173/",
+        "username": "bpf",
+        "first_name": "BPF",
+        "last_name": "",
+        "email": "bpf@iogearbox.net"
+    },
+    "mbox": "https://patchwork.kernel.org/project/netdevbpf/patch/20240227151115.4623-2-puranjay12@gmail.com/mbox/",
+    "series": [
+        {
+            "id": 830310,
+            "url": "https://patchwork.kernel.org/api/1.1/series/830310/",
+            "web_url": "https://patchwork.kernel.org/project/netdevbpf/list/?series=830310",
+            "date": "2024-02-27T15:11:14",
+            "name": "Support kCFI + BPF on arm64",
+            "version": 1,
+            "mbox": "https://patchwork.kernel.org/series/830310/mbox/"
+        }
+    ],
+    "comments": "https://patchwork.kernel.org/api/patches/13574002/comments/",
+    "check": "fail",
+    "checks": "https://patchwork.kernel.org/api/patches/13574002/checks/",
+    "tags": {},
+    "headers": {
+        "Received": [
+            "from mail-wr1-f50.google.com (mail-wr1-f50.google.com\n [209.85.221.50])\n\t(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))\n\t(No client certificate requested)\n\tby smtp.subspace.kernel.org (Postfix) with ESMTPS id B53C4145FF4;\n\tTue, 27 Feb 2024 15:11:46 +0000 (UTC)",
+            "by mail-wr1-f50.google.com with SMTP id\n ffacd0b85a97d-33d6fe64a9bso3348660f8f.0;\n        Tue, 27 Feb 2024 07:11:46 -0800 (PST)",
+            "from localhost (54-240-197-231.amazon.com. [54.240.197.231])\n        by smtp.gmail.com with ESMTPSA id\n bq7-20020a5d5a07000000b0033cddadde6esm11917259wrb.80.2024.02.27.07.11.44\n        (version=TLS1_2 cipher=ECDHE-ECDSA-AES128-GCM-SHA256 bits=128/128);\n        Tue, 27 Feb 2024 07:11:44 -0800 (PST)"
+        ],
+        "Authentication-Results": [
+            "smtp.subspace.kernel.org;\n arc=none smtp.client-ip=209.85.221.50",
+            "smtp.subspace.kernel.org;\n dmarc=pass (p=none dis=none) header.from=gmail.com",
+            "smtp.subspace.kernel.org;\n spf=pass smtp.mailfrom=gmail.com",
+            "smtp.subspace.kernel.org;\n\tdkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com\n header.b=\"laO9OWYA\""
+        ],
+        "ARC-Seal": "i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;\n\tt=1709046708; cv=none;\n b=V7r+1+Gfxr03h8R8tns+I40GekcCY+I6dee3v94YJxMA5iHo2c6gg/Ovcd/5dJMJjIQL1L67IAhhx5wESoNITQ37mViTzjIw1B/stJ5I+xh9aKDGlCl2ebuN+t2ywqnAWRruZEdErYvCTo4eDp59gs46L9QuCWDfVxetd7dJjCY=",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; d=subspace.kernel.org;\n\ts=arc-20240116; t=1709046708; c=relaxed/simple;\n\tbh=uXkdZ+nGgZ8dBlwogGYG/znpIjVGxCyU2Z1+CR/AVIE=;\n\th=From:To:Cc:Subject:Date:Message-Id:In-Reply-To:References:\n\t MIME-Version;\n b=Lm9uZ0h4p4qYHPsEw/XJsRFpfbgq8y5QxXVeXGS1drvRNylfHV0ZaMDW9yVox+aO4HbdyvK05mQyUMsS7z5oKc1zt2SSOkhZRuz4oFwcV+pIzS7H77ilii4MTv0GYXiI8dDPAijqOFtA95M7+GRwyHxxC0hHjKjmW/dMv+67r9I=",
+        "ARC-Authentication-Results": "i=1; smtp.subspace.kernel.org;\n dmarc=pass (p=none dis=none) header.from=gmail.com;\n spf=pass smtp.mailfrom=gmail.com;\n dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com\n header.b=laO9OWYA; arc=none smtp.client-ip=209.85.221.50",
+        "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed;\n        d=gmail.com; s=20230601; t=1709046705; x=1709651505;\n darn=vger.kernel.org;\n        h=content-transfer-encoding:mime-version:references:in-reply-to\n         :message-id:date:subject:cc:to:from:from:to:cc:subject:date\n         :message-id:reply-to;\n        bh=YgUZYYEewWOr0eZgCM/D+yRszpCU2Zn6RVKpSWiScZI=;\n        b=laO9OWYAnLP2pdH5x5Zu8gfMadrLUJjXCkBtFFrZ3pqPReFmMLF1KCBY43p5dOeRX6\n         QhknXVyz2Q7vj2ZaE4qzvMCuZEujGunbiLWxD/qe5Rtkl18+yPgyMhd0htdz/c87drOb\n         /Yy+y5VqYHaVRxa79zH3ugUCHDqjfUqFO4l1Y+9NS8m9KjV+V18yhg8PDiuAihJqZ30X\n         qLuUi0nmuflyF3owGI2Z4/+CiHUJ13sV+OA/OMlki1ecikJ4ItxxwkOvuaTi0GIPKEpv\n         SMz6ZVTeQ68vXfKEgOsa+SA9Z5DChMAVnuAd6P0zvMyABtF0Hv54gCgOnG1F2iuOZl+m\n         qDVQ==",
+        "X-Google-DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed;\n        d=1e100.net; s=20230601; t=1709046705; x=1709651505;\n        h=content-transfer-encoding:mime-version:references:in-reply-to\n         :message-id:date:subject:cc:to:from:x-gm-message-state:from:to:cc\n         :subject:date:message-id:reply-to;\n        bh=YgUZYYEewWOr0eZgCM/D+yRszpCU2Zn6RVKpSWiScZI=;\n        b=XQKIauqn9BOol4IUuy9PTtROBuJzPsOmmy8w9jo+GcK6sltBSBgz+jGVh1MXLBXt/N\n         lbhDiBYTIezGG7yLxbIDWuqo9pKKWxiO2PMt4cgtAKtXIP2HGmQ1wI/+nCja0c22PUHT\n         RqYKJKy983GASpXQ3kEu9mgocAka1LToSLv65lV/Al+9OfzCwnZgCqc+BCAkBHQrHV7G\n         mjezjJ+2a2mbOWP5/Uxw20q125Co8F36n+C+TsrzeCvigRbkC0MUxXBoPQAhROkUUBcr\n         oBLEyp27wCEJZuvvhdseYCeSHNcBBHgZlVYVI7RpNaW8E6I2zwkzkjlY6+BzOs844XAR\n         iC3Q==",
+        "X-Forwarded-Encrypted": "i=1;\n AJvYcCVffLIVKjI9Mk77Nc8IV7iGKXyk8oVJLSjTa8dUGYZWygREkgJXvBBUtzws+GC6+U40+IEABIv9te4YncEembAKeQq2aOE2Oso7FYccxmRz22QUE8h+mYoicDKcZuHeSUmD",
+        "X-Gm-Message-State": "AOJu0YzZrNfLxYXEhHjR+5G/PuENFXuZm9y+JJEjy8XUzNe4tgTIHJhN\n\te7HPMYB6MunUx3c2xl0l+F5wNy+k5dTPANs7kJtIcGOdl2VYEkwN",
+        "X-Google-Smtp-Source": "\n AGHT+IGLirqfah9d4iGWTMCqewDLhnmBg8hi2Iy2nBqKNPhbA3EjAa6SiYGrHFnWv/yqvMG7UwDjxA==",
+        "X-Received": "by 2002:a5d:58cd:0:b0:33d:b872:1c1b with SMTP id\n o13-20020a5d58cd000000b0033db8721c1bmr7385349wrf.23.1709046704756;\n        Tue, 27 Feb 2024 07:11:44 -0800 (PST)",
+        "From": "Puranjay Mohan <puranjay12@gmail.com>",
+        "To": "Catalin Marinas <catalin.marinas@arm.com>,\n\tWill Deacon <will@kernel.org>,\n\tAlexei Starovoitov <ast@kernel.org>,\n\tDaniel Borkmann <daniel@iogearbox.net>,\n\tAndrii Nakryiko <andrii@kernel.org>,\n\tMartin KaFai Lau <martin.lau@linux.dev>,\n\tEduard Zingerman <eddyz87@gmail.com>,\n\tSong Liu <song@kernel.org>,\n\tYonghong Song <yonghong.song@linux.dev>,\n\tJohn Fastabend <john.fastabend@gmail.com>,\n\tKP Singh <kpsingh@kernel.org>,\n\tStanislav Fomichev <sdf@google.com>,\n\tHao Luo <haoluo@google.com>,\n\tJiri Olsa <jolsa@kernel.org>,\n\tZi Shen Lim <zlim.lnx@gmail.com>,\n\tMark Rutland <mark.rutland@arm.com>,\n\tSuzuki K Poulose <suzuki.poulose@arm.com>,\n\tMark Brown <broonie@kernel.org>,\n\tlinux-arm-kernel@lists.infradead.org,\n\tlinux-kernel@vger.kernel.org (open list),\n\tbpf@vger.kernel.org (open list:BPF [GENERAL] (Safe Dynamic Programs and\n Tools)),\n\tJosh Poimboeuf <jpoimboe@kernel.org>",
+        "Cc": "puranjay12@gmail.com",
+        "Subject": "[PATCH bpf-next 1/1] arm64/cfi,bpf: Support kCFI + BPF on arm64",
+        "Date": "Tue, 27 Feb 2024 15:11:15 +0000",
+        "Message-Id": "<20240227151115.4623-2-puranjay12@gmail.com>",
+        "X-Mailer": "git-send-email 2.40.1",
+        "In-Reply-To": "<20240227151115.4623-1-puranjay12@gmail.com>",
+        "References": "<20240227151115.4623-1-puranjay12@gmail.com>",
+        "Precedence": "bulk",
+        "X-Mailing-List": "bpf@vger.kernel.org",
+        "List-Id": "<bpf.vger.kernel.org>",
+        "List-Subscribe": "<mailto:bpf+subscribe@vger.kernel.org>",
+        "List-Unsubscribe": "<mailto:bpf+unsubscribe@vger.kernel.org>",
+        "MIME-Version": "1.0",
+        "Content-Transfer-Encoding": "8bit",
+        "X-Patchwork-Delegate": "bpf@iogearbox.net"
+    },
+    "content": "Currently, bpf_dispatcher_*_func() is marked with `__nocfi` therefore\ncalling BPF programs from this interface doesn't cause CFI warnings.\n\nWhen BPF programs are called directly from C: from BPF helpers or\nstruct_ops, CFI warnings are generated.\n\nImplement proper CFI prologues for the BPF programs and callbacks and\ndrop __nocfi for arm64. Fix the trampoline generation code to emit kCFI\nprologue when a struct_ops trampoline is being prepared.\n\nSigned-off-by: Puranjay Mohan <puranjay12@gmail.com>\n---\n arch/arm64/include/asm/cfi.h    | 23 ++++++++++++++\n arch/arm64/kernel/alternative.c | 54 +++++++++++++++++++++++++++++++++\n arch/arm64/net/bpf_jit_comp.c   | 26 ++++++++++++----\n 3 files changed, 97 insertions(+), 6 deletions(-)\n create mode 100644 arch/arm64/include/asm/cfi.h",
+    "diff": "diff --git a/arch/arm64/include/asm/cfi.h b/arch/arm64/include/asm/cfi.h\nnew file mode 100644\nindex 000000000000..670e191f8628\n--- /dev/null\n+++ b/arch/arm64/include/asm/cfi.h\n@@ -0,0 +1,23 @@\n+/* SPDX-License-Identifier: GPL-2.0 */\n+#ifndef _ASM_ARM64_CFI_H\n+#define _ASM_ARM64_CFI_H\n+\n+#ifdef CONFIG_CFI_CLANG\n+#define __bpfcall\n+static inline int cfi_get_offset(void)\n+{\n+\treturn 4;\n+}\n+#define cfi_get_offset cfi_get_offset\n+extern u32 cfi_bpf_hash;\n+extern u32 cfi_bpf_subprog_hash;\n+extern u32 cfi_get_func_hash(void *func);\n+#else\n+#define cfi_bpf_hash 0U\n+#define cfi_bpf_subprog_hash 0U\n+static inline u32 cfi_get_func_hash(void *func)\n+{\n+\treturn 0;\n+}\n+#endif /* CONFIG_CFI_CLANG */\n+#endif /* _ASM_ARM64_CFI_H */\ndiff --git a/arch/arm64/kernel/alternative.c b/arch/arm64/kernel/alternative.c\nindex 8ff6610af496..350057a28abe 100644\n--- a/arch/arm64/kernel/alternative.c\n+++ b/arch/arm64/kernel/alternative.c\n@@ -13,6 +13,7 @@\n #include <linux/elf.h>\n #include <asm/cacheflush.h>\n #include <asm/alternative.h>\n+#include <asm/cfi.h>\n #include <asm/cpufeature.h>\n #include <asm/insn.h>\n #include <asm/module.h>\n@@ -298,3 +299,56 @@ noinstr void alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,\n \t\tupdptr[i] = cpu_to_le32(aarch64_insn_gen_nop());\n }\n EXPORT_SYMBOL(alt_cb_patch_nops);\n+\n+#ifdef CONFIG_CFI_CLANG\n+struct bpf_insn;\n+\n+/* Must match bpf_func_t / DEFINE_BPF_PROG_RUN() */\n+extern unsigned int __bpf_prog_runX(const void *ctx,\n+\t\t\t\t    const struct bpf_insn *insn);\n+\n+/*\n+ * Force a reference to the external symbol so the compiler generates\n+ * __kcfi_typid.\n+ */\n+__ADDRESSABLE(__bpf_prog_runX);\n+\n+/* u32 __ro_after_init cfi_bpf_hash = __kcfi_typeid___bpf_prog_runX; */\n+asm (\n+\"\t.pushsection\t.data..ro_after_init,\\\"aw\\\",@progbits\t\\n\"\n+\"\t.type\tcfi_bpf_hash,@object\t\t\t\t\\n\"\n+\"\t.globl\tcfi_bpf_hash\t\t\t\t\t\\n\"\n+\"\t.p2align\t2, 0x0\t\t\t\t\t\\n\"\n+\"cfi_bpf_hash:\t\t\t\t\t\t\t\\n\"\n+\"\t.long\t__kcfi_typeid___bpf_prog_runX\t\t\t\\n\"\n+\"\t.size\tcfi_bpf_hash, 4\t\t\t\t\t\\n\"\n+\"\t.popsection\t\t\t\t\t\t\\n\"\n+);\n+\n+/* Must match bpf_callback_t */\n+extern u64 __bpf_callback_fn(u64, u64, u64, u64, u64);\n+\n+__ADDRESSABLE(__bpf_callback_fn);\n+\n+/* u32 __ro_after_init cfi_bpf_subprog_hash = __kcfi_typeid___bpf_callback_fn; */\n+asm (\n+\"\t.pushsection\t.data..ro_after_init,\\\"aw\\\",@progbits\t\\n\"\n+\"\t.type\tcfi_bpf_subprog_hash,@object\t\t\t\\n\"\n+\"\t.globl\tcfi_bpf_subprog_hash\t\t\t\t\\n\"\n+\"\t.p2align\t2, 0x0\t\t\t\t\t\\n\"\n+\"cfi_bpf_subprog_hash:\t\t\t\t\t\t\\n\"\n+\"\t.word\t__kcfi_typeid___bpf_callback_fn\t\t\t\\n\"\n+\"\t.size\tcfi_bpf_subprog_hash, 4\t\t\t\t\\n\"\n+\"\t.popsection\t\t\t\t\t\t\\n\"\n+);\n+\n+u32 cfi_get_func_hash(void *func)\n+{\n+\tu32 hash;\n+\n+\tif (get_kernel_nofault(hash, func - cfi_get_offset()))\n+\t\treturn 0;\n+\n+\treturn hash;\n+}\n+#endif\ndiff --git a/arch/arm64/net/bpf_jit_comp.c b/arch/arm64/net/bpf_jit_comp.c\nindex cfd5434de483..fb02862e1a3a 100644\n--- a/arch/arm64/net/bpf_jit_comp.c\n+++ b/arch/arm64/net/bpf_jit_comp.c\n@@ -17,6 +17,7 @@\n #include <asm/asm-extable.h>\n #include <asm/byteorder.h>\n #include <asm/cacheflush.h>\n+#include <asm/cfi.h>\n #include <asm/debug-monitors.h>\n #include <asm/insn.h>\n #include <asm/patching.h>\n@@ -157,6 +158,12 @@ static inline void emit_bti(u32 insn, struct jit_ctx *ctx)\n \t\temit(insn, ctx);\n }\n \n+static inline void emit_kcfi(u32 hash, struct jit_ctx *ctx)\n+{\n+\tif (IS_ENABLED(CONFIG_CFI_CLANG))\n+\t\temit(hash, ctx);\n+}\n+\n /*\n  * Kernel addresses in the vmalloc space use at most 48 bits, and the\n  * remaining bits are guaranteed to be 0x1. So we can compose the address\n@@ -285,7 +292,7 @@ static bool is_lsi_offset(int offset, int scale)\n /* Tail call offset to jump into */\n #define PROLOGUE_OFFSET (BTI_INSNS + 2 + PAC_INSNS + 8)\n \n-static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)\n+static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf, bool is_subprog)\n {\n \tconst struct bpf_prog *prog = ctx->prog;\n \tconst bool is_main_prog = !bpf_is_subprog(prog);\n@@ -296,7 +303,6 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)\n \tconst u8 fp = bpf2a64[BPF_REG_FP];\n \tconst u8 tcc = bpf2a64[TCALL_CNT];\n \tconst u8 fpb = bpf2a64[FP_BOTTOM];\n-\tconst int idx0 = ctx->idx;\n \tint cur_offset;\n \n \t/*\n@@ -322,6 +328,8 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)\n \t *\n \t */\n \n+\temit_kcfi(is_subprog ? cfi_bpf_subprog_hash : cfi_bpf_hash, ctx);\n+\tconst int idx0 = ctx->idx;\n \t/* bpf function may be invoked by 3 instruction types:\n \t * 1. bl, attached via freplace to bpf prog via short jump\n \t * 2. br, attached via freplace to bpf prog via long jump\n@@ -1575,7 +1583,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)\n \t * BPF line info needs ctx->offset[i] to be the offset of\n \t * instruction[i] in jited image, so build prologue first.\n \t */\n-\tif (build_prologue(&ctx, was_classic)) {\n+\tif (build_prologue(&ctx, was_classic, bpf_is_subprog(prog))) {\n \t\tprog = orig_prog;\n \t\tgoto out_off;\n \t}\n@@ -1614,7 +1622,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)\n \tctx.idx = 0;\n \tctx.exentry_idx = 0;\n \n-\tbuild_prologue(&ctx, was_classic);\n+\tbuild_prologue(&ctx, was_classic, bpf_is_subprog(prog));\n \n \tif (build_body(&ctx, extra_pass)) {\n \t\tbpf_jit_binary_free(header);\n@@ -1654,9 +1662,9 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)\n \t\tjit_data->image = image_ptr;\n \t\tjit_data->header = header;\n \t}\n-\tprog->bpf_func = (void *)ctx.image;\n+\tprog->bpf_func = (void *)ctx.image + cfi_get_offset();\n \tprog->jited = 1;\n-\tprog->jited_len = prog_size;\n+\tprog->jited_len = prog_size - cfi_get_offset();\n \n \tif (!prog->is_func || extra_pass) {\n \t\tint i;\n@@ -1905,6 +1913,12 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,\n \t/* return address locates above FP */\n \tretaddr_off = stack_size + 8;\n \n+\tif (flags & BPF_TRAMP_F_INDIRECT) {\n+\t\t/*\n+\t\t * Indirect call for bpf_struct_ops\n+\t\t */\n+\t\temit_kcfi(cfi_get_func_hash(func_addr), ctx);\n+\t}\n \t/* bpf trampoline may be invoked by 3 instruction types:\n \t * 1. bl, attached to bpf prog or kernel function via short jump\n \t * 2. br, attached to bpf prog or kernel function via long jump\n",
+    "prefixes": [
+        "bpf-next",
+        "1/1"
+    ]
+}

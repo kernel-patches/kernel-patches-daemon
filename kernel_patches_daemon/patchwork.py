@@ -290,10 +290,10 @@ class Subject:
         self.subject = subject
 
     async def branch(self) -> Optional[str]:
-        relevant_series = await self.relevant_series()
-        if len(relevant_series) == 0:
+        s = await self.latest_series()
+        if s is None:
             return None
-        return f"series{SERIES_ID_SEPARATOR}{relevant_series[0].id}"
+        return f"series{SERIES_ID_SEPARATOR}{s.id}"
 
     async def latest_series(self) -> Optional["Series"]:
         relevant_series = await self.relevant_series()

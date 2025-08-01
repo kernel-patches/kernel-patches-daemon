@@ -1,0 +1,100 @@
+{
+    "id": 14165574,
+    "url": "https://patchwork.kernel.org/api/1.1/patches/14165574/",
+    "web_url": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-8-samitolvanen@google.com/",
+    "project": {
+        "id": 399,
+        "url": "https://patchwork.kernel.org/api/1.1/projects/399/",
+        "name": "Netdev + BPF",
+        "link_name": "netdevbpf",
+        "list_id": "bpf.vger.kernel.org",
+        "list_email": "bpf@vger.kernel.org",
+        "web_url": "",
+        "scm_url": "",
+        "webscm_url": ""
+    },
+    "msgid": "<20250722205357.3347626-8-samitolvanen@google.com>",
+    "date": "2025-07-22T20:54:01",
+    "name": "[bpf-next,v13,3/3] arm64/cfi,bpf: Support kCFI + BPF on arm64",
+    "commit_ref": null,
+    "pull_url": null,
+    "state": "new",
+    "archived": false,
+    "hash": "1c08b445466fa8ecdd4c3415617170d588ad971c",
+    "submitter": {
+        "id": 126311,
+        "url": "https://patchwork.kernel.org/api/1.1/people/126311/",
+        "name": "Sami Tolvanen",
+        "email": "samitolvanen@google.com"
+    },
+    "delegate": {
+        "id": 121173,
+        "url": "https://patchwork.kernel.org/api/1.1/users/121173/",
+        "username": "bpf",
+        "first_name": "BPF",
+        "last_name": "",
+        "email": "bpf@iogearbox.net"
+    },
+    "mbox": "https://patchwork.kernel.org/project/netdevbpf/patch/20250722205357.3347626-8-samitolvanen@google.com/mbox/",
+    "series": [
+        {
+            "id": 984880,
+            "url": "https://patchwork.kernel.org/api/1.1/series/984880/",
+            "web_url": "https://patchwork.kernel.org/project/netdevbpf/list/?series=984880",
+            "date": "2025-07-22T20:53:58",
+            "name": "Support kCFI + BPF on arm64",
+            "version": 13,
+            "mbox": "https://patchwork.kernel.org/series/984880/mbox/"
+        }
+    ],
+    "comments": "https://patchwork.kernel.org/api/patches/14165574/comments/",
+    "check": "fail",
+    "checks": "https://patchwork.kernel.org/api/patches/14165574/checks/",
+    "tags": {},
+    "headers": {
+        "Received": [
+            "from mail-pf1-f202.google.com (mail-pf1-f202.google.com\n [209.85.210.202])\n\t(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))\n\t(No client certificate requested)\n\tby smtp.subspace.kernel.org (Postfix) with ESMTPS id D4008286439\n\tfor <bpf@vger.kernel.org>; Tue, 22 Jul 2025 20:54:07 +0000 (UTC)",
+            "by mail-pf1-f202.google.com with SMTP id\n d2e1a72fcca58-740774348f6so5721779b3a.1\n        for <bpf@vger.kernel.org>; Tue, 22 Jul 2025 13:54:07 -0700 (PDT)"
+        ],
+        "Authentication-Results": [
+            "smtp.subspace.kernel.org;\n arc=none smtp.client-ip=209.85.210.202",
+            "smtp.subspace.kernel.org;\n dmarc=pass (p=reject dis=none) header.from=google.com",
+            "smtp.subspace.kernel.org;\n spf=pass smtp.mailfrom=flex--samitolvanen.bounces.google.com",
+            "smtp.subspace.kernel.org;\n\tdkim=pass (2048-bit key) header.d=google.com header.i=@google.com\n header.b=\"xN5WF5sX\""
+        ],
+        "ARC-Seal": "i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;\n\tt=1753217649; cv=none;\n b=HimP0GEkkwo6rfazSt+stErif8d/1n4zcCMQ8cVtLhW4eYzxVMXTwXUgdstzdruLrHj7dgvkSuKlYCFJLLnWbPnkJas4ImkQsGW/ci6ir3UmyQUn0yMR4AKn1kxqUdbBOHJq5fqvIP+ZsfccQ/YMVesWkW+gzKaKgS8mrPw+JkU=",
+        "ARC-Message-Signature": "i=1; a=rsa-sha256; d=subspace.kernel.org;\n\ts=arc-20240116; t=1753217649; c=relaxed/simple;\n\tbh=66hctsnDvcPeo4bcqizkbbYExehSgXT0Gg3yUrHXPfc=;\n\th=Date:In-Reply-To:Mime-Version:References:Message-ID:Subject:From:\n\t To:Cc:Content-Type;\n b=OsGB20kCq+tGjeyzFyeH5ELTOnnpKYOTq2cfEWsfdtWdrQnGgc8a6mo4+yi2ilSCzcrFDSK+HiStEWWQb4kAHrMDGYHCCfu8fc2bgNiWPeqVCBJD3OzeEHlyYUHC4vDLzM9KsArZDjWQgShCSjvWRn/voDTnj8zR1s8h4jSPIC4=",
+        "ARC-Authentication-Results": "i=1; smtp.subspace.kernel.org;\n dmarc=pass (p=reject dis=none) header.from=google.com;\n spf=pass smtp.mailfrom=flex--samitolvanen.bounces.google.com;\n dkim=pass (2048-bit key) header.d=google.com header.i=@google.com\n header.b=xN5WF5sX; arc=none smtp.client-ip=209.85.210.202",
+        "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed;\n        d=google.com; s=20230601; t=1753217647; x=1753822447;\n darn=vger.kernel.org;\n        h=cc:to:from:subject:message-id:references:mime-version:in-reply-to\n         :date:from:to:cc:subject:date:message-id:reply-to;\n        bh=v0xky3Tz++dR8wOWXy0XI+fGsD8WnNLUtoliWtDdioM=;\n        b=xN5WF5sXn6P7AA42S3lTILffuA9N4fySl2C2qry0n7o/Qo/m11eLOOpTKgvG+mL6kL\n         H9WeQhfNjcpnpcHsIx5/ewVB9GQ6HEs8oaU3kqAs/sV/h7NVnphJxuMeKJVnK0znamuA\n         rCUmwq/nvO6BCsVde6aDeIFuOYxXoRGq26TaEsRBXhCLoRuVI1jYZw8N/BTO8ELBpoCn\n         CI/104+7orPlKfoHJomIaQPF6PnzTnYLsFWYsY2Y9YaC5xe8qhCxFzlWx9sEJKwct+fX\n         BSnlJwZCKDMPZ3y+qh78ZuhpGYX4w2kGnwLQ9ysy5vg7to0wqd8hXfPN6V7gBBaXh7kZ\n         51ig==",
+        "X-Google-DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed;\n        d=1e100.net; s=20230601; t=1753217647; x=1753822447;\n        h=cc:to:from:subject:message-id:references:mime-version:in-reply-to\n         :date:x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;\n        bh=v0xky3Tz++dR8wOWXy0XI+fGsD8WnNLUtoliWtDdioM=;\n        b=Rj03hfd7XNUSx8ytP7nj35GJeI5J8djqvE5qzyU+hYHF27oaEHIlIIbWNsF8mKi4hK\n         EZQm4ebuvSM8wF34Z3akw8TFY75JHpX7m436KVyYFcT1O6Bd7yFhPA5TrDU7MyKCcZRK\n         eDPv7AUXhGQxCPjL/r/nSDJMGatK/7i1Psf83MWX3M9NG46vkDTeuE89Mjz9XKYMcjJn\n         PHRzRN2qI8Vcgl9Q9IQXJc9NXFn907DL/j4BiBpaGPCg31F0ek/x6oA5iQaZCBIg5F/q\n         t7x4Yy1+mb7pRidL+NR0rpVGdNRnd5XQWiRSKgkTsxh7lWUIc+WW7+G31i3tELU2ZbbJ\n         sUcQ==",
+        "X-Gm-Message-State": "AOJu0YxOyKwI8L4sTztQdYYj2OIOIQoDwIi2tV6pm/xl07NqzeNmAJc/\n\tLgRk76Ga8D8M6kSt68VXlCdNtb3Gev8bnSdVjjHSSLmw+eIRRN1R4um3hdloZ2UmlWFUar4C55r\n\tskTv+FsG/MEgcJNzDn8+sOjtvMhCLE2Zt+ERsdTtF3P7FYnv5nBB7ozoZJ9jc2J4IYskvxXy/R2\n\tNXEXS7mPqq6yAn7Rv795/9aKkfqCzuje3xiHi8RDwE1l2Gm+M8j95MmASCQq2XqojL",
+        "X-Google-Smtp-Source": "\n AGHT+IH6x4q5kLczvA9H+m286fHAokh7HU92JRe53jNpVYETLy7h6qxVO9bNE0XMECCrfd5TA/Z0QoAyJ5vJf8ucB2k=",
+        "X-Received": "from pfbha4.prod.google.com\n ([2002:a05:6a00:8504:b0:746:2897:67e3])\n (user=samitolvanen job=prod-delivery.src-stubby-dispatcher) by\n 2002:a05:6a21:1fc3:b0:23d:35f2:4e69 with SMTP id\n adf61e73a8af0-23d490f6100mr432417637.23.1753217647145;\n Tue, 22 Jul 2025 13:54:07 -0700 (PDT)",
+        "Date": "Tue, 22 Jul 2025 20:54:01 +0000",
+        "In-Reply-To": "<20250722205357.3347626-5-samitolvanen@google.com>",
+        "Precedence": "bulk",
+        "X-Mailing-List": "bpf@vger.kernel.org",
+        "List-Id": "<bpf.vger.kernel.org>",
+        "List-Subscribe": "<mailto:bpf+subscribe@vger.kernel.org>",
+        "List-Unsubscribe": "<mailto:bpf+unsubscribe@vger.kernel.org>",
+        "Mime-Version": "1.0",
+        "References": "<20250722205357.3347626-5-samitolvanen@google.com>",
+        "X-Developer-Key": "i=samitolvanen@google.com; a=openpgp;\n fpr=35CCFB63B283D6D3AEB783944CB5F6848BBC56EE",
+        "X-Developer-Signature": "v=1; a=openpgp-sha256; l=4527;\n i=samitolvanen@google.com;\n h=from:subject; bh=V2hbK6L5Ngvs6CaLj1XnAp6J1iiarTYTez80LhYwsI4=;\n b=owGbwMvMwCUWxa662nLh8irG02pJDBn1v9I5n4RtPnZpu4LCIsOEhytmr2wSm7Bl7r4PE5YcN\n AzVFpxh3VHKwiDGxSArpsjS8nX11t3fnVJffS6SgJnDygQyhIGLUwAmwhzCyHA8ZdFRGXGj7H3m\n hcF8nw+xrJNYb3aRyVxu/b1fSybV9aYw/Pe4pPziyteDP3gibqY7T+XMu1ZoJl5VMkO3/+uVq9t\n uHmIHAA==",
+        "X-Mailer": "git-send-email 2.50.0.727.gbf7dc18ff4-goog",
+        "Message-ID": "<20250722205357.3347626-8-samitolvanen@google.com>",
+        "Subject": "[PATCH bpf-next v13 3/3] arm64/cfi,bpf: Support kCFI + BPF on arm64",
+        "From": "Sami Tolvanen <samitolvanen@google.com>",
+        "To": "bpf@vger.kernel.org, Puranjay Mohan <puranjay@kernel.org>,\n\tAlexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>",
+        "Cc": "Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will@kernel.org>,\n\tAndrii Nakryiko <andrii@kernel.org>, Mark Rutland <mark.rutland@arm.com>,\n\tlinux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,\n\tMaxwell Bland <mbland@motorola.com>, Puranjay Mohan <puranjay12@gmail.com>,\n\tSami Tolvanen <samitolvanen@google.com>, Dao Huang <huangdao1@oppo.com>",
+        "Content-Type": "text/plain; charset=\"UTF-8\"",
+        "X-Patchwork-Delegate": "bpf@iogearbox.net"
+    },
+    "content": "From: Puranjay Mohan <puranjay12@gmail.com>\n\nCurrently, bpf_dispatcher_*_func() is marked with `__nocfi` therefore\ncalling BPF programs from this interface doesn't cause CFI warnings.\n\nWhen BPF programs are called directly from C: from BPF helpers or\nstruct_ops, CFI warnings are generated.\n\nImplement proper CFI prologues for the BPF programs and callbacks and\ndrop __nocfi for arm64. Fix the trampoline generation code to emit kCFI\nprologue when a struct_ops trampoline is being prepared.\n\nSigned-off-by: Puranjay Mohan <puranjay12@gmail.com>\nCo-developed-by: Maxwell Bland <mbland@motorola.com>\nSigned-off-by: Maxwell Bland <mbland@motorola.com>\nCo-developed-by: Sami Tolvanen <samitolvanen@google.com>\nSigned-off-by: Sami Tolvanen <samitolvanen@google.com>\nTested-by: Dao Huang <huangdao1@oppo.com>\nAcked-by: Will Deacon <will@kernel.org>\n---\n arch/arm64/include/asm/cfi.h  |  7 +++++++\n arch/arm64/net/bpf_jit_comp.c | 30 +++++++++++++++++++++++++++---\n 2 files changed, 34 insertions(+), 3 deletions(-)\n create mode 100644 arch/arm64/include/asm/cfi.h",
+    "diff": "diff --git a/arch/arm64/include/asm/cfi.h b/arch/arm64/include/asm/cfi.h\nnew file mode 100644\nindex 000000000000..ab90f0351b7a\n--- /dev/null\n+++ b/arch/arm64/include/asm/cfi.h\n@@ -0,0 +1,7 @@\n+/* SPDX-License-Identifier: GPL-2.0 */\n+#ifndef _ASM_ARM64_CFI_H\n+#define _ASM_ARM64_CFI_H\n+\n+#define __bpfcall\n+\n+#endif /* _ASM_ARM64_CFI_H */\ndiff --git a/arch/arm64/net/bpf_jit_comp.c b/arch/arm64/net/bpf_jit_comp.c\nindex 89b1b8c248c6..993b5d6e1525 100644\n--- a/arch/arm64/net/bpf_jit_comp.c\n+++ b/arch/arm64/net/bpf_jit_comp.c\n@@ -10,6 +10,7 @@\n #include <linux/arm-smccc.h>\n #include <linux/bitfield.h>\n #include <linux/bpf.h>\n+#include <linux/cfi.h>\n #include <linux/filter.h>\n #include <linux/memory.h>\n #include <linux/printk.h>\n@@ -106,6 +107,14 @@ static inline void emit(const u32 insn, struct jit_ctx *ctx)\n \tctx->idx++;\n }\n \n+static inline void emit_u32_data(const u32 data, struct jit_ctx *ctx)\n+{\n+\tif (ctx->image != NULL && ctx->write)\n+\t\tctx->image[ctx->idx] = data;\n+\n+\tctx->idx++;\n+}\n+\n static inline void emit_a64_mov_i(const int is64, const int reg,\n \t\t\t\t  const s32 val, struct jit_ctx *ctx)\n {\n@@ -166,6 +175,12 @@ static inline void emit_bti(u32 insn, struct jit_ctx *ctx)\n \t\temit(insn, ctx);\n }\n \n+static inline void emit_kcfi(u32 hash, struct jit_ctx *ctx)\n+{\n+\tif (IS_ENABLED(CONFIG_CFI_CLANG))\n+\t\temit_u32_data(hash, ctx);\n+}\n+\n /*\n  * Kernel addresses in the vmalloc space use at most 48 bits, and the\n  * remaining bits are guaranteed to be 0x1. So we can compose the address\n@@ -476,7 +491,6 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)\n \tconst bool is_main_prog = !bpf_is_subprog(prog);\n \tconst u8 fp = bpf2a64[BPF_REG_FP];\n \tconst u8 arena_vm_base = bpf2a64[ARENA_VM_START];\n-\tconst int idx0 = ctx->idx;\n \tint cur_offset;\n \n \t/*\n@@ -502,6 +516,9 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)\n \t *\n \t */\n \n+\temit_kcfi(is_main_prog ? cfi_bpf_hash : cfi_bpf_subprog_hash, ctx);\n+\tconst int idx0 = ctx->idx;\n+\n \t/* bpf function may be invoked by 3 instruction types:\n \t * 1. bl, attached via freplace to bpf prog via short jump\n \t * 2. br, attached via freplace to bpf prog via long jump\n@@ -2055,9 +2072,9 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)\n \t\tjit_data->ro_header = ro_header;\n \t}\n \n-\tprog->bpf_func = (void *)ctx.ro_image;\n+\tprog->bpf_func = (void *)ctx.ro_image + cfi_get_offset();\n \tprog->jited = 1;\n-\tprog->jited_len = prog_size;\n+\tprog->jited_len = prog_size - cfi_get_offset();\n \n \tif (!prog->is_func || extra_pass) {\n \t\tint i;\n@@ -2426,6 +2443,12 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,\n \t/* return address locates above FP */\n \tretaddr_off = stack_size + 8;\n \n+\tif (flags & BPF_TRAMP_F_INDIRECT) {\n+\t\t/*\n+\t\t * Indirect call for bpf_struct_ops\n+\t\t */\n+\t\temit_kcfi(cfi_get_func_hash(func_addr), ctx);\n+\t}\n \t/* bpf trampoline may be invoked by 3 instruction types:\n \t * 1. bl, attached to bpf prog or kernel function via short jump\n \t * 2. br, attached to bpf prog or kernel function via long jump\n@@ -2942,6 +2965,7 @@ void bpf_jit_free(struct bpf_prog *prog)\n \t\t\t\t\t   sizeof(jit_data->header->size));\n \t\t\tkfree(jit_data);\n \t\t}\n+\t\tprog->bpf_func -= cfi_get_offset();\n \t\thdr = bpf_jit_binary_pack_hdr(prog);\n \t\tbpf_jit_binary_pack_free(hdr, NULL);\n \t\tWARN_ON_ONCE(!bpf_prog_kallsyms_verify_off(prog));\n",
+    "prefixes": [
+        "bpf-next",
+        "v13",
+        "3/3"
+    ]
+}

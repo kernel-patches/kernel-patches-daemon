@@ -800,8 +800,8 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
         self._bw.patchwork = self._pw
         # Replace our BranchWorker repo instance by our gh_mock
         self._bw.repo = self._gh_mock
-        # DEFAULT_TEST_RESPONSES will return series 6 and 9, 6 being the first one
-        mybranch = f"series/6=>{TEST_REPO_BRANCH}"
+        # DEFAULT_TEST_RESPONSES will return series 6 and 9, 9 being the latest one
+        mybranch = f"series/9=>{TEST_REPO_BRANCH}"
         mymunch = munchify(
             {
                 "head": {"ref": mybranch},
