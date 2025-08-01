@@ -337,7 +337,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
 
         data_path = os.path.join(
             os.path.dirname(__file__),
-            "data/test_github_sync.test_sync_patches_pr_summary_success",
+            "data/test_sync_patches_pr_summary_success",
         )
         test_data = load_test_data(data_path)
         init_pw_responses(m, test_data)
