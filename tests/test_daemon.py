@@ -6,7 +6,7 @@
 
 import unittest
 from typing import Any, Dict, List
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.daemon import KernelPatchesWorker
@@ -68,6 +68,7 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         )
 
         self.worker.github_sync_worker.sync_patches = AsyncMock()
+        self.worker.reset_github_sync = MagicMock(return_value=True)
 
     async def test_run_ok(self) -> None:
         with (
@@ -81,6 +82,7 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
 
         gh_sync = self.worker.github_sync_worker
         gh_sync.sync_patches.assert_called_once()
+        self.worker.reset_github_sync.assert_called_once()
         self.assertEqual(len(LOGGED_METRICS), 1)
         stats = LOGGED_METRICS[0][self.worker.project]
         self.assertEqual(stats["runs_successful"], 1)
