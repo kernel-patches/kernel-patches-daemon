@@ -1220,6 +1220,7 @@ class BranchWorker(GithubConnector):
             new_label = StatusLabelSuffixes.FAIL.to_label(series.version)
             not_label = StatusLabelSuffixes.PASS.to_label(series.version)
 
+        pr.update()  # make sure we are looking at the up to date labels
         labels = {label.name for label in pr.labels}
         # Always make sure to remove the unused label so that we eventually
         # converge on having only one pass/fail label for each version, come
