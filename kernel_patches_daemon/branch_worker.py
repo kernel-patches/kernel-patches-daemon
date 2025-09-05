@@ -436,6 +436,12 @@ def same_series_different_target(ref: str, other_ref: str) -> bool:
     return ref1["series"] == ref2["series"] and ref1["target"] != ref2["target"]
 
 
+def prs_for_the_same_series(pr1: PullRequest, pr2: PullRequest) -> bool:
+    return pr1.title == pr2.title or same_series_different_target(
+        pr1.head.ref, pr2.head.ref
+    )
+
+
 def _reset_repo(repo, branch: str) -> None:
     """
     Reset the repository into a known good state, with `branch` checked out.

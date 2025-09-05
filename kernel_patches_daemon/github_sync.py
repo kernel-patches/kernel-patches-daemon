@@ -20,7 +20,7 @@ from kernel_patches_daemon.branch_worker import (
     parse_pr_ref,
     parsed_pr_ref_ok,
     pr_has_label,
-    same_series_different_target,
+    prs_for_the_same_series,
 )
 from kernel_patches_daemon.config import BranchConfig, KPDConfig
 from kernel_patches_daemon.github_logs import (
@@ -156,12 +156,19 @@ class GithubSync(Stats):
         the same series name, but different remote branch and close them.
         """
 
-        prs_to_close = [
+        existing_prs = [
             existing_pr
             for worker in workers
             for existing_pr in worker.prs.values()
-            if same_series_different_target(pr.head.ref, existing_pr.head.ref)
+            if existing_pr.number != pr.number
         ]
+
+        prs_to_close = [
+            existing_pr
+            for existing_pr in existing_prs
+            if prs_for_the_same_series(pr, existing_pr)
+        ]
+
         # Remove matching PRs from other workers
         for pr_to_close in prs_to_close:
             logging.info(
