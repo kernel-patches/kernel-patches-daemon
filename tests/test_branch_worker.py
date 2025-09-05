@@ -633,16 +633,6 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             ggr.assert_called_once_with(f"heads/{branch_deleted}")
             ggr.return_value.delete.assert_called_once()
 
-    @aioresponses()
-    async def test_guess_pr_return_from_active_pr_cache(self, m: aioresponses) -> None:
-        # Whatever is in our self.prs's cache dictionary will be returned.
-        series = Series(self._pw, SERIES_DATA)
-        sentinel = random.random()
-        # pyre-fixme[6]: For 2nd argument expected `PullRequest` but got `float`.
-        self._bw.prs["foo"] = sentinel
-        pr = await self._bw._guess_pr(series)
-        self.assertEqual(sentinel, pr)
-
     async def test_guess_pr_return_from_secondary_cache_with_specified_branch(
         self,
     ) -> None:

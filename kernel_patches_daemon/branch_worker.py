@@ -767,10 +767,6 @@ class BranchWorker(GithubConnector):
         - try to guess based on first series
         """
 
-        # try to find amond known relevant PRs
-        if series.subject in self.prs:
-            return self.prs[series.subject]
-
         if not branch:
             # resolve branch: series -> subject -> branch
             subject = Subject(series.subject, self.patchwork)
