@@ -30,28 +30,49 @@ class KernelPatchesWorker:
         loop_delay: int = DEFAULT_LOOP_DELAY,
     ) -> None:
         self.project: str = kpd_config.patchwork.project
-        self.github_sync_worker = GithubSync(
-            kpd_config=kpd_config, labels_cfg=labels_cfg
-        )
+        self.kpd_config = kpd_config
+        self.labels_cfg = labels_cfg
         self.loop_delay: Final[int] = loop_delay
         self.metrics_logger = metrics_logger
+        self.github_sync_worker: GithubSync = GithubSync(
+            kpd_config=self.kpd_config, labels_cfg=self.labels_cfg
+        )
+
+    def reset_github_sync(self) -> bool:
+        try:
+            self.github_sync_worker = GithubSync(
+                kpd_config=self.kpd_config, labels_cfg=self.labels_cfg
+            )
+            return True
+        except Exception:
+            logger.exception(
+                "Unhandled exception while creating GithubSync object",
+                exc_info=True,
+            )
+            return False
 
     async def submit_metrics(self) -> None:
-        if self.metrics_logger:
-            logger.info("Submitting run metrics into metrics logger")
-            try:
-                self.metrics_logger(self.project, self.github_sync_worker.stats)
-            except Exception:
-                logger.exception(
-                    "Failed to submit run metrics into metrics logger", exc_info=True
-                )
-        else:
+        if self.metrics_logger is None:
             logger.warn(
                 "Not submitting run metrics because metrics logger is not configured"
+            )
+            return
+        try:
+            self.metrics_logger(self.project, self.github_sync_worker.stats)
+            logger.info("Submitted run metrics into metrics logger")
+        except Exception:
+            logger.exception(
+                "Failed to submit run metrics into metrics logger", exc_info=True
             )
 
     async def run(self) -> None:
         while True:
+            ok = self.reset_github_sync()
+            if not ok:
+                logger.error(
+                    "Most likely something went wrong connecting to GitHub or Patchwork. Skipping this iteration without submitting metrics."
+                )
+                continue
             try:
                 await self.github_sync_worker.sync_patches()
                 self.github_sync_worker.increment_counter("runs_successful")
