@@ -6,7 +6,6 @@
 
 # pyre-unsafe
 
-import os
 import random
 import re
 import shutil
@@ -14,7 +13,7 @@ import tempfile
 import unittest
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
 import git
@@ -35,6 +34,7 @@ from kernel_patches_daemon.branch_worker import (
     EmailBodyContext,
     furnish_ci_email_body,
     parse_pr_ref,
+    prs_for_the_same_series,
     same_series_different_target,
     temporary_patch_file,
     UPSTREAM_REMOTE_NAME,
@@ -891,6 +891,43 @@ class TestSupportFunctions(unittest.TestCase):
                     "series/1=>target", "series/2=>other_target"
                 )
             )
+
+    def test_prs_for_the_same_series(self) -> None:
+        def create_mock_pr(title: Optional[str], head_ref: str) -> MagicMock:
+            pr = MagicMock()
+            pr.title = title
+            pr.head.ref = head_ref
+            return pr
+
+        with self.subTest("same_title_different_series"):
+            # Title match should return True regardless of series
+            pr1 = create_mock_pr("Fix memory leak", "series/123=>main")
+            pr2 = create_mock_pr("Fix memory leak", "series/456=>bpf-next")
+            self.assertTrue(prs_for_the_same_series(pr1, pr2))
+
+        with self.subTest("different_title_same_series_different_target"):
+            # Same series, different target should return True regardless of title
+            pr1 = create_mock_pr("Fix memory leak", "series/123=>main")
+            pr2 = create_mock_pr("Different title", "series/123=>bpf-next")
+            self.assertTrue(prs_for_the_same_series(pr1, pr2))
+
+        with self.subTest("different_title_different_series"):
+            # No match
+            pr1 = create_mock_pr("Fix memory leak", "series/123=>main")
+            pr2 = create_mock_pr("Different title", "series/456=>main")
+            self.assertFalse(prs_for_the_same_series(pr1, pr2))
+
+        with self.subTest("none_vs_string_title"):
+            # None vs string title should not match
+            pr1 = create_mock_pr(None, "series/123=>main")
+            pr2 = create_mock_pr("Fix memory leak", "series/456=>bpf-next")
+            self.assertFalse(prs_for_the_same_series(pr1, pr2))
+
+        with self.subTest("malformed_refs_no_match"):
+            # Malformed refs with different titles should return False
+            pr1 = create_mock_pr("Fix memory leak", "invalid-ref-format")
+            pr2 = create_mock_pr("Different title", "also-invalid")
+            self.assertFalse(prs_for_the_same_series(pr1, pr2))
 
 
 class TestGitSeriesAlreadyApplied(unittest.IsolatedAsyncioTestCase):
