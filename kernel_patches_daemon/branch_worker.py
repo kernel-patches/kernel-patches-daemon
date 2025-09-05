@@ -774,7 +774,7 @@ class BranchWorker(GithubConnector):
 
         try:
             # we assuming only one PR can be active for one head->base
-            return self.all_prs[branch][self.repo_branch][0]
+            return self.all_prs[branch][self.repo_pr_base_branch][0]
         except (KeyError, IndexError):
             pass
 

@@ -644,7 +644,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
         series = Series(self._pw, SERIES_DATA)
         sentinel = random.random()
         self._bw.all_prs[mybranch] = {}
-        self._bw.all_prs[mybranch][TEST_REPO_BRANCH] = [sentinel]
+        self._bw.all_prs[mybranch][TEST_REPO_PR_BASE_BRANCH] = [sentinel]
         pr = await self._bw._guess_pr(series, mybranch)
         self.assertEqual(sentinel, pr)
 
@@ -661,7 +661,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
 
         sentinel = random.random()
         self._bw.all_prs[mybranch] = {}
-        self._bw.all_prs[mybranch][TEST_REPO_BRANCH] = [sentinel]
+        self._bw.all_prs[mybranch][TEST_REPO_PR_BASE_BRANCH] = [sentinel]
         pr = await self._bw._guess_pr(series, mybranch)
         self.assertEqual(sentinel, pr)
 
