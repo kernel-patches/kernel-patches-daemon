@@ -336,8 +336,14 @@ class GithubSync(Stats):
                     parsed_ref = parse_pr_ref(pr.head.ref)
                     # ignore unknown format branch/PRs.
                     if not parsed_pr_ref_ok(parsed_ref):
-                        logger.warning(
+                        logger.info(
                             f"Unexpected format of the branch name: {pr.head.ref}"
+                        )
+                        continue
+
+                    if parsed_ref["target"] != worker.repo_branch:
+                        logger.info(
+                            f"Skipping sync of PR {pr.number} ({pr.head.ref}) as it's not for {worker.repo_branch}"
                         )
                         continue
 
@@ -345,12 +351,20 @@ class GithubSync(Stats):
                     series = await self.pw.get_series_by_id(series_id)
                     subject = self.pw.get_subject_by_series(series)
                     if subject_name != subject.subject:
-                        logger.warning(
+                        logger.info(
                             f"Renaming {pr} from {subject_name} to {subject.subject} according to {series.id}"
                         )
                         pr.edit(title=subject.subject)
+
+                    latest_series = await subject.latest_series()
+                    if latest_series is None:
+                        logger.warning(
+                            f"Closing {pr} associated with irrelevent or outdated series {series_id}"
+                        )
+                        pr.edit(state="close")
+                        continue
+
                     branch_name = await worker.subject_to_branch(subject)
-                    latest_series = await subject.latest_series() or series
                     pr = await self.checkout_and_patch_safe(
                         worker, branch_name, latest_series
                     )
