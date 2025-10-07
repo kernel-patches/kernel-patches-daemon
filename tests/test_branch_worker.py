@@ -29,10 +29,12 @@ from kernel_patches_daemon.branch_worker import (
     BRANCH_TTL,
     BranchWorker,
     build_email,
+    ci_results_email_recipients,
     create_color_labels,
     email_in_submitter_allowlist,
     EmailBodyContext,
     furnish_ci_email_body,
+    get_ci_base,
     parse_pr_ref,
     prs_for_the_same_series,
     same_series_different_target,
@@ -1316,13 +1318,17 @@ class TestEmailNotification(unittest.TestCase):
         ]
         expected_email = read_fixture("test_email_submitter_in_allowlist.golden")
 
+        (to_list, cc_list) = ci_results_email_recipients(config, series)
+        in_reply_to = get_ci_base(series)["msgid"]
         cmd, email = build_email(
             config,
-            series,
+            to_list,
+            cc_list,
             "[PATCH bpf] my subject",
             "my-id",
             "body body body",
             boundary=self.BOUNDARY,
+            in_reply_to=in_reply_to,
         )
         self.assertEqual(expected_cmd, cmd)
         self.assertEqual(expected_email, email)
@@ -1371,8 +1377,17 @@ class TestEmailNotification(unittest.TestCase):
         ]
         expected_email = read_fixture("test_email_submitter_not_in_allowlist.golden")
 
+        (to_list, cc_list) = ci_results_email_recipients(config, series)
+        in_reply_to = get_ci_base(series)["msgid"]
         cmd, email = build_email(
-            config, series, "my subject", "my-id", "body body", boundary=self.BOUNDARY
+            config,
+            to_list,
+            cc_list,
+            "my subject",
+            "my-id",
+            "body body",
+            boundary=self.BOUNDARY,
+            in_reply_to=in_reply_to,
         )
         self.assertEqual(expected_cmd, cmd)
         self.assertEqual(expected_email, email)
@@ -1425,13 +1440,17 @@ class TestEmailNotification(unittest.TestCase):
             "test_email_submitter_not_in_allowlist_and_allowlist_disabled.golden"
         )
 
+        (to_list, cc_list) = ci_results_email_recipients(config, series)
+        in_reply_to = get_ci_base(series)["msgid"]
         cmd, email = build_email(
             config,
-            series,
+            to_list,
+            cc_list,
             "[PATCH bpf-next] some-subject",
             "my-id",
             "zzzzz\nzz",
             boundary=self.BOUNDARY,
+            in_reply_to=in_reply_to,
         )
         self.assertEqual(expected_cmd, cmd)
         self.assertEqual(expected_email, email)
