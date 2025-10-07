@@ -21,7 +21,7 @@ import time
 from collections import namedtuple
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from email.mime.application import MIMEApplication
+from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
@@ -248,6 +248,11 @@ def bump_email_status_counters(status: Status):
 
 def generate_msg_id(host: str) -> str:
     """Generate an email message ID based on the provided host."""
+    # RFC 822 style message ID to allow for easier referencing of this
+    # message. Note that it's not entirely correct for us to refer to a host
+    # that is not entirely under our control, but we don't want to expose our
+    # actual host name either. Collisions of a sha256 hash are assumed to be
+    # unlikely in many contexts, so we do the same.
     checksum = hashlib.sha256(str(time.time()).encode("utf-8")).hexdigest()
     return f"{checksum}@{host}"
 
@@ -265,11 +270,13 @@ def email_in_submitter_allowlist(email: str, allowlist: Sequence[re.Pattern]) ->
 
 def build_email(
     config: EmailConfig,
-    series: Series,
+    to_list: List[str],
+    cc_list: List[str],
     subject: str,
     msg_id: str,
     body: str,
-    boundary: str = "",
+    boundary: Optional[str] = None,
+    in_reply_to: Optional[str] = None,
 ) -> Tuple[List[str], str]:
     """
     Builds complete email (including headers) to be sent along with curl command
@@ -297,14 +304,6 @@ def build_email(
         "-",
     ]
 
-    to_list = copy.copy(config.smtp_to)
-    cc_list = copy.copy(config.smtp_cc)
-
-    if config.ignore_allowlist or email_in_submitter_allowlist(
-        series.submitter_email, config.submitter_allowlist
-    ):
-        to_list += [series.submitter_email]
-
     for to in to_list + cc_list:
         args += ["--mail-rcpt", to]
 
@@ -312,13 +311,9 @@ def build_email(
         args += ["--proxy", config.smtp_http_proxy]
 
     msg = MIMEMultipart()
-    # Add some RFC 822 style message ID to allow for easier referencing of this
-    # message. Note that it's not entirely correct for us to refer to a host
-    # that is not entirely under our control, but we don't want to expose our
-    # actual host name either. Collisions of a sha256 hash are assumed to be
-    # unlikely in many contexts, so we do the same.
     msg["Message-Id"] = f"<{msg_id}>"
-    msg["In-Reply-To"] = get_ci_base(series)["msgid"]
+    if in_reply_to is not None:
+        msg["In-Reply-To"] = in_reply_to
     msg["References"] = msg["In-Reply-To"]
     msg["Subject"] = subject
     msg["From"] = config.smtp_from
@@ -326,7 +321,7 @@ def build_email(
         msg["To"] = ",".join(to_list)
     if cc_list:
         msg["Cc"] = ",".join(cc_list)
-    if boundary:
+    if boundary is not None:
         msg.set_boundary(boundary)
     msg.attach(MIMEText(body, "plain"))
 
@@ -335,14 +330,17 @@ def build_email(
 
 async def send_email(
     config: EmailConfig,
-    series: Series,
+    to_list: List[str],
+    cc_list: List[str],
     subject: str,
     body: str,
+    in_reply_to: Optional[str] = None,
 ):
     """Send an email."""
     msg_id = generate_msg_id(config.smtp_host)
-    curl_args, msg = build_email(config, series, subject, msg_id, body)
-
+    curl_args, msg = build_email(
+        config, to_list, cc_list, subject, msg_id, body, in_reply_to=in_reply_to
+    )
     proc = await asyncio.create_subprocess_exec(
         *curl_args, stdin=PIPE, stdout=PIPE, stderr=PIPE
     )
@@ -351,6 +349,30 @@ async def send_email(
     if rc != 0:
         logger.error(f"failed to send email: {stdout.decode()} {stderr.decode()}")
         email_send_fail_counter.add(1)
+
+
+def ci_results_email_recipients(
+    config: EmailConfig, series: Series
+) -> Tuple[List[str], List[str]]:
+    to_list = copy.copy(config.smtp_to)
+    cc_list = copy.copy(config.smtp_cc)
+    if config.ignore_allowlist or email_in_submitter_allowlist(
+        series.submitter_email, config.submitter_allowlist
+    ):
+        to_list += [series.submitter_email]
+
+    return (to_list, cc_list)
+
+
+async def send_ci_results_email(
+    config: EmailConfig,
+    series: Series,
+    subject: str,
+    body: str,
+):
+    (to_list, cc_list) = ci_results_email_recipients(config, series)
+    in_reply_to = get_ci_base(series)["msgid"]
+    await send_email(config, to_list, cc_list, subject, body, in_reply_to)
 
 
 def pr_has_label(pr: PullRequest, label: str) -> bool:
@@ -559,7 +581,7 @@ class BranchWorker(GithubConnector):
         )
 
         self.patchwork = patchwork
-        self.email = email
+        self.email_config = email
 
         self.log_extractor = log_extractor
         self.ci_repo_url = ci_repo_url
@@ -1204,8 +1226,7 @@ class BranchWorker(GithubConnector):
         self, status: Status, series: Series, pr: PullRequest, jobs: List[WorkflowJob]
     ) -> None:
         """Evaluate the result of a CI run and send an email as necessary."""
-        email = self.email
-        if email is None:
+        if self.email_config is None:
             logger.info("No email configuration present; skipping sending...")
             return
 
@@ -1245,7 +1266,7 @@ class BranchWorker(GithubConnector):
             subject = await get_ci_email_subject(series)
             ctx = build_email_body_context(self.repo, pr, status, series, inline_logs)
             body = furnish_ci_email_body(ctx)
-            await send_email(email, series, subject, body)
+            await send_ci_results_email(self.email_config, series, subject, body)
             bump_email_status_counters(status)
 
     def expire_branches(self) -> None:
