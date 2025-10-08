@@ -7,7 +7,6 @@
 # pyre-unsafe
 
 import json
-import os
 import re
 import unittest
 from dataclasses import dataclass
@@ -23,10 +22,12 @@ from kernel_patches_daemon.config import (
     PatchworksConfig,
 )
 
+from tests.common.utils import read_fixture
 
-def read_fixture(filepath: str) -> Dict[str, Union[str, int, bool, Dict]]:
-    with open(os.path.join(os.path.dirname(__file__), filepath)) as f:
-        return json.load(f)
+
+def load_kpd_config(filename: str) -> Dict[str, Union[str, int, bool, Dict]]:
+    raw_json = read_fixture(filename)
+    return json.loads(raw_json)
 
 
 class TestConfig(unittest.TestCase):
@@ -38,7 +39,7 @@ class TestConfig(unittest.TestCase):
         Tests that if a tag is mapped to a branch that doesn't exist, an exception is raised.
         """
         # Load a valid config
-        kpd_config_json = read_fixture("fixtures/kpd_config.json")
+        kpd_config_json = load_kpd_config("kpd_config.json")
 
         @dataclass
         class TestCase:
@@ -80,7 +81,7 @@ class TestConfig(unittest.TestCase):
         Tests combinaisons of valid tag_to_branch_mapping setup.
         """
         # Load a valid config
-        kpd_config_json = read_fixture("fixtures/kpd_config.json")
+        kpd_config_json = load_kpd_config("kpd_config.json")
 
         @dataclass
         class TestCase:
@@ -138,7 +139,7 @@ class TestConfig(unittest.TestCase):
                 KPDConfig.from_json(conf)
 
     def test_valid(self) -> None:
-        kpd_config_json = read_fixture("fixtures/kpd_config.json")
+        kpd_config_json = load_kpd_config("kpd_config.json")
 
         with patch(
             "builtins.open", mock_open(read_data="TEST_KEY_FILE_CONTENT")

@@ -13,7 +13,7 @@ from github.WorkflowJob import WorkflowJob
 
 from kernel_patches_daemon.github_logs import BpfGithubLogExtractor, GithubFailedJobLog
 
-from . import read_fixture
+from tests.common.utils import read_fixture
 
 
 class MockWorkflowJob(WorkflowJob):

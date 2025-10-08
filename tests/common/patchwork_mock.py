@@ -6,11 +6,9 @@
 
 # pyre-unsafe
 
-import json
-import os
 import re
 
-from typing import Any, Dict, Final, List
+from typing import Any, Dict, Final
 
 from aioresponses import aioresponses
 
@@ -84,33 +82,6 @@ def get_dict_key(d: Dict[str, Any], idx: int = 0) -> str:
     Given a dictionary, get a list of keys and return the one a `idx`.
     """
     return list(d)[idx]
-
-
-def load_test_data_file(file):
-    with open(file, "r") as f:
-        if file.endswith(".json"):
-            return json.load(f)
-        else:
-            return f.read()
-
-
-def load_test_data(path) -> Dict[str, Any]:
-    jsons_by_path = {}
-    with open(os.path.join(path, "responses.json"), "r") as f:
-        jsons_by_path = json.load(f)
-    data = {}
-    for url, value in jsons_by_path.items():
-        match value:
-            case str():
-                filepath = os.path.join(path, value)
-                data[url] = load_test_data_file(filepath)
-            case list():
-                lst = []
-                for filename in value:
-                    filepath = os.path.join(path, filename)
-                    lst.append(load_test_data_file(filepath))
-                data[url] = lst
-    return data
 
 
 FOO_SERIES_FIRST = 2
