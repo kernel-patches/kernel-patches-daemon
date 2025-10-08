@@ -20,6 +20,7 @@ from kernel_patches_daemon.config import (
     InvalidConfig,
     KPDConfig,
     PatchworksConfig,
+    PRCommentsForwardingConfig,
 )
 
 from tests.common.utils import read_fixture
@@ -171,6 +172,13 @@ class TestConfig(unittest.TestCase):
                     re.compile("email2-allow@example.com"),
                 ],
                 ignore_allowlist=True,
+                pr_comments_forwarding=PRCommentsForwardingConfig(
+                    enabled=True,
+                    always_cc=["bpf-ci-test@example.com"],
+                    commenter_allowlist=["kpd-bot[bot]"],
+                    recipient_denylist=[re.compile(".*@vger.kernel.org")],
+                    recipient_allowlist=[],
+                ),
             ),
             tag_to_branch_mapping={"tag": ["app_auth_key_path"]},
             branches={

@@ -22,7 +22,13 @@
       "pass": "super-secret-is-king",
       "http_proxy": "http://example.com:8080",
       "submitter_allowlist": ["email1-allow@example.com", "email2-allow@example.com"],
-      "ignore_allowlist": true
+      "ignore_allowlist": true,
+      "pr_comments_forwarding": {
+        "enabled": true,
+        "always_cc": ["bpf-ci-test@example.com"],
+        "commenter_allowlist": ["kpd-bot[bot]"],
+        "recipient_denylist": [".*@vger.kernel.org"]
+      }
     },
     "tag_to_branch_mapping": {
       "tag": [

@@ -105,6 +105,29 @@ class BranchConfig:
 
 
 @dataclass
+class PRCommentsForwardingConfig:
+    enabled: bool
+    always_cc: List[str]
+    commenter_allowlist: List[str]
+    recipient_allowlist: List[re.Pattern]
+    recipient_denylist: List[re.Pattern]
+
+    @classmethod
+    def from_json(cls, json: Dict) -> "PRCommentsForwardingConfig":
+        return cls(
+            enabled=json.get("enabled", False),
+            always_cc=json.get("always_cc", []),
+            recipient_allowlist=[
+                re.compile(pattern) for pattern in json.get("recipient_allowlist", [])
+            ],
+            recipient_denylist=[
+                re.compile(pattern) for pattern in json.get("recipient_denylist", [])
+            ],
+            commenter_allowlist=json.get("commenter_allowlist", []),
+        )
+
+
+@dataclass
 class EmailConfig:
     smtp_host: str
     smtp_port: int
@@ -123,6 +146,7 @@ class EmailConfig:
     # Ignore the `submitter_allowlist` entries and send emails to all patch
     # submitters, unconditionally.
     ignore_allowlist: bool
+    pr_comments_forwarding: Optional[PRCommentsForwardingConfig]
 
     @classmethod
     def from_json(cls, json: Dict) -> "EmailConfig":
@@ -139,7 +163,16 @@ class EmailConfig:
                 re.compile(pattern) for pattern in json.get("submitter_allowlist", [])
             ],
             ignore_allowlist=json.get("ignore_allowlist", False),
+            pr_comments_forwarding=PRCommentsForwardingConfig.from_json(
+                json.get("pr_comments_forwarding", {})
+            ),
         )
+
+    def is_pr_comment_forwarding_enabled(self) -> bool:
+        if self.pr_comments_forwarding is not None:
+            return self.pr_comments_forwarding.enabled
+        else:
+            return False
 
 
 @dataclass

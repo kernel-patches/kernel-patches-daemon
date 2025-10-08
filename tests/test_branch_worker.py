@@ -6,6 +6,9 @@
 
 # pyre-unsafe
 
+import email
+import json
+import os
 import random
 import re
 import shutil
@@ -14,7 +17,7 @@ import unittest
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import git
 
@@ -37,12 +40,16 @@ from kernel_patches_daemon.branch_worker import (
     get_ci_base,
     parse_pr_ref,
     prs_for_the_same_series,
+    reply_email_recipients,
     same_series_different_target,
+    send_pr_comment_email,
     temporary_patch_file,
     UPSTREAM_REMOTE_NAME,
 )
 from kernel_patches_daemon.config import (
     EmailConfig,
+    KPDConfig,
+    PRCommentsForwardingConfig,
     SERIES_ID_SEPARATOR,
     SERIES_TARGET_SEPARATOR,
 )
@@ -55,6 +62,7 @@ from tests.common.patchwork_mock import (
     DEFAULT_TEST_RESPONSES,
     get_default_pw_client,
     init_pw_responses,
+    PatchworkMock,
 )
 
 from tests.common.utils import load_test_data, read_fixture, read_test_data_file
@@ -1289,6 +1297,7 @@ class TestEmailNotification(unittest.TestCase):
                 re.compile("a-user@example.com"),
             ],
             ignore_allowlist=False,
+            pr_comments_forwarding=None,
         )
         expected_cmd = [
             "curl",
@@ -1350,6 +1359,7 @@ class TestEmailNotification(unittest.TestCase):
                 re.compile("email2-allow@example.com"),
             ],
             ignore_allowlist=False,
+            pr_comments_forwarding=None,
         )
         expected_cmd = [
             "curl",
@@ -1409,6 +1419,7 @@ class TestEmailNotification(unittest.TestCase):
                 re.compile("email2-allow@example.com"),
             ],
             ignore_allowlist=True,
+            pr_comments_forwarding=None,
         )
         expected_cmd = [
             "curl",
@@ -1454,6 +1465,37 @@ class TestEmailNotification(unittest.TestCase):
         )
         self.assertEqual(expected_cmd, cmd)
         self.assertEqual(expected_email, email)
+
+    def test_reply_email_recipients(self):
+        kpd_config_json = json.loads(read_fixture("kpd_config.json"))
+        kpd_config = KPDConfig.from_json(kpd_config_json)
+        self.assertIsNotNone(kpd_config)
+
+        mbox = read_test_data_file(
+            "test_sync_patches_pr_summary_success/series-970926.mbox"
+        )
+        parser = email.parser.BytesParser(policy=email.policy.default)
+        msg = parser.parsebytes(mbox.encode("utf-8"), headersonly=True)
+        self.assertIsNotNone(mbox)
+        denylist = kpd_config.email.pr_comments_forwarding.recipient_denylist
+        (to_list, cc_list) = reply_email_recipients(msg, denylist=denylist)
+
+        self.assertEqual(to_list, ["chen.dylane@linux.dev"])
+        self.assertEqual(len(cc_list), 17)
+
+        # test allowlist by using the same denylist
+        (to_list, cc_list) = reply_email_recipients(msg, allowlist=denylist)
+        self.assertEqual(to_list, [])
+        self.assertEqual(len(cc_list), 3)
+
+        # test both
+        allowlist = [re.compile(".*@linux.dev")]
+        denylist = [re.compile(".*@gmail.com")]
+        (to_list, cc_list) = reply_email_recipients(
+            msg, allowlist=allowlist, denylist=denylist
+        )
+        self.assertEqual(to_list, ["chen.dylane@linux.dev"])
+        self.assertEqual(len(cc_list), 3)
 
 
 class TestParsePrRef(unittest.TestCase):
@@ -1560,3 +1602,97 @@ class TestParsePrRef(unittest.TestCase):
                     self.fail(
                         f"parse_pr_ref raised {type(e).__name__} for input '{test_input}': {e}"
                     )
+
+
+class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        patcher = patch("kernel_patches_daemon.github_connector.Github")
+        self._gh_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self._bw = BranchWorkerMock()
+
+    async def asyncSetUp(self) -> None:
+        patchwork = PatchworkMock(
+            server="patchwork.test",
+            api_version="1.1",
+            search_patterns=[{"archived": False, "project": 399, "delegate": 121173}],
+            auth_token="mocktoken",
+        )
+        self._pw = patchwork
+
+    @aioresponses()
+    async def test_forward_pr_comments(self, m: aioresponses) -> None:
+        data_path = os.path.join(
+            os.path.dirname(__file__),
+            "data/test_sync_patches_pr_summary_success",
+        )
+        test_data = load_test_data(data_path)
+        init_pw_responses(m, test_data)
+
+        self._pw.get_blob = AsyncMock()
+        mbox = read_test_data_file(
+            "test_sync_patches_pr_summary_success/series-970926.mbox"
+        )
+        self._pw.get_blob.return_value = mbox.encode("utf-8")
+        mbox_msgid = "20250611154859.259682-1-chen.dylane@linux.dev"
+
+        self._bw.email_config = MagicMock(
+            pr_comments_forwarding=PRCommentsForwardingConfig(
+                enabled=True,
+                always_cc=["bpf-ci-test@example.com"],
+                commenter_allowlist=["test_user"],
+                recipient_denylist=[re.compile(".*@vger.kernel.org")],
+                recipient_allowlist=[],
+            )
+        )
+
+        self._bw.patchwork = self._pw
+        series = await self._pw.get_series_by_id(970926)
+
+        mock_comment = MagicMock()
+        mock_comment.id = 987654
+        mock_comment.user.login = "test_user"
+        mock_comment.body = "Great work on this fix!\nIn-Reply-To-Subject: `bpf: clear user buf when bpf_d_path failed`"
+        mock_comment.html_url = (
+            "https://github.com/example/repo/pull/42#issuecomment-987654"
+        )
+
+        mock_pr = MagicMock()
+        mock_pr.get_issue_comments.return_value = [mock_comment]
+
+        with (
+            patch.object(mock_pr, "create_issue_comment") as mock_create_comment,
+            patch("kernel_patches_daemon.branch_worker.send_email") as mock_send_email,
+        ):
+            mock_sent_msg = {"msgid": "forwarded-msg-id@example.com"}
+            mock_send_email.return_value = mock_sent_msg
+
+            await self._bw.forward_pr_comments(mock_pr, series)
+
+            mock_create_comment.assert_called_once()
+            posted_comment = mock_create_comment.call_args[0][0]
+            self.assertIn(
+                f"Forwarding comment [{mock_comment.id}]({mock_comment.html_url}) via email",
+                posted_comment,
+            )
+            self.assertIn(f"In-Reply-To: <{mbox_msgid}>", posted_comment)
+            self.assertIn(
+                f"Patch: https://patchwork.test/project/netdevbpf/patch/{mbox_msgid}/",
+                posted_comment,
+            )
+
+            mock_send_email.assert_called_once()
+            (_, to_list, cc_list, subject, body, in_reply_to) = (
+                mock_send_email.call_args[0]
+            )
+
+            self.assertEqual(to_list, ["chen.dylane@linux.dev"])
+            self.assertEqual(len(cc_list), 18)
+            self.assertIn("bpf-ci-test@example.com", cc_list)
+            self.assertEqual(
+                "Re: [PATCH bpf-next] bpf: clear user buf when bpf_d_path failed",
+                subject,
+            )
+            self.assertEqual(mock_comment.body, body)
+            self.assertEqual(f"<{mbox_msgid}>", in_reply_to)
