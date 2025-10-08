@@ -257,15 +257,8 @@ def generate_msg_id(host: str) -> str:
     return f"{checksum}@{host}"
 
 
-def email_in_submitter_allowlist(email: str, allowlist: Sequence[re.Pattern]) -> bool:
-    """
-    Checks if an email is in the submitter allowlist
-
-    Note that there may be false positives when folks have regex syntax in
-    their email address. But that is ok -- this is simply a rollout mechanism.
-    We only need to roughly control the rollout.
-    """
-    return any(regex.fullmatch(email) for regex in allowlist)
+def email_matches_any(email: str, patterns: Sequence[re.Pattern]) -> bool:
+    return any(regex.fullmatch(email) for regex in patterns)
 
 
 def build_email(
@@ -356,7 +349,7 @@ def ci_results_email_recipients(
 ) -> Tuple[List[str], List[str]]:
     to_list = copy.copy(config.smtp_to)
     cc_list = copy.copy(config.smtp_cc)
-    if config.ignore_allowlist or email_in_submitter_allowlist(
+    if config.ignore_allowlist or email_matches_any(
         series.submitter_email, config.submitter_allowlist
     ):
         to_list += [series.submitter_email]

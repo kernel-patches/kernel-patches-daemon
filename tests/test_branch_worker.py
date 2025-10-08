@@ -31,7 +31,7 @@ from kernel_patches_daemon.branch_worker import (
     build_email,
     ci_results_email_recipients,
     create_color_labels,
-    email_in_submitter_allowlist,
+    email_matches_any,
     EmailBodyContext,
     furnish_ci_email_body,
     get_ci_base,
@@ -1249,7 +1249,7 @@ class TestEmailNotification(unittest.TestCase):
 
         for email, expected in cases:
             with self.subTest(msg=email):
-                result = email_in_submitter_allowlist(email, allowlist)
+                result = email_matches_any(email, allowlist)
                 self.assertEqual(result, expected)
 
     def test_allowlist_regex_match(self):
@@ -1270,7 +1270,7 @@ class TestEmailNotification(unittest.TestCase):
 
         for email, expected in cases:
             with self.subTest(msg=email):
-                result = email_in_submitter_allowlist(email, allowlist)
+                result = email_matches_any(email, allowlist)
                 self.assertEqual(result, expected)
 
     def test_email_submitter_in_allowlist(self):
