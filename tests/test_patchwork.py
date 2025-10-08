@@ -32,9 +32,10 @@ from tests.common.patchwork_mock import (
     get_default_pw_client,
     get_dict_key,
     init_pw_responses,
-    load_test_data,
     PatchworkMock,
 )
+
+from tests.common.utils import load_test_data
 
 
 class PatchworkTestCase(unittest.IsolatedAsyncioTestCase):

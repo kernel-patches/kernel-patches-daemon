@@ -6,16 +6,6 @@
 
 # pyre-strict
 
-import importlib.resources
 import logging
 
 logging.disable()
-
-
-def read_fixture(filepath: str) -> str:
-    return (
-        importlib.resources.files(__package__)
-        .joinpath("fixtures")
-        .joinpath(filepath)
-        .read_text()
-    )

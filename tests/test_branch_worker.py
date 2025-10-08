@@ -57,7 +57,7 @@ from tests.common.patchwork_mock import (
     init_pw_responses,
 )
 
-from . import read_fixture
+from tests.common.utils import load_test_data, read_fixture, read_test_data_file
 
 
 TEST_REPO = "repo"
