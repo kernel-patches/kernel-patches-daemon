@@ -328,7 +328,7 @@ async def send_email(
     subject: str,
     body: str,
     in_reply_to: Optional[str] = None,
-):
+) -> str:
     """Send an email."""
     msg_id = generate_msg_id(config.smtp_host)
     curl_args, msg = build_email(
@@ -342,6 +342,8 @@ async def send_email(
     if rc != 0:
         logger.error(f"failed to send email: {stdout.decode()} {stderr.decode()}")
         email_send_fail_counter.add(1)
+
+    return msg_id
 
 
 def ci_results_email_recipients(
@@ -366,6 +368,74 @@ async def send_ci_results_email(
     (to_list, cc_list) = ci_results_email_recipients(config, series)
     in_reply_to = get_ci_base(series)["msgid"]
     await send_email(config, to_list, cc_list, subject, body, in_reply_to)
+
+
+def reply_email_recipients(
+    msg: EmailMessage,
+    allowlist: Optional[Sequence[re.Pattern]] = None,
+    denylist: Optional[Sequence[re.Pattern]] = None,
+) -> Tuple[List[str], List[str]]:
+    """
+    Extracts response recipients from the `msg`, applying allowlist/denylist.
+
+    Args:
+        msg: the EmailMessage we will be replying to
+        allowlist: list of email address regexes to allow, ignored if empty
+        denylist: list of email address regexes to deny, ignored if empty
+
+    Returns:
+        (to_list, cc_list) - recipients of the reply email
+    """
+    tos = msg.get_all("To", [])
+    ccs = msg.get_all("Cc", [])
+    cc_list = [a for (_, a) in email.utils.getaddresses(tos + ccs)]
+
+    (_, sender_address) = email.utils.parseaddr(msg.get("From"))
+    to_list = [sender_address]
+
+    if allowlist:
+        cc_list = [a for a in cc_list if email_matches_any(a, allowlist)]
+        to_list = [a for a in to_list if email_matches_any(a, allowlist)]
+
+    if denylist:
+        cc_list = [a for a in cc_list if not email_matches_any(a, denylist)]
+        to_list = [a for a in to_list if not email_matches_any(a, denylist)]
+
+    return (to_list, cc_list)
+
+
+async def send_pr_comment_email(
+    config: EmailConfig, msg: EmailMessage, body: str
+) -> Optional[str]:
+    """
+    This function forwards a pull request comment (`body`) as an email reply to the original
+    patch email message `msg`. It extracts recipients from the `msg`, applies allowlist, denylist,
+    and always_cc as configured, and sets Subject and In-Reply-To based on the `msg`
+
+    Args:
+        config: EmailConfig with PRCommentsForwardingConfig
+        msg: the original EmailMessage we are replying to (the patch submission)
+        body: the content of the reply we are sending
+
+    Returns:
+        Message-Id of the sent email, or None if it wasn't sent
+    """
+    if config is None or not config.is_pr_comment_forwarding_enabled():
+        return
+
+    cfg = config.pr_comments_forwarding
+    (to_list, cc_list) = reply_email_recipients(
+        msg, allowlist=cfg.recipient_allowlist, denylist=cfg.recipient_denylist
+    )
+    cc_list += cfg.always_cc
+
+    if not to_list and not cc_list:
+        return
+
+    subject = "Re: " + msg.get("Subject")
+    in_reply_to = msg.get("Message-Id")
+
+    return await send_email(config, to_list, cc_list, subject, body, in_reply_to)
 
 
 def pr_has_label(pr: PullRequest, label: str) -> bool:
@@ -1307,3 +1377,77 @@ class BranchWorker(GithubConnector):
             description="PR summary",
         )
         pr_summary_report.add(1)
+
+    async def forward_pr_comments(self, pr: PullRequest, series: Series):
+        if (
+            self.email_config is None
+            or not self.email_config.is_pr_comment_forwarding_enabled()
+        ):
+            return
+        cfg = self.email_config.pr_comments_forwarding
+
+        comments = pr.get_issue_comments()
+
+        # Look for comments indicating what has already been forwarded
+        # to filter them out
+        forwarded_set = set()
+        for comment in comments:
+            match = re.search(
+                r"Forwarding comment \[([0-9]+)\].* via email",
+                comment.body,
+                re.MULTILINE,
+            )
+            if not match:
+                continue
+            forwarded_id = int(match.group(1))
+            forwarded_set.add(forwarded_id)
+
+        for comment in comments:
+            if (
+                comment.user.login not in cfg.commenter_allowlist
+                or comment.id in forwarded_set
+            ):
+                continue
+            # Determine the message to reply to
+            # Check for In-Reply-To-Subject tag in the comment body
+            match = re.search(
+                r"In-Reply-To-Subject: \`(.*)\`", comment.body, re.MULTILINE
+            )
+            if not match:
+                logger.info(
+                    f"Ignoring PR comment {comment.html_url} without In-Reply-To-Subject tag"
+                )
+                continue
+            subject = match.group(1)
+            patch = series.patch_by_subject(subject)
+            if not patch:
+                logger.warn(
+                    f"Ignoring PR comment {comment.html_url}, could not find relevant patch on patchwork"
+                )
+                continue
+
+            # first, post a comment that the message is being forwarded
+            msg_id = patch["msgid"]
+            patch_url = patch["web_url"]
+            message = f"Forwarding comment [{comment.id}]({comment.html_url}) via email"
+            message += f"\nIn-Reply-To: {msg_id}"
+            message += f"\nPatch: {patch_url}"
+            self._add_pull_request_comment(pr, message)
+
+            # then, load the message we are replying to
+            mbox = await series.pw_client.get_blob(patch["mbox"])
+            parser = email.parser.BytesParser(policy=email.policy.default)
+            patch_msg = parser.parsebytes(mbox, headersonly=True)
+
+            # and forward the target comment via email
+            sent_msg_id = await send_pr_comment_email(
+                self.email_config, patch_msg, comment.body
+            )
+            if sent_msg_id is not None:
+                logger.info(
+                    f"Forwarded PR comment {comment.html_url} via email, Message-Id: {sent_msg_id}"
+                )
+            else:
+                logger.warn(
+                    f"Failed to forward PR comment in reply to {msg_id}, no recipients"
+                )

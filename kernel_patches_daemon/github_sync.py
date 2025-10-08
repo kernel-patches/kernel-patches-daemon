@@ -269,6 +269,7 @@ class GithubSync(Stats):
                 f"Created/updated {pr} ({pr.head.ref}): {pr.url} for series {series.id}"
             )
             await worker.sync_checks(pr, series)
+            await worker.forward_pr_comments(pr, series)
             # Close out other PRs if exists
             self.close_existing_prs_for_series(list(self.workers.values()), pr)
 

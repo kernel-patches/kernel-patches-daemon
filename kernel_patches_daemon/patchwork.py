@@ -497,6 +497,12 @@ class Series:
         """Retrieve the email address of the patch series submitter."""
         return self._submitter_email
 
+    def patch_by_subject(self, subject_str: str) -> Optional[Dict]:
+        for patch in self.patches:
+            if subject_str in patch["name"]:
+                return patch
+        return None
+
 
 class Patchwork:
     def __init__(
