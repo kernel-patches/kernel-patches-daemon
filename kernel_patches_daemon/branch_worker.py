@@ -37,7 +37,11 @@ from github.PullRequest import PullRequest
 from github.Repository import Repository
 from github.WorkflowJob import WorkflowJob
 
-from kernel_patches_daemon.config import EmailConfig, SERIES_TARGET_SEPARATOR
+from kernel_patches_daemon.config import (
+    EmailConfig,
+    PRCommentsForwardingConfig,
+    SERIES_TARGET_SEPARATOR,
+)
 from kernel_patches_daemon.github_connector import GithubConnector
 from kernel_patches_daemon.github_logs import GithubLogExtractor
 from kernel_patches_daemon.patchwork import Patchwork, Series, Subject
@@ -405,7 +409,7 @@ def reply_email_recipients(
 
 
 async def send_pr_comment_email(
-    config: EmailConfig, msg: EmailMessage, body: str
+    email_config: EmailConfig, msg: EmailMessage, body: str
 ) -> Optional[str]:
     """
     This function forwards a pull request comment (`body`) as an email reply to the original
@@ -413,17 +417,19 @@ async def send_pr_comment_email(
     and always_cc as configured, and sets Subject and In-Reply-To based on the `msg`
 
     Args:
-        config: EmailConfig with PRCommentsForwardingConfig
+        email_config: EmailConfig with PRCommentsForwardingConfig
         msg: the original EmailMessage we are replying to (the patch submission)
         body: the content of the reply we are sending
 
     Returns:
         Message-Id of the sent email, or None if it wasn't sent
     """
-    if config is None or not config.is_pr_comment_forwarding_enabled():
+    if email_config.pr_comments_forwarding is None:
+        return
+    cfg: PRCommentsForwardingConfig = email_config.pr_comments_forwarding
+    if not cfg.enabled:
         return
 
-    cfg = config.pr_comments_forwarding
     (to_list, cc_list) = reply_email_recipients(
         msg, allowlist=cfg.recipient_allowlist, denylist=cfg.recipient_denylist
     )
@@ -435,7 +441,7 @@ async def send_pr_comment_email(
     subject = "Re: " + msg.get("Subject")
     in_reply_to = msg.get("Message-Id")
 
-    return await send_email(config, to_list, cc_list, subject, body, in_reply_to)
+    return await send_email(email_config, to_list, cc_list, subject, body, in_reply_to)
 
 
 def pr_has_label(pr: PullRequest, label: str) -> bool:
@@ -1293,6 +1299,8 @@ class BranchWorker(GithubConnector):
             logger.info("No email configuration present; skipping sending...")
             return
 
+        email_cfg: EmailConfig = self.email_config
+
         if status in (Status.PENDING, Status.SKIPPED):
             return
 
@@ -1329,7 +1337,7 @@ class BranchWorker(GithubConnector):
             subject = await get_ci_email_subject(series)
             ctx = build_email_body_context(self.repo, pr, status, series, inline_logs)
             body = furnish_ci_email_body(ctx)
-            await send_ci_results_email(self.email_config, series, subject, body)
+            await send_ci_results_email(email_cfg, series, subject, body)
             bump_email_status_counters(status)
 
     def expire_branches(self) -> None:
@@ -1379,12 +1387,15 @@ class BranchWorker(GithubConnector):
         pr_summary_report.add(1)
 
     async def forward_pr_comments(self, pr: PullRequest, series: Series):
-        if (
-            self.email_config is None
-            or not self.email_config.is_pr_comment_forwarding_enabled()
-        ):
+        # The checks and local variables are needed to make type checker happy
+        if self.email_config is None:
             return
-        cfg = self.email_config.pr_comments_forwarding
+        email_cfg: EmailConfig = self.email_config
+        if email_cfg.pr_comments_forwarding is None:
+            return
+        cfg: PRCommentsForwardingConfig = email_cfg.pr_comments_forwarding
+        if not cfg.enabled:
+            return
 
         comments = pr.get_issue_comments()
 
@@ -1441,7 +1452,7 @@ class BranchWorker(GithubConnector):
 
             # and forward the target comment via email
             sent_msg_id = await send_pr_comment_email(
-                self.email_config, patch_msg, comment.body
+                email_cfg, patch_msg, comment.body
             )
             if sent_msg_id is not None:
                 logger.info(
