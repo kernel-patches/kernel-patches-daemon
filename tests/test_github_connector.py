@@ -110,10 +110,12 @@ class TestGithubConnector(unittest.TestCase):
 
         gc = get_default_gc_oauth_client()
         # We do auth first
+        # pyrefly: ignore  # missing-attribute
         gc.git.get_user.assert_called_once()
         # then try to get the repo as the user
         user_mock.get_repo.assert_called_once_with(TEST_REPO)
         # and we do not fallback to getting the org
+        # pyrefly: ignore  # missing-attribute
         gc.git.get_organization.assert_not_called()
 
         # user_or_org is derived from the Github auth user....
@@ -131,7 +133,11 @@ class TestGithubConnector(unittest.TestCase):
 
         # Force throwing an exception
         user_mock.get_repo.side_effect = GithubException(
-            "gh exception", "data", "headers"
+            # pyrefly: ignore  # bad-argument-type
+            "gh exception",
+            "data",
+            # pyrefly: ignore  # bad-argument-type
+            "headers",
         )
         m = MagicMock()
         self._gh_mock.return_value.get_organization.return_value = m
@@ -140,10 +146,12 @@ class TestGithubConnector(unittest.TestCase):
 
         gc = get_default_gc_oauth_client()
         # We do auth first
+        # pyrefly: ignore  # missing-attribute
         gc.git.get_user.assert_called_once()
         # then try to get the repo as the user
         user_mock.get_repo.assert_called_once_with(TEST_REPO)
         # and fallback to getting the org
+        # pyrefly: ignore  # missing-attribute
         gc.git.get_organization.assert_called_once_with(TEST_ORG)
         m.get_repo.assert_called_once_with(TEST_REPO)
 
@@ -265,6 +273,7 @@ class TestGithubConnectorAuth(unittest.TestCase):
             gc = get_default_gc_app_auth_client()
             # Force generating a first token
             # pyre-fixme[16]: `github.MainClass.Github` has no attribute `__requester`.
+            # pyrefly: ignore  # missing-attribute
             gc.git._Github__requester.auth.token
             self.assertEqual(p.call_count, 1)
             # set time to 1 second after expiration so that we renew the token.
@@ -274,6 +283,7 @@ class TestGithubConnectorAuth(unittest.TestCase):
                 )
                 - TOKEN_REFRESH_THRESHOLD_TIMEDELTA
             )
+            # pyrefly: ignore  # missing-attribute
             gc.git._Github__requester.auth.token
             self.assertEqual(p.call_count, 2)
 
@@ -300,6 +310,7 @@ class TestGithubConnectorAuth(unittest.TestCase):
             gc = get_default_gc_app_auth_client()
             # Force generating a first token
             # pyre-fixme[16]: `github.MainClass.Github` has no attribute `__requester`.
+            # pyrefly: ignore  # missing-attribute
             gc.git._Github__requester.auth.token
             self.assertEqual(p.call_count, 1)
             # Set time to 1 seconds before expiration so that we do not renew the token.
@@ -309,6 +320,7 @@ class TestGithubConnectorAuth(unittest.TestCase):
                 )
                 - TOKEN_REFRESH_THRESHOLD_TIMEDELTA
             )
+            # pyrefly: ignore  # missing-attribute
             gc.git._Github__requester.auth.token
             self.assertEqual(p.call_count, 1)
 
@@ -337,6 +349,7 @@ class TestGithubConnectorAuth(unittest.TestCase):
             gc_oauth = get_default_gc_oauth_client()
             # Force generating a first token
             # pyre-fixme[16]: `github.MainClass.Github` has no attribute `__requester`.
+            # pyrefly: ignore  # missing-attribute
             gc_app_auth.git._Github__requester.auth.token
 
             self.assertEqual(p.call_count, 1)

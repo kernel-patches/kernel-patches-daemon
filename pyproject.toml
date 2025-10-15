@@ -44,6 +44,7 @@ munch = "^3.0.0"
 # urllib3 2.0 and later cause poetry to fail with error:
 # > __init__() got an unexpected keyword argument 'strict'
 # https://github.com/python-poetry/poetry/issues/7936
+pyrefly = "^0.37.0"
 [tool.poetry.group.poetry_fix.dependencies]
 urllib3 = "^1.26.0"
 
@@ -59,3 +60,12 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 target-version = ["py310", "py311", "py312"]
+
+[tool.pyrefly]
+project-includes = ["**/*"]
+project-excludes = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/*venv/**/*",
+]
+

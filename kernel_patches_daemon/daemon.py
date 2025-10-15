@@ -53,6 +53,7 @@ class KernelPatchesWorker:
 
     async def submit_metrics(self) -> None:
         if self.metrics_logger is None:
+            # pyrefly: ignore  # deprecated
             logger.warn(
                 "Not submitting run metrics because metrics logger is not configured"
             )
@@ -119,7 +120,9 @@ class KernelPatchesDaemon:
 
         loop = asyncio.get_event_loop()
 
+        # pyrefly: ignore  # bad-argument-type
         loop.add_signal_handler(signal.SIGTERM, self.stop)
+        # pyrefly: ignore  # bad-argument-type
         loop.add_signal_handler(signal.SIGINT, self.stop)
 
         self._task = asyncio.create_task(self.worker.run())

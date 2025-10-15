@@ -81,7 +81,9 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
             await self.worker.run()
 
         gh_sync = self.worker.github_sync_worker
+        # pyrefly: ignore  # missing-attribute
         gh_sync.sync_patches.assert_called_once()
+        # pyrefly: ignore  # missing-attribute
         self.worker.reset_github_sync.assert_called_once()
         self.assertEqual(len(LOGGED_METRICS), 1)
         stats = LOGGED_METRICS[0][self.worker.project]

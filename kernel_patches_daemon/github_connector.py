@@ -89,6 +89,7 @@ class GithubConnector:
             self.github_account_name = gh_user.login
         else:
             self.auth_type = AuthType.APP_AUTH
+            # pyrefly: ignore  # missing-attribute
             app = GithubIntegration(
                 auth=Auth.AppAuth(
                     app_id=app_auth.app_id, private_key=app_auth.private_key
@@ -144,6 +145,7 @@ class GithubConnector:
     def __get_new_auth_token(self) -> str:
         # refresh token if needed
         # pyre-fixme[16]: `github.MainClass.Github` has no attribute `__requester`.
+        # pyrefly: ignore  # missing-attribute
         gh_requester = self.git._Github__requester
         return gh_requester.auth.token
 

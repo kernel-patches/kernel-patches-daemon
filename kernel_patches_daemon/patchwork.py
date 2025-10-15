@@ -204,6 +204,7 @@ async def on_request_end(
 
 def time_since_secs(date: str) -> float:
     parsed_datetime = dateparser.parse(date)
+    # pyrefly: ignore  # deprecated, unsupported-operation
     duration = datetime.datetime.utcnow() - parsed_datetime
     return duration.total_seconds()
 
@@ -267,12 +268,14 @@ def cached(cache, key=cachetools.keys.hashkey, lock=None):
             async def wrapper(*args, **kwargs):
                 k = key(*args, **kwargs)
                 try:
+                    # pyrefly: ignore  # bad-context-manager
                     with lock:
                         return cache[k]
                 except KeyError:
                     pass  # key not found
                 v = await func(*args, **kwargs)
                 try:
+                    # pyrefly: ignore  # bad-context-manager
                     with lock:
                         cache[k] = v
                 except ValueError:
@@ -398,6 +401,7 @@ class Series:
         for the most recent relevant series
         """
         tasks = [self.pw_client.get_patch_by_id(patch["id"]) for patch in self.patches]
+        # pyrefly: ignore  # bad-return
         return await asyncio.gather(*tasks)
 
     async def is_closed(self) -> bool:
@@ -540,8 +544,10 @@ class Patchwork:
             # https://docs.aiohttp.org/en/stable/client_advanced.html#aiohttp-client-tracing
             trace_config = aiohttp.TraceConfig(trace_config_ctx_factory=TraceContext)
             # pyre-fixme[6]: In call `typing.MutableSequence.append`, for 1st positional argument, expected `_SignalCallback[TraceRequestStartParams]` but got `typing.Callable(on_request_start)[[Named(session, ClientSession), Named(trace_ctx, TraceContext), Named(params, TraceRequestStartParams)], Coroutine[typing.Any, typing.Any, None]]`.
+            # pyrefly: ignore  # bad-argument-type
             trace_config.on_request_start.append(on_request_start)
             # pyre-fixme[6]: In call `typing.MutableSequence.append`, for 1st positional argument, expected `_SignalCallback[TraceRequestEndParams]` but got `typing.Callable(on_request_end)[[Named(session, ClientSession), Named(trace_ctx, TraceContext), Named(params, TraceRequestEndParams)], Coroutine[typing.Any, typing.Any, None]]`.
+            # pyrefly: ignore  # bad-argument-type
             trace_config.on_request_end.append(on_request_end)
             client_session = aiohttp.ClientSession(
                 trace_configs=[trace_config],
@@ -551,12 +557,15 @@ class Patchwork:
 
             # Work around intermittent issues by adding some retry logic.
             retry_options = ExponentialRetry(attempts=self.http_retries)
+            # pyrefly: ignore  # bad-assignment
             self.http_session = RetryClient(
                 client_session=client_session, retry_options=retry_options
             )
+        # pyrefly: ignore  # bad-return
         return self.http_session
 
     def format_since(self, pw_lookback: int) -> str:
+        # pyrefly: ignore  # deprecated
         today = datetime.datetime.utcnow().date()
         lookback = today - datetime.timedelta(days=pw_lookback)
         return lookback.strftime("%Y-%m-%dT%H:%M:%S")
@@ -567,8 +576,10 @@ class Patchwork:
         http_session = await self.get_http_session()
         resp = await http_session.get(
             # pyre-ignore
+            # pyrefly: ignore  # bad-argument-type
             urljoin(self.api_url, path),
             # pyre-ignore
+            # pyrefly: ignore  # bad-argument-type
             **kwargs,
         )
         return resp
@@ -602,6 +613,7 @@ class Patchwork:
         http_session = await self.get_http_session()
         resp = await http_session.post(
             # pyre-ignore
+            # pyrefly: ignore  # bad-argument-type
             urljoin(self.api_url, path),
             headers={"Authorization": f"Token {self.auth_token}"},
             data=data,
@@ -723,6 +735,7 @@ class Patchwork:
 
         for pattern in self.search_patterns:
             patch_filters = MultiDict(
+                # pyrefly: ignore  # bad-argument-type
                 [
                     ("archived", str(False)),
                     *[("state", val) for val in RELEVANT_STATES.values()],
@@ -737,6 +750,7 @@ class Patchwork:
             all_patches = await self.__get_objects_recursive(
                 "patches",
                 # pyre-ignore
+                # pyrefly: ignore  # bad-argument-type
                 params=patch_filters,
             )
 

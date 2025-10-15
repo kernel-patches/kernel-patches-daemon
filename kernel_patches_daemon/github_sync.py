@@ -292,6 +292,7 @@ class GithubSync(Stats):
             if worker.can_do_sync()
         ]
         if not sync_workers:
+            # pyrefly: ignore  # deprecated
             logger.warn("No branch workers that can_do_sync(), skipping sync_patches()")
             return
 
@@ -303,11 +304,15 @@ class GithubSync(Stats):
 
         for branch, worker in sync_workers:
             logging.info(f"Refreshing repo info for {branch}.")
+            # pyrefly: ignore  # bad-argument-type
             await loop.run_in_executor(None, worker.fetch_repo_branch)
+            # pyrefly: ignore  # bad-argument-type
             await loop.run_in_executor(None, worker.get_pulls)
+            # pyrefly: ignore  # bad-argument-type
             await loop.run_in_executor(None, worker.do_sync)
             worker._closed_prs = None
             branches = worker.repo.get_branches()
+            # pyrefly: ignore  # bad-assignment
             worker.branches = [b.name for b in branches]
 
         mirror_done = time.time()
@@ -329,10 +334,12 @@ class GithubSync(Stats):
         # sync old subjects
         subject_names = {x.subject for x in self.subjects}
         for _, worker in sync_workers:
+            # pyrefly: ignore  # bad-assignment
             for subject_name, pr in worker.prs.items():
                 if subject_name in subject_names:
                     continue
 
+                # pyrefly: ignore  # bad-argument-type
                 if worker._is_relevant_pr(pr):
                     parsed_ref = parse_pr_ref(pr.head.ref)
                     # ignore unknown format branch/PRs.
@@ -373,7 +380,9 @@ class GithubSync(Stats):
                         continue
                     await worker.sync_checks(pr, latest_series)
 
+            # pyrefly: ignore  # bad-argument-type
             await loop.run_in_executor(None, worker.expire_branches)
+            # pyrefly: ignore  # bad-argument-type
             await loop.run_in_executor(None, worker.expire_user_prs)
 
             rate_limit = worker.git.get_rate_limit()

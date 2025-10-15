@@ -56,6 +56,7 @@ class TestPatchwork(PatchworkTestCase):
         pattern = re.compile(r"^.*$")
         m.get(pattern, status=200, body=b"""{"key1": "value1", "key2": 2}""")
 
+        # pyrefly: ignore  # missing-attribute
         resp = await self._pw._Patchwork__get("object")
         m.assert_called_once()
 
@@ -70,8 +71,11 @@ class TestPatchwork(PatchworkTestCase):
         pattern = re.compile(r"^.*$")
         m.post(pattern, status=200, body=b"""{"key1": "value1", "key2": 2}""")
         # Make sure user and token are set so the requests is actually posted.
+        # pyrefly: ignore  # missing-attribute
         self._pw.pw_token = "1234567890"
+        # pyrefly: ignore  # missing-attribute
         self._pw.pw_user = "somerandomuser"
+        # pyrefly: ignore  # missing-attribute
         resp = await self._pw._Patchwork__post("some/random/url", "somerandomdata")
         m.assert_called_once()
 
@@ -168,12 +172,15 @@ class TestPatchwork(PatchworkTestCase):
                             body=resp.body,
                         )
 
+                    # pyrefly: ignore  # missing-attribute
                     resp = await self._pw._Patchwork__get_objects_recursive(
                         "projects", params=case.filters
                     )
                     self.assertEqual(resp, case.expected)
                     self.assertEqual(
-                        sum([len(x) for x in m.requests.values()]), case.get_calls
+                        # pyrefly: ignore  # missing-attribute
+                        sum([len(x) for x in m.requests.values()]),
+                        case.get_calls,
                     )
 
     @aioresponses()
@@ -184,12 +191,14 @@ class TestPatchwork(PatchworkTestCase):
         pattern = re.compile(r"^.*$")
         m.post(pattern, status=200)
         self._pw.auth_token = None
+        # pyrefly: ignore  # missing-attribute
         await self._pw._Patchwork__try_post(
             "https://127.0.0.1/some/random/url", "somerandomdata"
         )
         m.assert_not_called()
 
         self._pw.auth_token = ""
+        # pyrefly: ignore  # missing-attribute
         await self._pw._Patchwork__try_post(
             "https://127.0.0.1/some/random/url", "somerandomdata"
         )
@@ -272,6 +281,7 @@ class TestPatchwork(PatchworkTestCase):
         self._pw = get_default_pw_client(lookback_in_days=lookback)
         m.get(re.compile(r"^.*$"), status=200, body=b"[]")
         await self._pw.get_relevant_subjects()
+        # pyrefly: ignore  # missing-attribute
         for request in m.requests.keys():
             url = str(request[1])
             assert_func(url)
@@ -483,6 +493,7 @@ class TestSeries(PatchworkTestCase):
         # Hack... aioresponses stores the requests that were made in a dictionary whose's key is a tuple,
         # of the form (method, url).
         # https://github.com/pnuckowski/aioresponses/blob/56b843319d5d0ae8a405f188e68d7ba8c7573bc8/aioresponses/core.py#L507
+        # pyrefly: ignore  # missing-attribute
         self.assertEqual(len([x for x in m.requests.keys() if x[0] == "POST"]), 3)
 
     @aioresponses()
@@ -522,6 +533,7 @@ class TestSeries(PatchworkTestCase):
         )
         # First patch is not updates
         self.assertEqual(
+            # pyrefly: ignore  # missing-attribute
             len([x for x in m.requests.keys() if x[0] == "POST"]),
             len(series.patches) - 1,
         )
@@ -564,7 +576,9 @@ class TestSeries(PatchworkTestCase):
         )
         # First patch is not updates
         self.assertEqual(
-            len([x for x in m.requests.keys() if x[0] == "POST"]), len(series.patches)
+            # pyrefly: ignore  # missing-attribute
+            len([x for x in m.requests.keys() if x[0] == "POST"]),
+            len(series.patches),
         )
 
     @aioresponses()
@@ -608,7 +622,9 @@ class TestSeries(PatchworkTestCase):
         )
         # First patch is not updates
         self.assertEqual(
-            len([x for x in m.requests.keys() if x[0] == "POST"]), len(series.patches)
+            # pyrefly: ignore  # missing-attribute
+            len([x for x in m.requests.keys() if x[0] == "POST"]),
+            len(series.patches),
         )
 
     @aioresponses()
@@ -649,6 +665,7 @@ class TestSeries(PatchworkTestCase):
         )
         # First patch is not updates
         self.assertEqual(
+            # pyrefly: ignore  # missing-attribute
             len([x for x in m.requests.keys() if x[0] == "POST"]),
             len(series.patches) - 1,
         )

@@ -392,8 +392,10 @@ def reply_email_recipients(
     """
     tos = msg.get_all("To", [])
     ccs = msg.get_all("Cc", [])
+    # pyrefly: ignore  # implicit-import
     cc_list = [a for (_, a) in email.utils.getaddresses(tos + ccs)]
 
+    # pyrefly: ignore  # implicit-import, bad-argument-type
     (_, sender_address) = email.utils.parseaddr(msg.get("From"))
     to_list = [sender_address]
 
@@ -438,6 +440,7 @@ async def send_pr_comment_email(
     if not to_list and not cc_list:
         return
 
+    # pyrefly: ignore  # unsupported-operation
     subject = "Re: " + msg.get("Subject")
     in_reply_to = msg.get("Message-Id")
 
@@ -465,6 +468,7 @@ def _uniq_tmp_folder(
     sha.update(f"{url}/{branch}".encode("utf-8"))
     # pyre-fixme[6]: For 1st argument expected `PathLike[Variable[AnyStr <: [str,
     #  bytes]]]` but got `Optional[str]`.
+    # pyrefly: ignore  # no-matching-overload
     repo_name = remove_unsafe_chars(os.path.basename(url))
     return os.path.join(base_directory, f"pw_sync_{repo_name}_{sha.hexdigest()}")
 
@@ -510,6 +514,7 @@ def parse_pr_ref(ref: str) -> Dict[str, Any]:
 
     tmp = res["series"].split("/", maxsplit=1)
     if len(tmp) >= 2 and tmp[1].isdigit():
+        # pyrefly: ignore  # unsupported-operation
         res["series_id"] = int(tmp[1])
 
     return res
@@ -610,6 +615,7 @@ def _is_outdated_pr(pr: PullRequest) -> bool:
     # that have it as a parent will also be changed.
     commit = commits[commits.totalCount - 1]
     last_modified = dateutil.parser.parse(commit.stats.last_modified)
+    # pyrefly: ignore  # unsupported-operation
     age = datetime.now(timezone.utc) - last_modified
     logger.info(f"Pull request {pr} has age {age}")
     return age > PULL_REQUEST_TTL
@@ -733,16 +739,20 @@ class BranchWorker(GithubConnector):
         # Now that we have an updated base branch, create a dummy commit on top
         # so that we can actually create a pull request (this path tests
         # upstream directly, without any mailbox patches applied).
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.checkout("-B", branch_name)
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.commit("--allow-empty", "--message", "Dummy commit")
 
         title = f"[test] {branch_name}"
 
         # Force push only if there is no branch or code changes.
         pushed = False
+        # pyrefly: ignore  # missing-attribute
         if branch_name not in self.branches or self.repo_local.git.diff(
             branch_name, f"remotes/origin/{branch_name}"
         ):
+            # pyrefly: ignore  # missing-attribute
             self.repo_local.git.push("--force", "origin", branch_name)
             pushed = True
 
@@ -756,18 +766,25 @@ class BranchWorker(GithubConnector):
 
     def do_sync(self) -> None:
         # fetch most recent upstream
+        # pyrefly: ignore  # missing-attribute
         if UPSTREAM_REMOTE_NAME in [x.name for x in self.repo_local.remotes]:
+            # pyrefly: ignore  # missing-attribute
             urls = list(self.repo_local.remote(UPSTREAM_REMOTE_NAME).urls)
             if urls != [self.upstream_url]:
                 logger.warning(f"remote upstream set to track {urls}, re-creating")
+                # pyrefly: ignore  # missing-attribute
                 self.repo_local.delete_remote(UPSTREAM_REMOTE_NAME)
+                # pyrefly: ignore  # missing-attribute
                 self.repo_local.create_remote(UPSTREAM_REMOTE_NAME, self.upstream_url)
         else:
+            # pyrefly: ignore  # missing-attribute
             self.repo_local.create_remote(UPSTREAM_REMOTE_NAME, self.upstream_url)
+        # pyrefly: ignore  # missing-attribute
         upstream_repo = self.repo_local.remote(UPSTREAM_REMOTE_NAME)
         upstream_repo.fetch(self.upstream_branch)
         upstream_branch = getattr(upstream_repo.refs, self.upstream_branch)
         _reset_repo(self.repo_local, f"{UPSTREAM_REMOTE_NAME}/{self.upstream_branch}")
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.push(
             "--force", "origin", f"{upstream_branch}:refs/heads/{self.repo_branch}"
         )
@@ -807,6 +824,7 @@ class BranchWorker(GithubConnector):
         """
         Fetch the repository branch of interest only once
         """
+        # pyrefly: ignore  # bad-assignment
         self.repo_local = self.fetch_repo(
             self.repo_dir, self.repo_url, self.repo_branch
         )
@@ -830,15 +848,19 @@ class BranchWorker(GithubConnector):
         self._add_ci_files()
 
         try:
+            # pyrefly: ignore  # missing-attribute
             diff = self.repo_local.git.diff(f"remotes/origin/{base_branch}")
         except git.exc.GitCommandError:
             # The remote may not exist, in which case we want to push.
             diff = True
 
         if diff:
+            # pyrefly: ignore  # missing-attribute
             self.repo_local.git.checkout("-B", base_branch)
+            # pyrefly: ignore  # missing-attribute
             self.repo_local.git.push("--force", "origin", f"refs/heads/{base_branch}")
         else:
+            # pyrefly: ignore  # missing-attribute
             self.repo_local.git.checkout("-B", base_branch, f"origin/{base_branch}")
 
     def _create_dummy_commit(self, branch_name: str) -> None:
@@ -846,8 +868,11 @@ class BranchWorker(GithubConnector):
         Reset branch, create dummy commit
         """
         _reset_repo(self.repo_local, f"{UPSTREAM_REMOTE_NAME}/{self.upstream_branch}")
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.checkout("-B", branch_name)
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.commit("--allow-empty", "--message", "Dummy commit")
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.push("--force", "origin", branch_name)
 
     def _close_pr(self, pr: PullRequest) -> None:
@@ -920,6 +945,7 @@ class BranchWorker(GithubConnector):
 
         if not pr and can_create and not close:
             # If there is no merge conflict and no change, ignore the series
+            # pyrefly: ignore  # missing-attribute
             if not has_merge_conflict and not self.repo_local.git.diff(
                 self.repo_pr_base_branch, branch_name
             ):
@@ -1016,9 +1042,12 @@ class BranchWorker(GithubConnector):
         """
         if Path(f"{self.ci_repo_dir}/.github").exists():
             execute_command(f"cp --archive {self.ci_repo_dir}/.github {self.repo_dir}")
+            # pyrefly: ignore  # missing-attribute
             self.repo_local.git.add("--force", ".github")
         execute_command(f"cp --archive {self.ci_repo_dir}/* {self.repo_dir}")
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.add("--all", "--force")
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.commit("--all", "--message", "adding ci files")
 
     async def try_apply_mailbox_series(
@@ -1028,17 +1057,20 @@ class BranchWorker(GithubConnector):
         # The pull request will be created against `repo_pr_base_branch`. So
         # prepare it for that.
         self._update_pr_base_branch(self.repo_pr_base_branch)
+        # pyrefly: ignore  # missing-attribute
         self.repo_local.git.checkout("-B", branch_name)
 
         # Apply series
         patch_content = await series.get_patch_binary_content()
         with temporary_patch_file(patch_content) as tmp_patch_file:
             try:
+                # pyrefly: ignore  # missing-attribute
                 self.repo_local.git.am("--3way", istream=tmp_patch_file)
             except git.exc.GitCommandError as e:
                 logger.warning(
                     f"Failed complete 3-way merge series {series.id} patch into {branch_name} branch: {e}"
                 )
+                # pyrefly: ignore  # missing-attribute
                 conflict = self.repo_local.git.diff()
                 return (False, e, conflict)
         return (True, None, None)
@@ -1057,6 +1089,7 @@ class BranchWorker(GithubConnector):
             # In other words, patchwork could be reporting a relevant
             # status (ie. !accepted) while the series has already been
             # merged and pushed.
+            # pyrefly: ignore  # bad-argument-type
             if await _series_already_applied(self.repo_local, series):
                 logger.info(f"Series {series.url} already applied to tree")
                 raise NewPRWithNoChangeException(self.repo_pr_base_branch, branch_name)
@@ -1080,6 +1113,7 @@ class BranchWorker(GithubConnector):
         if branch_name in self.branches and (
             branch_name not in self.all_prs  # NO PR yet
             or _is_branch_changed(
+                # pyrefly: ignore  # bad-argument-type
                 self.repo_local,
                 f"remotes/origin/{self.repo_pr_base_branch}",
                 f"remotes/origin/{branch_name}",
@@ -1095,10 +1129,12 @@ class BranchWorker(GithubConnector):
                 can_create=True,
             )
             assert pr
+            # pyrefly: ignore  # missing-attribute
             self.repo_local.git.push("--force", "origin", branch_name)
 
             # Metadata inside `pr` may be stale from the force push; refresh it
             pr.update()
+            # pyrefly: ignore  # missing-attribute
             wanted_sha = self.repo_local.head.commit.hexsha
             for _ in range(30):
                 if pr.head.sha == wanted_sha:
@@ -1112,9 +1148,11 @@ class BranchWorker(GithubConnector):
             return pr
         # we don't have a branch, also means no PR, push first then create PR
         elif branch_name not in self.branches:
+            # pyrefly: ignore  # missing-attribute
             if not self.repo_local.git.diff(self.repo_pr_base_branch, branch_name):
                 # raise an exception so it bubbles up to the caller.
                 raise NewPRWithNoChangeException(self.repo_pr_base_branch, branch_name)
+            # pyrefly: ignore  # missing-attribute
             self.repo_local.git.push("--force", "origin", branch_name)
             return await self._comment_series_pr(
                 series,
@@ -1185,9 +1223,11 @@ class BranchWorker(GithubConnector):
         # closed prs are last resort to re-open expired PRs
         # and also required for branch expiration
         if not self._closed_prs:
+            # pyrefly: ignore  # bad-assignment
             self._closed_prs = list(
                 self.repo.get_pulls(state="closed", base=self.repo_pr_base_branch)
             )
+        # pyrefly: ignore  # bad-return
         return self._closed_prs
 
     def filter_closed_pr(self, head: str) -> Optional[PullRequest]:
@@ -1229,6 +1269,7 @@ class BranchWorker(GithubConnector):
         # completed ones. The reason being that the information that pending
         # ones are present is very much relevant for status reporting.
         for run in self.repo.get_workflow_runs(
+            # pyrefly: ignore  # bad-argument-type
             actor=self.user_login,
             head_sha=pr.head.sha,
         ):
@@ -1432,6 +1473,7 @@ class BranchWorker(GithubConnector):
             subject = match.group(1)
             patch = series.patch_by_subject(subject)
             if not patch:
+                # pyrefly: ignore  # deprecated
                 logger.warn(
                     f"Ignoring PR comment {comment.html_url}, could not find relevant patch on patchwork"
                 )
@@ -1459,6 +1501,7 @@ class BranchWorker(GithubConnector):
                     f"Forwarded PR comment {comment.html_url} via email, Message-Id: {sent_msg_id}"
                 )
             else:
+                # pyrefly: ignore  # deprecated
                 logger.warn(
                     f"Failed to forward PR comment in reply to {msg_id}, no recipients"
                 )
