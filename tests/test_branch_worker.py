@@ -165,6 +165,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
         Fetch master fetches upstream repo, the CI repo, and check out the right branch.
         """
         with patch.object(BranchWorker, "fetch_repo") as fr:
+            # pyrefly: ignore  # implicit-import
             git_mock = unittest.mock.Mock()
             fr.return_value = git_mock
             self._bw.fetch_repo_branch()
@@ -235,7 +236,9 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
 
         for case in test_cases:
             with self.subTest(msg=case.name):
+                # pyrefly: ignore  # missing-attribute
                 self._bw.repo.get_pulls.reset_mock()
+                # pyrefly: ignore  # missing-attribute
                 self._bw.repo.get_pulls.return_value = case.prs
                 with (
                     patch.object(BranchWorker, "add_pr") as ap,
@@ -246,6 +249,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
 
                     self._bw.get_pulls()
                     # We get pull requests from upstream repo through Github API, only looking for opened PR against our branch of interest.
+                    # pyrefly: ignore  # missing-attribute
                     self._bw.repo.get_pulls.assert_called_once_with(
                         state="open", base=TEST_REPO_PR_BASE_BRANCH
                     )
@@ -346,6 +350,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             # Create a mock suitable to mock a git.RemoteReference
             remote_ref = "a/b/c/d"
             m = MagicMock()
+            # pyrefly: ignore  # missing-attribute
             m.__str__.return_value = remote_ref
             lr.remote.return_value.refs = MagicMock(**{TEST_UPSTREAM_BRANCH: m})
             self._bw.do_sync()
@@ -376,6 +381,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             state: str = "open",
         ) -> Munch:
             """Helper to make a Munch that can be consumed as a PR (e.g accessing nested attributes)"""
+            # pyrefly: ignore  # bad-return
             return munchify(
                 {
                     "user": {"login": user},
@@ -433,6 +439,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             with self.subTest(msg=case.name):
                 # pyre-fixme: Incompatible parameter type [6]: In call `BranchWorker._is_relevant_pr`,
                 # for 1st positional argument, expected `PullRequest` but got `Munch`.
+                # pyrefly: ignore  # bad-argument-type
                 self.assertEqual(self._bw._is_relevant_pr(case.pr), case.relevant)
 
     def test_fetch_repo_path_doesnt_exist_full_sync(self) -> None:
@@ -533,6 +540,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
 
         for case in test_cases:
             with self.subTest(msg=case.name):
+                # pyrefly: ignore  # bad-assignment
                 self._bw.branches = case.branches
                 self._bw.all_prs = {p: {} for p in case.all_prs}
                 with (
@@ -566,6 +574,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             title: str = "title",
         ) -> Munch:
             """Helper to make a Munch that can be consumed as a PR (e.g accessing nested attributes)"""
+            # pyrefly: ignore  # bad-return
             return munchify(
                 {
                     "head": {"ref": head_ref},
@@ -717,6 +726,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
 
         series = Series(self._pw, {**SERIES_DATA, "version": 1})
         mybranch = await self._bw.subject_to_branch(Subject(series.subject, self._pw))
+        # pyrefly: ignore  # bad-assignment
         self._bw.branches = ["aaa"]
         pr = await self._bw._guess_pr(series, mybranch)
 
@@ -744,6 +754,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
 
         series = Series(self._pw, {**SERIES_DATA, "name": "code", "version": 2})
         mybranch = await self._bw.subject_to_branch(Subject(series.subject, self._pw))
+        # pyrefly: ignore  # bad-assignment
         self._bw.branches = [mybranch]
         pr = await self._bw._guess_pr(series, mybranch)
 
@@ -772,6 +783,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
 
         # DEFAULT_TEST_RESPONSES will return series 6 and 9, 6 being the first one
         mybranch = f"series/6=>{TEST_REPO_BRANCH}"
+        # pyrefly: ignore  # bad-assignment
         self._bw.branches = [mybranch]
 
         # Calling without specifying `branch` so we force looking up series in
@@ -816,6 +828,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
 
         series = Series(self._pw, {**SERIES_DATA, "name": "[v2] barv2", "version": 2})
 
+        # pyrefly: ignore  # bad-assignment
         self._bw.branches = [mybranch]
 
         # Calling without specifying `branch` so we force looking up series in
@@ -1474,9 +1487,11 @@ class TestEmailNotification(unittest.TestCase):
         mbox = read_test_data_file(
             "test_sync_patches_pr_summary_success/series-970926.mbox"
         )
+        # pyrefly: ignore  # implicit-import
         parser = email.parser.BytesParser(policy=email.policy.default)
         msg = parser.parsebytes(mbox.encode("utf-8"), headersonly=True)
         self.assertIsNotNone(mbox)
+        # pyrefly: ignore  # missing-attribute
         denylist = kpd_config.email.pr_comments_forwarding.recipient_denylist
         (to_list, cc_list) = reply_email_recipients(msg, denylist=denylist)
 

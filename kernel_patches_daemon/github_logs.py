@@ -186,6 +186,7 @@ class BpfGithubLogExtractor(GithubLogExtractor):
                     if not line:
                         continue
 
+                # pyrefly: ignore  # bad-argument-type
                 error_log.append(line)
 
         return "\n".join(error_log)

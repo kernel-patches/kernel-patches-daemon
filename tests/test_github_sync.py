@@ -354,10 +354,13 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         self._gh.pw = patchwork
 
         worker = self._gh.workers[TEST_BRANCH]
+        # pyrefly: ignore  # missing-attribute
         worker.repo.get_branches.return_value = [MagicMock(name=TEST_BRANCH)]
 
         worker = self._gh.workers[TEST_BPF_NEXT_BRANCH]
+        # pyrefly: ignore  # missing-attribute
         worker.repo.get_branches.return_value = [MagicMock(name=TEST_BPF_NEXT_BRANCH)]
+        # pyrefly: ignore  # missing-attribute
         worker.repo.create_pull.return_value = MagicMock(
             html_url="https://github.com/org/repo/pull/98765"
         )
@@ -368,6 +371,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         await self._gh.sync_patches()
 
         # Verify expected patches and series fetched from patchwork
+        # pyrefly: ignore  # missing-attribute
         get_requests = [key for key in m.requests.keys() if key[0] == "GET"]
         touched_urls = set()
         for req in get_requests:
@@ -383,8 +387,10 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
 
         # Verify that a single POST request was made to patchwork
         # Updating state of a patch 14114605
+        # pyrefly: ignore  # missing-attribute
         post_requests = [key for key in m.requests.keys() if key[0] == "POST"]
         self.assertEqual(1, len(post_requests))
+        # pyrefly: ignore  # unsupported-operation
         post_calls = m.requests[post_requests[0]]
         url = str(post_requests[0][1])
         self.assertEqual("https://patchwork.test/api/1.1/patches/14114605/checks/", url)
