@@ -168,12 +168,6 @@ class EmailConfig:
             ),
         )
 
-    def is_pr_comment_forwarding_enabled(self) -> bool:
-        if self.pr_comments_forwarding is not None:
-            return self.pr_comments_forwarding.enabled
-        else:
-            return False
-
 
 @dataclass
 class PatchworksConfig:
