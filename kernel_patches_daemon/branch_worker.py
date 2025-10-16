@@ -11,6 +11,7 @@ import copy
 import email
 import email.parser
 import email.policy
+import email.utils
 import hashlib
 import logging
 import os
@@ -378,6 +379,7 @@ def reply_email_recipients(
     msg: EmailMessage,
     allowlist: Optional[Sequence[re.Pattern]] = None,
     denylist: Optional[Sequence[re.Pattern]] = None,
+    always_reply_to_author: bool = False,
 ) -> Tuple[List[str], List[str]]:
     """
     Extracts response recipients from the `msg`, applying allowlist/denylist.
@@ -386,18 +388,27 @@ def reply_email_recipients(
         msg: the EmailMessage we will be replying to
         allowlist: list of email address regexes to allow, ignored if empty
         denylist: list of email address regexes to deny, ignored if empty
+        always_reply_to_author: if True, the patch author (message sender)
+            will be added to the to_list even if filtered out by allowlist/denylist
 
     Returns:
         (to_list, cc_list) - recipients of the reply email
     """
-    tos = msg.get_all("To", [])
-    ccs = msg.get_all("Cc", [])
-    # pyrefly: ignore  # implicit-import
-    cc_list = [a for (_, a) in email.utils.getaddresses(tos + ccs)]
 
-    # pyrefly: ignore  # implicit-import, bad-argument-type
-    (_, sender_address) = email.utils.parseaddr(msg.get("From"))
-    to_list = [sender_address]
+    sender_address = None
+    to_list = []
+
+    sender = msg.get("From")
+    if sender is not None:
+        (_, sender_address) = email.utils.parseaddr(sender)
+        if sender_address:  # parseaddr might return an emptystring
+            to_list.append(sender_address)
+
+    tos = msg.get_all("To", [])
+    to_list += [a for (_, a) in email.utils.getaddresses(tos)]
+
+    ccs = msg.get_all("Cc", [])
+    cc_list = [a for (_, a) in email.utils.getaddresses(ccs)]
 
     if allowlist:
         cc_list = [a for a in cc_list if email_matches_any(a, allowlist)]
@@ -406,6 +417,9 @@ def reply_email_recipients(
     if denylist:
         cc_list = [a for a in cc_list if not email_matches_any(a, denylist)]
         to_list = [a for a in to_list if not email_matches_any(a, denylist)]
+
+    if always_reply_to_author and sender_address and sender_address not in to_list:
+        to_list.append(sender_address)
 
     return (to_list, cc_list)
 
@@ -433,7 +447,10 @@ async def send_pr_comment_email(
         return
 
     (to_list, cc_list) = reply_email_recipients(
-        msg, allowlist=cfg.recipient_allowlist, denylist=cfg.recipient_denylist
+        msg,
+        allowlist=cfg.recipient_allowlist,
+        denylist=cfg.recipient_denylist,
+        always_reply_to_author=cfg.always_reply_to_author,
     )
     cc_list += cfg.always_cc
 

@@ -108,6 +108,7 @@ class BranchConfig:
 class PRCommentsForwardingConfig:
     enabled: bool
     always_cc: List[str]
+    always_reply_to_author: bool
     commenter_allowlist: List[str]
     recipient_allowlist: List[re.Pattern]
     recipient_denylist: List[re.Pattern]
@@ -117,6 +118,7 @@ class PRCommentsForwardingConfig:
         return cls(
             enabled=json.get("enabled", False),
             always_cc=json.get("always_cc", []),
+            always_reply_to_author=json.get("always_reply_to_author", False),
             recipient_allowlist=[
                 re.compile(pattern) for pattern in json.get("recipient_allowlist", [])
             ],
