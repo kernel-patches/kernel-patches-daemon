@@ -7,6 +7,8 @@
 # pyre-unsafe
 
 import email
+import email.parser
+import email.policy
 import json
 import os
 import random
@@ -42,7 +44,6 @@ from kernel_patches_daemon.branch_worker import (
     prs_for_the_same_series,
     reply_email_recipients,
     same_series_different_target,
-    send_pr_comment_email,
     temporary_patch_file,
     UPSTREAM_REMOTE_NAME,
 )
@@ -1480,26 +1481,21 @@ class TestEmailNotification(unittest.TestCase):
         self.assertEqual(expected_email, email)
 
     def test_reply_email_recipients(self):
-        kpd_config_json = json.loads(read_fixture("kpd_config.json"))
-        kpd_config = KPDConfig.from_json(kpd_config_json)
-        self.assertIsNotNone(kpd_config)
-
         mbox = read_test_data_file(
             "test_sync_patches_pr_summary_success/series-970926.mbox"
         )
-        # pyrefly: ignore  # implicit-import
         parser = email.parser.BytesParser(policy=email.policy.default)
         msg = parser.parsebytes(mbox.encode("utf-8"), headersonly=True)
         self.assertIsNotNone(mbox)
-        # pyrefly: ignore  # missing-attribute
-        denylist = kpd_config.email.pr_comments_forwarding.recipient_denylist
+        denylist = [re.compile(".*@vger.kernel.org")]
         (to_list, cc_list) = reply_email_recipients(msg, denylist=denylist)
 
-        self.assertEqual(to_list, ["chen.dylane@linux.dev"])
-        self.assertEqual(len(cc_list), 17)
+        self.assertIn("chen.dylane@linux.dev", to_list)
+        self.assertEqual(len(to_list), 17)
+        self.assertEqual(len(cc_list), 1)
 
-        # test allowlist by using the same denylist
-        (to_list, cc_list) = reply_email_recipients(msg, allowlist=denylist)
+        allowlist = [re.compile(".*@vger.kernel.org")]
+        (to_list, cc_list) = reply_email_recipients(msg, allowlist=allowlist)
         self.assertEqual(to_list, [])
         self.assertEqual(len(cc_list), 3)
 
@@ -1509,8 +1505,23 @@ class TestEmailNotification(unittest.TestCase):
         (to_list, cc_list) = reply_email_recipients(
             msg, allowlist=allowlist, denylist=denylist
         )
+        self.assertIn("chen.dylane@linux.dev", to_list)
+        self.assertEqual(len(to_list), 3)
+        self.assertEqual(len(cc_list), 1)
+
+        # test denylist all
+        denylist = [re.compile(".*")]
+        (to_list, cc_list) = reply_email_recipients(msg, denylist=denylist)
+        self.assertEqual(to_list, [])
+        self.assertEqual(cc_list, [])
+
+        # test denylist all, but the sender
+        denylist = [re.compile(".*")]
+        (to_list, cc_list) = reply_email_recipients(
+            msg, denylist=denylist, always_reply_to_author=True
+        )
         self.assertEqual(to_list, ["chen.dylane@linux.dev"])
-        self.assertEqual(len(cc_list), 3)
+        self.assertEqual(cc_list, [])
 
 
 class TestParsePrRef(unittest.TestCase):
@@ -1655,6 +1666,7 @@ class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
         self._bw.email_config = MagicMock(
             pr_comments_forwarding=PRCommentsForwardingConfig(
                 enabled=True,
+                always_reply_to_author=False,
                 always_cc=["bpf-ci-test@example.com"],
                 commenter_allowlist=["test_user"],
                 recipient_denylist=[re.compile(".*@vger.kernel.org")],
@@ -1702,9 +1714,10 @@ class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
                 mock_send_email.call_args[0]
             )
 
-            self.assertEqual(to_list, ["chen.dylane@linux.dev"])
-            self.assertEqual(len(cc_list), 18)
+            self.assertIn("chen.dylane@linux.dev", to_list)
+            self.assertEqual(len(to_list), 17)
             self.assertIn("bpf-ci-test@example.com", cc_list)
+            self.assertEqual(len(cc_list), 2)
             self.assertEqual(
                 "Re: [PATCH bpf-next] bpf: clear user buf when bpf_d_path failed",
                 subject,

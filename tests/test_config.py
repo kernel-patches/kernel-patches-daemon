@@ -175,6 +175,7 @@ class TestConfig(unittest.TestCase):
                 pr_comments_forwarding=PRCommentsForwardingConfig(
                     enabled=True,
                     always_cc=["bpf-ci-test@example.com"],
+                    always_reply_to_author=False,
                     commenter_allowlist=["kpd-bot[bot]"],
                     recipient_denylist=[re.compile(".*@vger.kernel.org")],
                     recipient_allowlist=[],
