@@ -215,8 +215,19 @@ class TestConfig(unittest.TestCase):
                     ci_branch="ci_branch",
                     github_app_auth=None,
                     github_oauth_token="TEST_OAUTH_TOKEN",
+                    mirror_fallback_repo=None,
                 ),
             },
             base_directory="/repos",
+            mirror_dir=None,
         )
         self.assertEqual(config, expected_config)
+
+    def test_branch_mirror_fallback_repo(self) -> None:
+        kpd_config_json = read_fixture("fixtures/kpd_config.json")
+        kpd_config_json["branches"]["oauth"]["mirror_fallback_repo"] = "linux.git"
+
+        with patch("builtins.open", mock_open(read_data="TEST_KEY_FILE_CONTENT")):
+            config = KPDConfig.from_json(kpd_config_json)
+
+        self.assertEqual(config.branches["oauth"].mirror_fallback_repo, "linux.git")
