@@ -1,0 +1,57 @@
+
+
+```
+commit 16cbc4520eb13d2065d145c76b97fb93035d81e8
+Author: KaFai Wan <kafai.wan@linux.dev>
+
+bpf: Fix tnum_overlap to check for zero mask intersection
+
+This patch adds an early return check in tnum_overlap() to detect
+non-overlapping tnums when their masks have no overlapping bits. The
+fix addresses a syzbot report where the verifier failed to recognize
+that two tnums couldn't represent the same value.
+
+Reported-by: syzbot+c950cc277150935cc0b5@syzkaller.appspotmail.com
+
+> diff --git a/kernel/bpf/tnum.c b/kernel/bpf/tnum.c
+> index f8e70e9c3..1a75b7c9a 100644
+> --- a/kernel/bpf/tnum.c
+> +++ b/kernel/bpf/tnum.c
+> @@ -163,6 +163,8 @@ bool tnum_overlap(struct tnum a, struct tnum b)
+>  {
+>  	u64 mu;
+>
+> +	if (a.mask && b.mask && !(a.mask & b.mask))
+> +		return false;
+                              ^^^^^
+
+Does this logic correctly detect non-overlapping tnums? Consider this
+counter-example:
+
+  a = (value=0x5, mask=0xA)  // binary: value=0101, mask=1010
+  b = (value=0xA, mask=0x5)  // binary: value=1010, mask=0101
+
+The masks are disjoint: (0xA & 0x5) == 0, so the new check returns
+false (no overlap).
+
+However, these tnums actually represent overlapping sets:
+  a represents: {5, 7, 13, 15}  // 0b0101, 0b0111, 0b1101, 0b1111
+  b represents: {10, 11, 14, 15} // 0b1010, 0b1011, 0b1110, 0b1111
+
+Both sets contain 15, so they do overlap. Can this cause incorrect
+verifier behavior when is_branch_taken() calls tnum_overlap() to
+determine if JEQ/JNE branches are reachable?
+
+>  	mu = ~a.mask & ~b.mask;
+>  	return (a.value & mu) == (b.value & mu);
+>  }
+
+
+```
+
+---
+AI reviewed your patch. Please fix the bug or email reply why it's not a bug.
+See: https://github.com/kernel-patches/vmtest/blob/master/ci/claude/README.md
+
+In-Reply-To-Subject: `bpf: Fix tnum_overlap to check for zero mask intersection`
+CI run summary: https://github.com/kernel-patches/bpf/actions/runs/18880108453

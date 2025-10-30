@@ -12,7 +12,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 
 logger = logging.getLogger(__name__)
@@ -112,6 +112,7 @@ class PRCommentsForwardingConfig:
     commenter_allowlist: List[str]
     recipient_allowlist: List[re.Pattern]
     recipient_denylist: List[re.Pattern]
+    body_preprocessor_func: Optional[str]
 
     @classmethod
     def from_json(cls, json: Dict) -> "PRCommentsForwardingConfig":
@@ -126,6 +127,7 @@ class PRCommentsForwardingConfig:
                 re.compile(pattern) for pattern in json.get("recipient_denylist", [])
             ],
             commenter_allowlist=json.get("commenter_allowlist", []),
+            body_preprocessor_func=json.get("body_preprocessor_func", None),
         )
 
 
