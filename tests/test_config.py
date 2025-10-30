@@ -179,6 +179,7 @@ class TestConfig(unittest.TestCase):
                     commenter_allowlist=["kpd-bot[bot]"],
                     recipient_denylist=[re.compile(".*@vger.kernel.org")],
                     recipient_allowlist=[],
+                    body_preprocessor_func=None,
                 ),
             ),
             tag_to_branch_mapping={"tag": ["app_auth_key_path"]},

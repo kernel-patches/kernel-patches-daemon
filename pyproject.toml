@@ -68,4 +68,3 @@ project-excludes = [
     "**/__pycache__",
     "**/*venv/**/*",
 ]
-

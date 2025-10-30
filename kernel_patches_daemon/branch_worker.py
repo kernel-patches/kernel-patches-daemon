@@ -28,7 +28,18 @@ from email.mime.text import MIMEText
 from enum import Enum
 from pathlib import Path
 from subprocess import PIPE
-from typing import Any, Dict, Final, Generator, IO, List, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Final,
+    Generator,
+    IO,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import dateutil.parser
 import git
@@ -1444,6 +1455,40 @@ class BranchWorker(GithubConnector):
         )
         pr_summary_report.add(1)
 
+    def ai_review_comment_preprocessor(self, body: str) -> str:
+        # find the first line starting with > and remove everyting prior
+        match = re.search(r"^>.*$", body, re.MULTILINE)
+        if match:
+            body = body[match.start() :]
+        # remove triple backticks
+        body = re.sub(r"^```\s*$\n?", "", body, flags=re.MULTILINE)
+        # remove In-Reply-To-Subject tag
+        body = re.sub(r"^In-Reply-To-Subject:.*$\n?", "", body, flags=re.MULTILINE)
+        return body
+
+    def pr_comment_body_to_email_body(
+        self, cfg: PRCommentsForwardingConfig, comment_body: str
+    ) -> str:
+        func_name: Optional[str] = cfg.body_preprocessor_func
+        if func_name is None:
+            return comment_body
+
+        maybe_func = getattr(self, func_name, None)
+        if not callable(maybe_func):
+            return comment_body
+
+        func: Callable = maybe_func
+        try:
+            email_body = func(comment_body)
+            if not isinstance(email_body, str):
+                return comment_body
+            return email_body
+        except Exception as e:
+            logger.error(
+                f"Comment body preprocessor '{func_name}' failed with exception: {e}"
+            )
+            return comment_body
+
     async def forward_pr_comments(self, pr: PullRequest, series: Series):
         # The checks and local variables are needed to make type checker happy
         if self.email_config is None:
@@ -1510,9 +1555,8 @@ class BranchWorker(GithubConnector):
             patch_msg = parser.parsebytes(mbox, headersonly=True)
 
             # and forward the target comment via email
-            sent_msg_id = await send_pr_comment_email(
-                email_cfg, patch_msg, comment.body
-            )
+            email_body: str = self.pr_comment_body_to_email_body(cfg, comment.body)
+            sent_msg_id = await send_pr_comment_email(email_cfg, patch_msg, email_body)
             if sent_msg_id is not None:
                 logger.info(
                     f"Forwarded PR comment {comment.html_url} via email, Message-Id: {sent_msg_id}"

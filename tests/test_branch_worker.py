@@ -1671,6 +1671,7 @@ class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
                 commenter_allowlist=["test_user"],
                 recipient_denylist=[re.compile(".*@vger.kernel.org")],
                 recipient_allowlist=[],
+                body_preprocessor_func=None,
             )
         )
 
@@ -1724,3 +1725,76 @@ class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
             )
             self.assertEqual(mock_comment.body, body)
             self.assertEqual(f"<{mbox_msgid}>", in_reply_to)
+
+
+class TestPRCommentBodyPreprocessor(unittest.TestCase):
+    def setUp(self) -> None:
+        patcher = patch("kernel_patches_daemon.github_connector.Github")
+        self._gh_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+        self._bw = BranchWorkerMock()
+
+    def test_ai_review_comment_preprocessor(self):
+        comment_body = read_test_data_file(
+            "test_ai_review_comment_preprocessor/comment-body.md"
+        )
+        expected_email_body = read_test_data_file(
+            "test_ai_review_comment_preprocessor/expected-email-body.txt"
+        )
+        email_body = self._bw.ai_review_comment_preprocessor(comment_body)
+        print(email_body)
+        self.assertEqual(email_body, expected_email_body)
+
+    def test_pr_comment_body_to_email_body_with_no_preprocessor(self):
+        cfg = PRCommentsForwardingConfig(
+            enabled=True,
+            always_reply_to_author=False,
+            always_cc=[],
+            commenter_allowlist=[],
+            recipient_allowlist=[],
+            recipient_denylist=[],
+            body_preprocessor_func=None,
+        )
+        comment_body = read_test_data_file(
+            "test_ai_review_comment_preprocessor/comment-body.md"
+        )
+        email_body = self._bw.pr_comment_body_to_email_body(cfg, comment_body)
+        # Expect no change
+        self.assertEqual(email_body, comment_body)
+
+    def test_pr_comment_body_to_email_body_with_valid_preprocessor(self):
+        cfg = PRCommentsForwardingConfig(
+            enabled=True,
+            always_reply_to_author=False,
+            always_cc=[],
+            commenter_allowlist=[],
+            recipient_allowlist=[],
+            recipient_denylist=[],
+            body_preprocessor_func="ai_review_comment_preprocessor",
+        )
+        comment_body = read_test_data_file(
+            "test_ai_review_comment_preprocessor/comment-body.md"
+        )
+        expected_email_body = read_test_data_file(
+            "test_ai_review_comment_preprocessor/expected-email-body.txt"
+        )
+        email_body = self._bw.pr_comment_body_to_email_body(cfg, comment_body)
+        self.assertEqual(email_body, expected_email_body)
+
+    def test_pr_comment_body_to_email_body_with_invalid_preprocessor(self):
+        # Setup: create config with non-existent preprocessor function
+        cfg = PRCommentsForwardingConfig(
+            enabled=True,
+            always_reply_to_author=False,
+            always_cc=[],
+            commenter_allowlist=[],
+            recipient_allowlist=[],
+            recipient_denylist=[],
+            body_preprocessor_func="nonexistent_function",
+        )
+        comment_body = read_test_data_file(
+            "test_ai_review_comment_preprocessor/comment-body.md"
+        )
+        email_body = self._bw.pr_comment_body_to_email_body(cfg, comment_body)
+        # Expect no change
+        self.assertEqual(email_body, comment_body)
