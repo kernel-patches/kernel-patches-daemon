@@ -30,7 +30,8 @@
       "upstream_branch": "master",
       "ci_repo": "https://github.com/kernel-patches/vmtest.git",
       "ci_branch": "master",
-      "github_oauth_token": "<TOKEN>"
+      "github_oauth_token": "<TOKEN>",
+      "mirror_fallback_repo": "linux.git"
     },
     "bpf": {
       "repo": "https://github.com/kernel-patches/bpf",
@@ -38,8 +39,10 @@
       "upstream_branch": "master",
       "ci_repo": "https://github.com/kernel-patches/vmtest.git",
       "ci_branch": "master",
-      "github_oauth_token": "<TOKEN>"
+      "github_oauth_token": "<TOKEN>",
+      "mirror_fallback_repo": "linux.git"
     }
   },
-  "base_directory": "/tmp/repos"
+  "base_directory": "/tmp/repos",
+  "mirror_dir": "/mirror/"
 }

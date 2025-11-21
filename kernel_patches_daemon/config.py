@@ -83,6 +83,7 @@ class BranchConfig:
     ci_branch: str
     github_oauth_token: Optional[str]
     github_app_auth: Optional[GithubAppAuthConfig]
+    mirror_fallback_repo: Optional[str] = None
 
     @classmethod
     def from_json(cls, json: Dict) -> "BranchConfig":
@@ -101,6 +102,7 @@ class BranchConfig:
             ci_branch=json["ci_branch"],
             github_oauth_token=json.get("github_oauth_token", None),
             github_app_auth=github_app_auth_config,
+            mirror_fallback_repo=json.get("mirror_fallback_repo", None),
         )
 
 
@@ -202,6 +204,7 @@ class KPDConfig:
     branches: Dict[str, BranchConfig]
     tag_to_branch_mapping: Dict[str, List[str]]
     base_directory: str
+    mirror_dir: Optional[str] = None
 
     @classmethod
     def from_json(cls, json: Dict) -> "KPDConfig":
@@ -234,6 +237,7 @@ class KPDConfig:
                 for name, json_config in json["branches"].items()
             },
             base_directory=json["base_directory"],
+            mirror_dir=json.get("mirror_dir"),
         )
 
     @classmethod
