@@ -56,7 +56,12 @@ from kernel_patches_daemon.config import (
 )
 from kernel_patches_daemon.github_connector import GithubConnector
 from kernel_patches_daemon.github_logs import GithubLogExtractor
-from kernel_patches_daemon.patchwork import Patchwork, Series, Subject
+from kernel_patches_daemon.patchwork import (
+    Patchwork,
+    Series,
+    slugify_check_context,
+    Subject,
+)
 from kernel_patches_daemon.stats import HistogramMetricTimer
 from kernel_patches_daemon.status import (
     gh_conclusion_to_status,
@@ -100,9 +105,7 @@ KNOWN_OK_COMMENT_EXCEPTIONS = {
     "Commenting is disabled on issues with more than 2500 comments"
 }
 CI_APP = 15368  # GithubApp(url="/apps/github-actions", id=15368)
-CI_VMTEST_NAME = "VM_Test"
 
-CI_DESCRIPTION = "vmtest"
 MERGE_CONFLICT_LABEL = "merge-conflict"
 UPSTREAM_REMOTE_NAME = "upstream"
 
@@ -650,15 +653,6 @@ def _is_outdated_pr(pr: PullRequest) -> bool:
 
 
 class BranchWorker(GithubConnector):
-    @staticmethod
-    def slugify_context(s: str):
-        # According to patchwork rule:
-        # https://github.com/getpatchwork/patchwork/blob/2aa4742ec88be4cd07f569805d22a35c08a08f40/releasenotes/notes/slugify-check-context-dc586f204b5058a7.yaml
-        # the context need to be a slug, or a string consisting of only
-        # ASCII letters, numbers, underscores or hyphens.
-        # Lets replace all "." with "_"
-        return s.replace(".", "_")
-
     def __init__(
         self,
         patchwork: Patchwork,
@@ -1277,12 +1271,12 @@ class BranchWorker(GithubConnector):
         # cached state).
         pr.update()
         # if it's merge conflict - report failure
-        ctx = BranchWorker.slugify_context(f"{CI_DESCRIPTION}-{self.repo_branch}")
+        ctx_prefix = slugify_check_context(f"{self.repo_branch}")
         if pr_has_label(pr, MERGE_CONFLICT_LABEL):
             await series.set_check(
                 status=Status.CONFLICT,
                 target_url=pr.html_url,
-                context=f"{ctx}-PR",
+                context=f"{ctx_prefix}_PR",
                 description=MERGE_CONFLICT_LABEL,
             )
             await self.evaluate_ci_result(Status.CONFLICT, series, pr, [])
@@ -1344,17 +1338,17 @@ class BranchWorker(GithubConnector):
             self.submit_pr_summary(
                 series=series,
                 status=status,
-                context_name=ctx,
+                context_name=ctx_prefix,
                 target_url=pr.html_url,
             )
         ] + [
             series.set_check(
                 status=gh_conclusion_to_status(job.conclusion),
                 target_url=job.html_url,
-                context=BranchWorker.slugify_context(f"{ctx}-{CI_VMTEST_NAME}-{idx}"),
+                context=slugify_check_context(f"{ctx_prefix}_{job.name}"),
                 description=f"Logs for {job.name}",
             )
-            for idx, job in enumerate(jobs)
+            for job in jobs
         ]
         await asyncio.gather(*tasks)
 

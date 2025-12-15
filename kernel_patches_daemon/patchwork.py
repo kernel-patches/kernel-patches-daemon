@@ -96,6 +96,22 @@ err_malformed_series: metrics.Counter = meter.create_counter(
 )
 
 
+CHECK_CONTEXT_NOT_ALLOWED_CHARS_RE: Final[re.Pattern] = re.compile(r"[^-a-zA-Z0-9_]+")
+MULTIPLE_UNDERSCORES_RE: Final[re.Pattern] = re.compile(r"_+")
+
+
+def slugify_check_context(check_context: str) -> str:
+    """
+    Slugify provided string, so that it can be used as a "context" field of a patchwork check.
+    See: https://github.com/getpatchwork/patchwork/blob/v3.1.3/docs/api/schemas/latest/patchwork.yaml#L1579
+    """
+    result = CHECK_CONTEXT_NOT_ALLOWED_CHARS_RE.sub("_", check_context)
+    result = MULTIPLE_UNDERSCORES_RE.sub("_", result)
+    result = result.strip("_")
+
+    return result
+
+
 ## Request Tracing
 class TraceContext(SimpleNamespace):
     """
@@ -700,11 +716,11 @@ class Patchwork:
                 )
                 return None
 
-            logger.info(
+            logger.debug(
                 f"Updating patch {patch_id} check, current state: '{check.get('state')}', new state: '{new_state}'"
             )
         except ValueError:
-            logger.info(f"Setting patch {patch_id} check to '{new_state}' state")
+            logger.debug(f"Setting patch {patch_id} check to '{new_state}' state")
 
         return await self.__try_post(
             f"patches/{patch_id}/checks/",

@@ -398,7 +398,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         post_data = post_calls[0].kwargs["data"]
         expected_post_data = {
             "target_url": "https://github.com/org/repo/pull/98765",
-            "context": "vmtest-test-bpf-next-PR",
+            "context": "test-bpf-next-PR",
             "description": "PR summary",
             "state": "success",
         }
