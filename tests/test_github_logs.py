@@ -10,9 +10,7 @@ import unittest
 
 from aioresponses import aioresponses
 from github.WorkflowJob import WorkflowJob
-
 from kernel_patches_daemon.github_logs import BpfGithubLogExtractor, GithubFailedJobLog
-
 from tests.common.utils import read_fixture
 
 

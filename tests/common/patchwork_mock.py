@@ -7,11 +7,9 @@
 # pyre-unsafe
 
 import re
-
 from typing import Any, Dict, Final
 
 from aioresponses import aioresponses
-
 from kernel_patches_daemon.patchwork import (
     IRRELEVANT_STATES,
     Patchwork,

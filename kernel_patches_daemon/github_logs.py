@@ -15,7 +15,6 @@ from typing import Final, List, Optional, Sequence
 
 import aiohttp
 from github.WorkflowJob import WorkflowJob
-
 from kernel_patches_daemon.status import gh_conclusion_to_status, Status
 
 logger: logging.Logger = logging.getLogger(__name__)

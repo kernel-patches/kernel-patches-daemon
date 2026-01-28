@@ -19,7 +19,6 @@ from github import Github, GithubException
 from github.Repository import Repository
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.daemon import KernelPatchesDaemon
-
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import (

@@ -28,7 +28,6 @@ from kernel_patches_daemon.github_logs import (
     DefaultGithubLogExtractor,
     GithubLogExtractor,
 )
-
 from kernel_patches_daemon.patchwork import Patchwork, Series, Subject
 from kernel_patches_daemon.stats import HistogramMetricTimer, Stats
 from opentelemetry import metrics
@@ -387,7 +386,7 @@ class GithubSync(Stats):
 
             rate_limit = worker.git.get_rate_limit()
             github_ratelimit_remaining.record(
-                rate_limit.core.remaining,
+                rate_limit.resources.core.remaining,
                 {"user": worker.github_account_name},
             )
 
