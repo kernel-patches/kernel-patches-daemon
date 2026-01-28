@@ -27,7 +27,6 @@ from opentelemetry.sdk.metrics.export import (
 )
 from opentelemetry.sdk.resources import Resource
 
-
 logger: logging.Logger = logging.getLogger(__name__)
 
 

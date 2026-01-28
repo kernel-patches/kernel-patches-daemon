@@ -33,7 +33,6 @@ from kernel_patches_daemon.stats import HistogramMetricTimer, Stats
 from opentelemetry import metrics
 from pyre_extensions import none_throws
 
-
 logger: logging.Logger = logging.getLogger(__name__)
 meter: metrics.Meter = metrics.get_meter("github_sync")
 
@@ -248,7 +247,7 @@ class GithubSync(Stats):
             worker = self.workers[branch]
             # PR branch name == sid of the first known series
             pr_branch_name = await worker.subject_to_branch(subject)
-            (applied, _, _) = await worker.try_apply_mailbox_series(
+            applied, _, _ = await worker.try_apply_mailbox_series(
                 pr_branch_name, series
             )
             if not applied:

@@ -71,7 +71,6 @@ from kernel_patches_daemon.utils import redact_url, remove_unsafe_chars
 from opentelemetry import metrics
 from pyre_extensions import none_throws
 
-
 logger: logging.Logger = logging.getLogger(__name__)
 meter: metrics.Meter = metrics.get_meter("branch_worker")
 
@@ -383,7 +382,7 @@ async def send_ci_results_email(
     subject: str,
     body: str,
 ):
-    (to_list, cc_list) = ci_results_email_recipients(config, series)
+    to_list, cc_list = ci_results_email_recipients(config, series)
     in_reply_to = get_ci_base(series)["msgid"]
     await send_email(config, to_list, cc_list, subject, body, in_reply_to)
 
@@ -413,7 +412,7 @@ def reply_email_recipients(
 
     sender = msg.get("From")
     if sender is not None:
-        (_, sender_address) = email.utils.parseaddr(sender)
+        _, sender_address = email.utils.parseaddr(sender)
         if sender_address:  # parseaddr might return an emptystring
             to_list.append(sender_address)
 
@@ -459,7 +458,7 @@ async def send_pr_comment_email(
     if not cfg.enabled:
         return
 
-    (to_list, cc_list) = reply_email_recipients(
+    to_list, cc_list = reply_email_recipients(
         msg,
         allowlist=cfg.recipient_allowlist,
         denylist=cfg.recipient_denylist,
@@ -1417,7 +1416,11 @@ class BranchWorker(GithubConnector):
                     # that doesn't have any closed PRs
                     # with last update within defined TTL
                     pr = self.filter_closed_pr(branch)
-                    if not pr or time.time() - pr.updated_at.timestamp() > BRANCH_TTL:
+                    if (
+                        not pr
+                        or not pr.updated_at
+                        or time.time() - pr.updated_at.timestamp() > BRANCH_TTL
+                    ):
                         self.delete_branch(branch)
 
     def expire_user_prs(self) -> None:
