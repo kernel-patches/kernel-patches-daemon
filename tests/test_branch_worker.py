@@ -64,7 +64,6 @@ from tests.common.patchwork_mock import (
 )
 from tests.common.utils import load_test_data, read_fixture, read_test_data_file
 
-
 TEST_REPO = "repo"
 TEST_REPO_URL = f"https://user:pass@127.0.0.1/org/{TEST_REPO}"
 TEST_REPO_BRANCH = "test_branch"
@@ -1337,7 +1336,7 @@ class TestEmailNotification(unittest.TestCase):
         ]
         expected_email = read_fixture("test_email_submitter_in_allowlist.golden")
 
-        (to_list, cc_list) = ci_results_email_recipients(config, series)
+        to_list, cc_list = ci_results_email_recipients(config, series)
         in_reply_to = get_ci_base(series)["msgid"]
         cmd, email = build_email(
             config,
@@ -1397,7 +1396,7 @@ class TestEmailNotification(unittest.TestCase):
         ]
         expected_email = read_fixture("test_email_submitter_not_in_allowlist.golden")
 
-        (to_list, cc_list) = ci_results_email_recipients(config, series)
+        to_list, cc_list = ci_results_email_recipients(config, series)
         in_reply_to = get_ci_base(series)["msgid"]
         cmd, email = build_email(
             config,
@@ -1461,7 +1460,7 @@ class TestEmailNotification(unittest.TestCase):
             "test_email_submitter_not_in_allowlist_and_allowlist_disabled.golden"
         )
 
-        (to_list, cc_list) = ci_results_email_recipients(config, series)
+        to_list, cc_list = ci_results_email_recipients(config, series)
         in_reply_to = get_ci_base(series)["msgid"]
         cmd, email = build_email(
             config,
@@ -1484,21 +1483,21 @@ class TestEmailNotification(unittest.TestCase):
         msg = parser.parsebytes(mbox.encode("utf-8"), headersonly=True)
         self.assertIsNotNone(mbox)
         denylist = [re.compile(".*@vger.kernel.org")]
-        (to_list, cc_list) = reply_email_recipients(msg, denylist=denylist)
+        to_list, cc_list = reply_email_recipients(msg, denylist=denylist)
 
         self.assertIn("chen.dylane@linux.dev", to_list)
         self.assertEqual(len(to_list), 17)
         self.assertEqual(len(cc_list), 1)
 
         allowlist = [re.compile(".*@vger.kernel.org")]
-        (to_list, cc_list) = reply_email_recipients(msg, allowlist=allowlist)
+        to_list, cc_list = reply_email_recipients(msg, allowlist=allowlist)
         self.assertEqual(to_list, [])
         self.assertEqual(len(cc_list), 3)
 
         # test both
         allowlist = [re.compile(".*@linux.dev")]
         denylist = [re.compile(".*@gmail.com")]
-        (to_list, cc_list) = reply_email_recipients(
+        to_list, cc_list = reply_email_recipients(
             msg, allowlist=allowlist, denylist=denylist
         )
         self.assertIn("chen.dylane@linux.dev", to_list)
@@ -1507,13 +1506,13 @@ class TestEmailNotification(unittest.TestCase):
 
         # test denylist all
         denylist = [re.compile(".*")]
-        (to_list, cc_list) = reply_email_recipients(msg, denylist=denylist)
+        to_list, cc_list = reply_email_recipients(msg, denylist=denylist)
         self.assertEqual(to_list, [])
         self.assertEqual(cc_list, [])
 
         # test denylist all, but the sender
         denylist = [re.compile(".*")]
-        (to_list, cc_list) = reply_email_recipients(
+        to_list, cc_list = reply_email_recipients(
             msg, denylist=denylist, always_reply_to_author=True
         )
         self.assertEqual(to_list, ["chen.dylane@linux.dev"])
@@ -1707,9 +1706,9 @@ class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
             )
 
             mock_send_email.assert_called_once()
-            (_, to_list, cc_list, subject, body, in_reply_to) = (
-                mock_send_email.call_args[0]
-            )
+            _, to_list, cc_list, subject, body, in_reply_to = mock_send_email.call_args[
+                0
+            ]
 
             self.assertIn("chen.dylane@linux.dev", to_list)
             self.assertEqual(len(to_list), 17)
