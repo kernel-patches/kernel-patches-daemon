@@ -22,7 +22,6 @@ from kernel_patches_daemon.config import (
     PatchworksConfig,
     PRCommentsForwardingConfig,
 )
-
 from tests.common.utils import read_fixture
 
 

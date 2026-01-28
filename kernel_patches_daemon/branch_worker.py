@@ -48,7 +48,6 @@ from github.Label import Label as GithubLabel
 from github.PullRequest import PullRequest
 from github.Repository import Repository
 from github.WorkflowJob import WorkflowJob
-
 from kernel_patches_daemon.config import (
     EmailConfig,
     PRCommentsForwardingConfig,
@@ -782,7 +781,7 @@ class BranchWorker(GithubConnector):
 
     def can_do_sync(self) -> bool:
         github_ratelimit = self.git.get_rate_limit()
-        if github_ratelimit.core.remaining < MIN_REMAINING_GITHUB_TOKENS:
+        if github_ratelimit.resources.core.remaining < MIN_REMAINING_GITHUB_TOKENS:
             return False
         return True
 

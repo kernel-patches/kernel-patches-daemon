@@ -14,7 +14,6 @@ from typing import Any, Dict, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from aioresponses import aioresponses
-
 from kernel_patches_daemon.branch_worker import (
     MERGE_CONFLICT_LABEL,
     NewPRWithNoChangeException,
@@ -88,7 +87,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         self._gh = GithubSyncMock()
         for worker in self._gh.workers.values():
             rate_limit = MagicMock()
-            rate_limit.core.remaining = 5000
+            rate_limit.resources.core.remaining = 5000
             worker.git.get_rate_limit = MagicMock(return_value=rate_limit)
 
     def test_init_with_base_directory(self) -> None:

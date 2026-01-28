@@ -37,9 +37,9 @@ ACCESS_TOKEN_REFRESH_THRESHOLD_SECONDS = 30 * 60
 TOKEN_REFRESH_THRESHOLD_TIMEDELTA = timedelta(
     seconds=ACCESS_TOKEN_REFRESH_THRESHOLD_SECONDS
 )
-assert hasattr(
-    Auth, "TOKEN_REFRESH_THRESHOLD_TIMEDELTA"
-), "Could not monkey patch TOKEN_REFRESH_THRESHOLD_TIMEDELTA, it may have changed upstream."
+assert hasattr(Auth, "TOKEN_REFRESH_THRESHOLD_TIMEDELTA"), (
+    "Could not monkey patch TOKEN_REFRESH_THRESHOLD_TIMEDELTA, it may have changed upstream."
+)
 Auth.TOKEN_REFRESH_THRESHOLD_TIMEDELTA = TOKEN_REFRESH_THRESHOLD_TIMEDELTA
 
 BOT_USER_LOGIN_SUFFIX = "[bot]"
@@ -65,9 +65,9 @@ class GithubConnector:
         app_auth: Optional[Auth.AppInstallationAuth] = None,
         http_retries: Optional[int] = None,
     ) -> None:
-        assert bool(github_oauth_token) ^ bool(
-            app_auth
-        ), "Only one of github_oauth_token or app_auth can be set"
+        assert bool(github_oauth_token) ^ bool(app_auth), (
+            "Only one of github_oauth_token or app_auth can be set"
+        )
         self.repo_name: str = os.path.basename(repo_url)
         self.base_repo_url: str = repo_url
         self.auth_type = AuthType.UNKNOWN
@@ -89,12 +89,9 @@ class GithubConnector:
             self.github_account_name = gh_user.login
         else:
             self.auth_type = AuthType.APP_AUTH
+            # In PyGithub 2.x, AppInstallationAuth stores the AppAuth object in _app_auth
             # pyrefly: ignore  # missing-attribute
-            app = GithubIntegration(
-                auth=Auth.AppAuth(
-                    app_id=app_auth.app_id, private_key=app_auth.private_key
-                )
-            ).get_app()
+            app = GithubIntegration(auth=app_auth._app_auth).get_app()
             self.github_account_name = app.name
             # Github appends '[bot]' suffix to the NamedUser
             # >>> pull.user
@@ -138,9 +135,9 @@ class GithubConnector:
             self.user_or_org = org
             self.repo = self.git.get_organization(org).get_repo(self.repo_name)
 
-        assert (
-            self.auth_type != AuthType.UNKNOWN
-        ), "Auth type is still set to unknown... something is wrong."
+        assert self.auth_type != AuthType.UNKNOWN, (
+            "Auth type is still set to unknown... something is wrong."
+        )
 
     def __get_new_auth_token(self) -> str:
         # refresh token if needed

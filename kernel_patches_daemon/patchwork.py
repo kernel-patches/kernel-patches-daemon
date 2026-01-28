@@ -18,15 +18,12 @@ from urllib.parse import urljoin
 
 import aiohttp
 import cachetools.keys
-
 import dateutil.parser as dateparser
 from aiohttp_retry import ExponentialRetry, RetryClient
 from cachetools import TTLCache
-
 from kernel_patches_daemon.config import SERIES_ID_SEPARATOR
 from kernel_patches_daemon.status import Status
 from multidict import MultiDict
-
 from opentelemetry import metrics
 from pyre_extensions import none_throws
 

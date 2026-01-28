@@ -22,9 +22,7 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import git
-
 from aioresponses import aioresponses
-
 from freezegun import freeze_time
 from git.exc import GitCommandError
 from kernel_patches_daemon.branch_worker import (
@@ -58,14 +56,12 @@ from kernel_patches_daemon.github_logs import DefaultGithubLogExtractor
 from kernel_patches_daemon.patchwork import Series, Subject
 from kernel_patches_daemon.status import Status
 from munch import Munch, munchify
-
 from tests.common.patchwork_mock import (
     DEFAULT_TEST_RESPONSES,
     get_default_pw_client,
     init_pw_responses,
     PatchworkMock,
 )
-
 from tests.common.utils import load_test_data, read_fixture, read_test_data_file
 
 
@@ -1097,7 +1093,7 @@ class TestBranchChanged(unittest.TestCase):
         self.repo.create_head("two_commit_change", commit="master").checkout()
         for i in range(2):
             with open(f"{self.tmp_dir}/file.txt", "a") as f:
-                f.write(f"line {i+1}\n")
+                f.write(f"line {i + 1}\n")
             self.repo.index.add(["file.txt"])
             self.repo.index.commit("split change, part {i+1}\n")
 
@@ -1107,7 +1103,7 @@ class TestBranchChanged(unittest.TestCase):
         ).checkout()
         for i in range(2):
             with open(f"{self.tmp_dir}/file.txt", "a") as f:
-                f.write(f"line {i+1}\n")
+                f.write(f"line {i + 1}\n")
             self.repo.index.add(["file.txt"])
             self.repo.index.commit(self.SINGLE_COMMIT_CHANGE_MESSAGE)
 
