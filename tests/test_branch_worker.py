@@ -1737,7 +1737,16 @@ class TestPRCommentBodyPreprocessor(unittest.TestCase):
             "test_ai_review_comment_preprocessor/expected-email-body.txt"
         )
         email_body = self._bw.ai_review_comment_preprocessor(comment_body)
-        print(email_body)
+        self.assertEqual(email_body, expected_email_body)
+
+    def test_ai_review_comment_preprocessor2(self):
+        comment_body = read_test_data_file(
+            "test_ai_review_comment_preprocessor/comment-body2.md"
+        )
+        expected_email_body = read_test_data_file(
+            "test_ai_review_comment_preprocessor/expected-email-body2.txt"
+        )
+        email_body = self._bw.ai_review_comment_preprocessor(comment_body)
         self.assertEqual(email_body, expected_email_body)
 
     def test_pr_comment_body_to_email_body_with_no_preprocessor(self):
