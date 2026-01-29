@@ -1452,8 +1452,8 @@ class BranchWorker(GithubConnector):
         pr_summary_report.add(1)
 
     def ai_review_comment_preprocessor(self, body: str) -> str:
-        # find the first line starting with > and remove everyting prior
-        match = re.search(r"^> diff --git.*$", body, re.MULTILINE)
+        # find the first line starting with > and remove everything prior
+        match = re.search(r"^>\s*\S.*$", body, re.MULTILINE)
         if match:
             body = body[match.start() :]
         # remove triple backticks
