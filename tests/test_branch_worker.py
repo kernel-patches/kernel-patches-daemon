@@ -1015,7 +1015,7 @@ class TestGitSeriesAlreadyApplied(unittest.IsolatedAsyncioTestCase):
         in_1 = ALREADY_MERGED_LOOKBACK + 33
         in_2 = ALREADY_MERGED_LOOKBACK + 34
         series = await self._get_series(m, [f"Commit {in_1}", f"[tag] Commit {in_2}"])
-        self.assertTrue(await _series_already_applied(self.repo, series))
+        self.assertTrue(await _series_already_applied(self.repo, series, "HEAD"))
 
     @aioresponses()
     async def test_applied_none_newer(self, m: aioresponses):
@@ -1024,26 +1024,26 @@ class TestGitSeriesAlreadyApplied(unittest.IsolatedAsyncioTestCase):
         series = await self._get_series(
             m, [f"[some tags]Commit {out_1}", f"[tag] Commit {out_2}"]
         )
-        self.assertFalse(await _series_already_applied(self.repo, series))
+        self.assertFalse(await _series_already_applied(self.repo, series, "HEAD"))
 
     @aioresponses()
     async def test_applied_none_older(self, m: aioresponses):
         series = await self._get_series(m, ["[some tags]Commit 33", "[tag] Commit 34"])
-        self.assertFalse(await _series_already_applied(self.repo, series))
+        self.assertFalse(await _series_already_applied(self.repo, series, "HEAD"))
 
     @aioresponses()
     async def test_applied_some(self, m: aioresponses):
         inside = ALREADY_MERGED_LOOKBACK + 55
         out = ALREADY_MERGED_LOOKBACK * 3
         series = await self._get_series(m, [f"Commit {inside}", f"Commit {out}"])
-        self.assertTrue(await _series_already_applied(self.repo, series))
+        self.assertTrue(await _series_already_applied(self.repo, series, "HEAD"))
 
     @aioresponses()
     async def test_applied_all_case_insensitive(self, m: aioresponses):
         in_1 = ALREADY_MERGED_LOOKBACK + 33
         in_2 = ALREADY_MERGED_LOOKBACK + 34
         series = await self._get_series(m, [f"commit {in_1}", f"[tag] COMMIT {in_2}"])
-        self.assertTrue(await _series_already_applied(self.repo, series))
+        self.assertTrue(await _series_already_applied(self.repo, series, "HEAD"))
 
 
 class TestBranchChanged(unittest.TestCase):

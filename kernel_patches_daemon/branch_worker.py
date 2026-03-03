@@ -580,10 +580,10 @@ def _reset_repo(repo, branch: str) -> None:
     repo.git.checkout(branch)
 
 
-async def _series_already_applied(repo: git.Repo, series: Series) -> bool:
+async def _series_already_applied(repo: git.Repo, series: Series, rev: str) -> bool:
     """
     Returns whether or not the given series has already been applied
-    to the active branch on `repo`.
+    to the given revision in `repo`.
 
     We consider even a single applied patch in a series as the series being
     applied. This is b/c the applied patch is marked as "accepted" and thus the
@@ -597,7 +597,7 @@ async def _series_already_applied(repo: git.Repo, series: Series) -> bool:
     try:
         summaries = {
             commit.summary.lower()
-            for commit in repo.iter_commits(max_count=ALREADY_MERGED_LOOKBACK)
+            for commit in repo.iter_commits(rev, max_count=ALREADY_MERGED_LOOKBACK)
         }
     except git.exc.GitCommandError:
         logger.exception("Failed to check series application status")
@@ -687,7 +687,7 @@ class BranchWorker(GithubConnector):
         self.repo_dir = _uniq_tmp_folder(repo_url, repo_branch, base_directory)
         self.repo_branch = repo_branch
         self.repo_pr_base_branch = repo_branch + "_base"
-        self.repo_local = None
+        self.repo_local: Optional[git.Repo] = None
 
         self.upstream_url = upstream_url
         self.upstream_branch = upstream_branch
@@ -844,7 +844,6 @@ class BranchWorker(GithubConnector):
         """
         Fetch the repository branch of interest only once
         """
-        # pyrefly: ignore  # bad-assignment
         self.repo_local = self.fetch_repo(
             self.repo_dir, self.repo_url, self.repo_branch
         )
@@ -1109,8 +1108,12 @@ class BranchWorker(GithubConnector):
             # In other words, patchwork could be reporting a relevant
             # status (ie. !accepted) while the series has already been
             # merged and pushed.
-            # pyrefly: ignore  # bad-argument-type
-            if await _series_already_applied(self.repo_local, series):
+            assert self.repo_local is not None
+            if await _series_already_applied(
+                self.repo_local,
+                series,
+                f"{UPSTREAM_REMOTE_NAME}/{self.upstream_branch}",
+            ):
                 logger.info(f"Series {series.url} already applied to tree")
                 raise NewPRWithNoChangeException(self.repo_pr_base_branch, branch_name)
 
