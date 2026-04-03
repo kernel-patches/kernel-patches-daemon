@@ -1,6 +1,6 @@
 # Kernel Patches Daemon (KPD)
 
-Kernel Patches Daemon (KPD) is a service connecting [Patchwork](https://github.com/getpatchwork/patchwork) with a GitHub repository, primarily for the puprose of running automated continuous integration (CI) testing via [GitHub Actions](https://github.com/features/actions).
+Kernel Patches Daemon (KPD) is a service connecting [Patchwork](https://github.com/getpatchwork/patchwork) with a GitHub repository, primarily for the purpose of running automated continuous integration (CI) testing via [GitHub Actions](https://github.com/features/actions).
 
 KPD watches Patchwork for new patch series and keeps them in sync with pull requests for a specified repository.
 It also updates series checks at Patchwork with CI workflow results, and can send email notifications to the authors of a patch.
