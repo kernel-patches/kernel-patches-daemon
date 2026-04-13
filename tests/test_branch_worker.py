@@ -1802,3 +1802,147 @@ class TestPRCommentBodyPreprocessor(unittest.TestCase):
         email_body = self._bw.pr_comment_body_to_email_body(cfg, comment_body)
         # Expect no change
         self.assertEqual(email_body, comment_body)
+
+
+class TestFindAiReviewCommentUrl(unittest.TestCase):
+    """Tests for BranchWorker._find_ai_review_comment_url"""
+
+    def setUp(self) -> None:
+        patcher = patch("kernel_patches_daemon.github_connector.Github")
+        self._gh_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+        self._bw = BranchWorkerMock()
+
+    def _make_comment(self, body: str, html_url: str) -> MagicMock:
+        comment = MagicMock()
+        comment.body = body
+        comment.html_url = html_url
+        return comment
+
+    def test_matching_comment_returns_url(self):
+        run_id = 12345
+        comment = self._make_comment(
+            body=f"Review feedback\nCI run summary: https://github.com/org/repo/actions/runs/{run_id}\nMore text",
+            html_url="https://github.com/org/repo/pull/1#issuecomment-100",
+        )
+        result = self._bw._find_ai_review_comment_url(run_id, [comment])
+        self.assertEqual(result, "https://github.com/org/repo/pull/1#issuecomment-100")
+
+    def test_no_matching_comment_returns_none(self):
+        comment = self._make_comment(
+            body="Some unrelated comment without run URL",
+            html_url="https://github.com/org/repo/pull/1#issuecomment-200",
+        )
+        result = self._bw._find_ai_review_comment_url(99999, [comment])
+        self.assertIsNone(result)
+
+    def test_empty_comments_returns_none(self):
+        result = self._bw._find_ai_review_comment_url(12345, [])
+        self.assertIsNone(result)
+
+    def test_multiple_matching_comments_returns_last(self):
+        run_id = 12345
+        first = self._make_comment(
+            body=f"First review\nCI run summary: https://github.com/org/repo/actions/runs/{run_id}",
+            html_url="https://github.com/org/repo/pull/1#issuecomment-100",
+        )
+        second = self._make_comment(
+            body=f"Second review\nCI run summary: https://github.com/org/repo/actions/runs/{run_id}",
+            html_url="https://github.com/org/repo/pull/1#issuecomment-200",
+        )
+        result = self._bw._find_ai_review_comment_url(run_id, [first, second])
+        self.assertEqual(result, "https://github.com/org/repo/pull/1#issuecomment-200")
+
+    def test_only_exact_run_id_matches(self):
+        comment = self._make_comment(
+            body="CI run summary: https://github.com/org/repo/actions/runs/1234",
+            html_url="https://github.com/org/repo/pull/1#issuecomment-300",
+        )
+        result = self._bw._find_ai_review_comment_url(12345, [comment])
+        self.assertIsNone(result)
+
+    def test_shorter_run_id_does_not_match_longer(self):
+        comment = self._make_comment(
+            body="CI run summary: https://github.com/org/repo/actions/runs/12345",
+            html_url="https://github.com/org/repo/pull/1#issuecomment-300",
+        )
+        result = self._bw._find_ai_review_comment_url(1234, [comment])
+        self.assertIsNone(result)
+
+
+class TestResolveCheckTargetUrl(unittest.TestCase):
+    """Tests for BranchWorker._resolve_check_target_url"""
+
+    def setUp(self) -> None:
+        patcher = patch("kernel_patches_daemon.github_connector.Github")
+        self._gh_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+        self._bw = BranchWorkerMock()
+
+    def _make_job(
+        self, run_id: int, conclusion: Optional[str], html_url: str
+    ) -> MagicMock:
+        job = MagicMock()
+        job.run_id = run_id
+        job.conclusion = conclusion
+        job.html_url = html_url
+        return job
+
+    def _make_comment(self, body: str, html_url: str) -> MagicMock:
+        comment = MagicMock()
+        comment.body = body
+        comment.html_url = html_url
+        return comment
+
+    def test_failed_ai_review_with_comment(self):
+        run_id = 55555
+        job = self._make_job(
+            run_id, "failure", "https://github.com/org/repo/actions/runs/55555/job/1"
+        )
+        run_metadata = {run_id: "AI Code Review"}
+        comment = self._make_comment(
+            body=f"Review\nCI run summary: https://github.com/org/repo/actions/runs/{run_id}",
+            html_url="https://github.com/org/repo/pull/1#issuecomment-777",
+        )
+        result = self._bw._resolve_check_target_url(job, run_metadata, [comment])
+        self.assertEqual(result, "https://github.com/org/repo/pull/1#issuecomment-777")
+
+    def test_failed_ai_review_no_comment(self):
+        run_id = 55555
+        job = self._make_job(
+            run_id, "failure", "https://github.com/org/repo/actions/runs/55555/job/1"
+        )
+        run_metadata = {run_id: "AI Code Review"}
+        result = self._bw._resolve_check_target_url(job, run_metadata, [])
+        self.assertEqual(result, "https://github.com/org/repo/actions/runs/55555/job/1")
+
+    def test_successful_ai_review(self):
+        run_id = 55555
+        job = self._make_job(
+            run_id, "success", "https://github.com/org/repo/actions/runs/55555/job/1"
+        )
+        run_metadata = {run_id: "AI Code Review"}
+        comment = self._make_comment(
+            body=f"CI run summary: https://github.com/org/repo/actions/runs/{run_id}",
+            html_url="https://github.com/org/repo/pull/1#issuecomment-777",
+        )
+        result = self._bw._resolve_check_target_url(job, run_metadata, [comment])
+        self.assertEqual(result, "https://github.com/org/repo/actions/runs/55555/job/1")
+
+    def test_failed_non_ai_workflow(self):
+        run_id = 55555
+        job = self._make_job(
+            run_id, "failure", "https://github.com/org/repo/actions/runs/55555/job/1"
+        )
+        run_metadata = {run_id: "Build and Test"}
+        result = self._bw._resolve_check_target_url(job, run_metadata, [])
+        self.assertEqual(result, "https://github.com/org/repo/actions/runs/55555/job/1")
+
+    def test_pending_ai_review(self):
+        run_id = 55555
+        job = self._make_job(
+            run_id, None, "https://github.com/org/repo/actions/runs/55555/job/1"
+        )
+        run_metadata = {run_id: "AI Code Review"}
+        result = self._bw._resolve_check_target_url(job, run_metadata, [])
+        self.assertEqual(result, "https://github.com/org/repo/actions/runs/55555/job/1")
