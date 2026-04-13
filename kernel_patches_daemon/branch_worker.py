@@ -1275,8 +1275,8 @@ class BranchWorker(GithubConnector):
         AI review comments contain a 'CI run summary' line embedding the run URL.
         We match on that to find the corresponding comment.
         """
-        run_url_suffix = f"/actions/runs/{run_id}"
-        candidates = [c for c in pr_comments if run_url_suffix in c.body]
+        run_url_pattern = rf"/actions/runs/{run_id}(?!\d)"
+        candidates = [c for c in pr_comments if re.search(run_url_pattern, c.body)]
         if not candidates:
             return None
         if len(candidates) == 1:
