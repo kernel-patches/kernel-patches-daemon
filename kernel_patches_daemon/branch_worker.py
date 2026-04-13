@@ -1267,6 +1267,43 @@ class BranchWorker(GithubConnector):
         subj_branch = await subject.branch()
         return f"{subj_branch}{SERIES_TARGET_SEPARATOR}{self.repo_branch}"
 
+    def _find_ai_review_comment_url(
+        self, run_id: int, pr_comments: List
+    ) -> Optional[str]:
+        """Find the AI review comment URL for a given workflow run.
+
+        AI review comments contain a 'CI run summary' line embedding the run URL.
+        We match on that to find the corresponding comment.
+        """
+        run_url_suffix = f"/actions/runs/{run_id}"
+        candidates = [c for c in pr_comments if run_url_suffix in c.body]
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return candidates[0].html_url
+        return candidates[-1].html_url
+
+    def _resolve_check_target_url(
+        self,
+        job: WorkflowJob,
+        run_metadata: Dict[int, str],
+        pr_comments: List,
+    ) -> str:
+        """Determine the target URL for a patchwork check.
+
+        For most jobs this is job.html_url (the GitHub Actions job page).
+        For failed AI Code Review jobs, this is the PR comment URL.
+        """
+        workflow_name = run_metadata.get(job.run_id, "")
+        job_status = gh_conclusion_to_status(job.conclusion)
+
+        if workflow_name == "AI Code Review" and job_status == Status.FAILURE:
+            comment_url = self._find_ai_review_comment_url(job.run_id, pr_comments)
+            if comment_url:
+                return comment_url
+
+        return job.html_url
+
     async def sync_checks(self, pr: PullRequest, series: Series) -> None:
         # Make sure that we are working with up-to-date data (as opposed to
         # cached state).
@@ -1287,6 +1324,7 @@ class BranchWorker(GithubConnector):
 
         statuses: List[Status] = []
         jobs = []
+        run_metadata: Dict[int, str] = {}
 
         # Note that we are interested in listing *all* runs and not just, say,
         # completed ones. The reason being that the information that pending
@@ -1297,6 +1335,7 @@ class BranchWorker(GithubConnector):
             head_sha=pr.head.sha,
         ):
             status = gh_conclusion_to_status(run.conclusion)
+            run_metadata[run.id] = run.name
             run_jobs = run.jobs()
 
             # Overall run failure could have many reasons, including
@@ -1329,6 +1368,13 @@ class BranchWorker(GithubConnector):
         # of jobs by name and later use the index of the test in the array to
         # generate the context name.
         jobs = sorted(jobs, key=lambda job: job.name)
+
+        has_ai_review_failures = any(
+            run_metadata.get(job.run_id) == "AI Code Review"
+            and gh_conclusion_to_status(job.conclusion) == Status.FAILURE
+            for job in jobs
+        )
+        pr_comments = list(pr.get_issue_comments()) if has_ai_review_failures else []
         jobs_logs = [
             f"{job.conclusion} -> {gh_conclusion_to_status(job.conclusion)} ({job.html_url})"
             for job in jobs
@@ -1345,7 +1391,9 @@ class BranchWorker(GithubConnector):
         ] + [
             series.set_check(
                 status=gh_conclusion_to_status(job.conclusion),
-                target_url=job.html_url,
+                target_url=self._resolve_check_target_url(
+                    job, run_metadata, pr_comments
+                ),
                 context=slugify_check_context(f"{ctx_prefix}_{job.name}"),
                 description=f"Logs for {job.name}",
             )
