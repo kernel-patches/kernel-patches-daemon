@@ -1323,8 +1323,12 @@ class BranchWorker(GithubConnector):
         logger.info(f"Fetching workflow runs for {pr}: {pr.head.ref} (@ {pr.head.sha})")
 
         statuses: List[Status] = []
+        email_statuses: List[Status] = []
         jobs = []
         run_metadata: Dict[int, str] = {}
+        ignored_email_patterns = (
+            self.email_config.email_ignore_workflows if self.email_config else []
+        )
 
         # Note that we are interested in listing *all* runs and not just, say,
         # completed ones. The reason being that the information that pending
@@ -1361,9 +1365,12 @@ class BranchWorker(GithubConnector):
                             break
 
             statuses.append(status)
+            if not any(pat.search(run.name) for pat in ignored_email_patterns):
+                email_statuses.append(status)
             jobs += run_jobs
 
         status = process_statuses(statuses)
+        email_status = process_statuses(email_statuses)
         # In order to keep PW contexts somewhat deterministic, we sort the array
         # of jobs by name and later use the index of the test in the array to
         # generate the context name.
@@ -1401,7 +1408,7 @@ class BranchWorker(GithubConnector):
         ]
         await asyncio.gather(*tasks)
 
-        await self.evaluate_ci_result(status, series, pr, jobs)
+        await self.evaluate_ci_result(email_status, series, pr, jobs)
 
     async def evaluate_ci_result(
         self, status: Status, series: Series, pr: PullRequest, jobs: List[WorkflowJob]

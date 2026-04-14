@@ -149,6 +149,7 @@ class EmailConfig:
     # submitters, unconditionally.
     ignore_allowlist: bool
     pr_comments_forwarding: Optional[PRCommentsForwardingConfig]
+    email_ignore_workflows: List[re.Pattern]
 
     @classmethod
     def from_json(cls, json: Dict) -> "EmailConfig":
@@ -168,6 +169,10 @@ class EmailConfig:
             pr_comments_forwarding=PRCommentsForwardingConfig.from_json(
                 json.get("pr_comments_forwarding", {})
             ),
+            email_ignore_workflows=[
+                re.compile(pattern)
+                for pattern in json.get("email_ignore_workflows", [])
+            ],
         )
 
 

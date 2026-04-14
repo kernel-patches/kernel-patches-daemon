@@ -1307,6 +1307,7 @@ class TestEmailNotification(unittest.TestCase):
             ],
             ignore_allowlist=False,
             pr_comments_forwarding=None,
+            email_ignore_workflows=[],
         )
         expected_cmd = [
             "curl",
@@ -1369,6 +1370,7 @@ class TestEmailNotification(unittest.TestCase):
             ],
             ignore_allowlist=False,
             pr_comments_forwarding=None,
+            email_ignore_workflows=[],
         )
         expected_cmd = [
             "curl",
@@ -1429,6 +1431,7 @@ class TestEmailNotification(unittest.TestCase):
             ],
             ignore_allowlist=True,
             pr_comments_forwarding=None,
+            email_ignore_workflows=[],
         )
         expected_cmd = [
             "curl",
@@ -1946,3 +1949,182 @@ class TestResolveCheckTargetUrl(unittest.TestCase):
         run_metadata = {run_id: "AI Code Review"}
         result = self._bw._resolve_check_target_url(job, run_metadata, [])
         self.assertEqual(result, "https://github.com/org/repo/actions/runs/55555/job/1")
+
+
+class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
+    """Tests for email_ignore_workflows filtering in sync_checks()."""
+
+    def setUp(self) -> None:
+        patcher = patch("kernel_patches_daemon.github_connector.Github")
+        self._gh_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _make_email_config(self, ignore_workflows=None):
+        return EmailConfig(
+            smtp_host="smtp.example.com",
+            smtp_port=465,
+            smtp_user="user",
+            smtp_from="from@example.com",
+            smtp_pass="pass",
+            smtp_to=[],
+            smtp_cc=[],
+            smtp_http_proxy=None,
+            submitter_allowlist=[],
+            ignore_allowlist=False,
+            pr_comments_forwarding=None,
+            email_ignore_workflows=ignore_workflows or [],
+        )
+
+    def _make_run(self, run_id, name, conclusion):
+        run = MagicMock()
+        run.id = run_id
+        run.name = name
+        run.conclusion = conclusion
+        run.jobs.return_value = []
+        return run
+
+    def _make_pr(self):
+        pr = MagicMock()
+        pr.html_url = "https://github.com/org/repo/pull/1"
+        pr.head.sha = "abc123"
+        pr.head.ref = "series/123=>branch"
+        pr.labels = []
+        pr.get_labels.return_value = []
+        pr.get_issue_comments.return_value = []
+        return pr
+
+    def _make_series(self):
+        pw = get_default_pw_client()
+        return Series(pw, SERIES_DATA)
+
+    async def test_ignored_workflow_excluded_from_email_status(self):
+        """A failing ignored workflow should not affect the email status."""
+        bw = BranchWorkerMock(
+            email=self._make_email_config(ignore_workflows=["AI Code Review"]),
+        )
+
+        runs = [
+            self._make_run(1, "Build and Test", "success"),
+            self._make_run(2, "AI Code Review", "failure"),
+        ]
+        bw.repo.get_workflow_runs.return_value = runs
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(
+                bw, "submit_pr_summary", new_callable=AsyncMock
+            ) as mock_summary,
+        ):
+            await bw.sync_checks(pr, series)
+
+            mock_summary.assert_called_once()
+            summary_status = mock_summary.call_args.kwargs.get(
+                "status", mock_summary.call_args[1].get("status")
+            )
+            self.assertEqual(summary_status, Status.FAILURE)
+
+            mock_eval.assert_called_once()
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.SUCCESS)
+
+    async def test_no_ignored_workflows_all_count(self):
+        """With no ignored workflows, all statuses affect email status."""
+        bw = BranchWorkerMock(
+            email=self._make_email_config(ignore_workflows=[]),
+        )
+
+        runs = [
+            self._make_run(1, "Build and Test", "success"),
+            self._make_run(2, "AI Code Review", "failure"),
+        ]
+        bw.repo.get_workflow_runs.return_value = runs
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
+        ):
+            await bw.sync_checks(pr, series)
+
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.FAILURE)
+
+    async def test_all_runs_ignored_email_status_is_skipped(self):
+        """When all runs are ignored, email status should be SKIPPED."""
+        bw = BranchWorkerMock(
+            email=self._make_email_config(ignore_workflows=["AI Code Review"]),
+        )
+
+        runs = [
+            self._make_run(1, "AI Code Review", "failure"),
+        ]
+        bw.repo.get_workflow_runs.return_value = runs
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
+        ):
+            await bw.sync_checks(pr, series)
+
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.SKIPPED)
+
+    async def test_no_email_config_no_filtering(self):
+        """With no email config, ignored_email_workflows should be empty."""
+        bw = BranchWorkerMock(email=None)
+
+        runs = [
+            self._make_run(1, "Build and Test", "success"),
+            self._make_run(2, "AI Code Review", "failure"),
+        ]
+        bw.repo.get_workflow_runs.return_value = runs
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
+        ):
+            await bw.sync_checks(pr, series)
+
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.FAILURE)
+
+    async def test_ignored_success_also_excluded(self):
+        """Even successful ignored workflows should be excluded from email status."""
+        bw = BranchWorkerMock(
+            email=self._make_email_config(ignore_workflows=["Lint"]),
+        )
+
+        runs = [
+            self._make_run(1, "Lint", "success"),
+        ]
+        bw.repo.get_workflow_runs.return_value = runs
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(
+                bw, "submit_pr_summary", new_callable=AsyncMock
+            ) as mock_summary,
+        ):
+            await bw.sync_checks(pr, series)
+
+            summary_status = mock_summary.call_args.kwargs.get(
+                "status", mock_summary.call_args[1].get("status")
+            )
+            self.assertEqual(summary_status, Status.SUCCESS)
+
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.SKIPPED)
