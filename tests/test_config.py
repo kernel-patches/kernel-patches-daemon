@@ -180,6 +180,7 @@ class TestConfig(unittest.TestCase):
                     recipient_allowlist=[],
                     body_preprocessor_func=None,
                 ),
+                email_ignore_workflows=[],
             ),
             tag_to_branch_mapping={"tag": ["app_auth_key_path"]},
             branches={
@@ -220,3 +221,40 @@ class TestConfig(unittest.TestCase):
             base_directory="/repos",
         )
         self.assertEqual(config, expected_config)
+
+
+class TestEmailConfig(unittest.TestCase):
+    """Tests for EmailConfig parsing."""
+
+    def test_email_ignore_workflows_default(self):
+        """email_ignore_workflows defaults to empty list when not in config."""
+        cfg = EmailConfig.from_json(
+            {"host": "smtp.example.com", "user": "u", "from": "f@x.com", "pass": "p"}
+        )
+        self.assertEqual(cfg.email_ignore_workflows, [])
+
+    def test_email_ignore_workflows_parsed(self):
+        """email_ignore_workflows is correctly parsed from config."""
+        cfg = EmailConfig.from_json(
+            {
+                "host": "smtp.example.com",
+                "user": "u",
+                "from": "f@x.com",
+                "pass": "p",
+                "email_ignore_workflows": ["AI Code Review", "Lint"],
+            }
+        )
+        self.assertEqual(cfg.email_ignore_workflows, ["AI Code Review", "Lint"])
+
+    def test_email_ignore_workflows_empty_list(self):
+        """email_ignore_workflows accepts an explicit empty list."""
+        cfg = EmailConfig.from_json(
+            {
+                "host": "smtp.example.com",
+                "user": "u",
+                "from": "f@x.com",
+                "pass": "p",
+                "email_ignore_workflows": [],
+            }
+        )
+        self.assertEqual(cfg.email_ignore_workflows, [])
