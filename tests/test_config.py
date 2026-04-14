@@ -234,7 +234,7 @@ class TestEmailConfig(unittest.TestCase):
         self.assertEqual(cfg.email_ignore_workflows, [])
 
     def test_email_ignore_workflows_parsed(self):
-        """email_ignore_workflows is correctly parsed from config."""
+        """email_ignore_workflows is correctly parsed as compiled regex patterns."""
         cfg = EmailConfig.from_json(
             {
                 "host": "smtp.example.com",
@@ -244,7 +244,26 @@ class TestEmailConfig(unittest.TestCase):
                 "email_ignore_workflows": ["AI Code Review", "Lint"],
             }
         )
-        self.assertEqual(cfg.email_ignore_workflows, ["AI Code Review", "Lint"])
+        self.assertEqual(len(cfg.email_ignore_workflows), 2)
+        for pat in cfg.email_ignore_workflows:
+            self.assertIsInstance(pat, re.Pattern)
+        self.assertIsNotNone(cfg.email_ignore_workflows[0].search("AI Code Review"))
+        self.assertIsNotNone(cfg.email_ignore_workflows[1].search("Lint"))
+
+    def test_email_ignore_workflows_regex(self):
+        """email_ignore_workflows supports regex patterns."""
+        cfg = EmailConfig.from_json(
+            {
+                "host": "smtp.example.com",
+                "user": "u",
+                "from": "f@x.com",
+                "pass": "p",
+                "email_ignore_workflows": ["AI.*Review"],
+            }
+        )
+        self.assertEqual(len(cfg.email_ignore_workflows), 1)
+        self.assertIsNotNone(cfg.email_ignore_workflows[0].search("AI Code Review"))
+        self.assertIsNone(cfg.email_ignore_workflows[0].search("Build and Test"))
 
     def test_email_ignore_workflows_empty_list(self):
         """email_ignore_workflows accepts an explicit empty list."""

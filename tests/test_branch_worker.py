@@ -1972,7 +1972,7 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
             submitter_allowlist=[],
             ignore_allowlist=False,
             pr_comments_forwarding=None,
-            email_ignore_workflows=ignore_workflows or [],
+            email_ignore_workflows=[re.compile(p) for p in (ignore_workflows or [])],
         )
 
     def _make_run(self, run_id, name, conclusion):
@@ -2007,12 +2007,12 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
             self._make_run(1, "Build and Test", "success"),
             self._make_run(2, "AI Code Review", "failure"),
         ]
-        bw.repo.get_workflow_runs.return_value = runs
 
         pr = self._make_pr()
         series = self._make_series()
 
         with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=runs),
             patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
             patch.object(
                 bw, "submit_pr_summary", new_callable=AsyncMock
@@ -2040,12 +2040,12 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
             self._make_run(1, "Build and Test", "success"),
             self._make_run(2, "AI Code Review", "failure"),
         ]
-        bw.repo.get_workflow_runs.return_value = runs
 
         pr = self._make_pr()
         series = self._make_series()
 
         with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=runs),
             patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
             patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
         ):
@@ -2063,12 +2063,12 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
         runs = [
             self._make_run(1, "AI Code Review", "failure"),
         ]
-        bw.repo.get_workflow_runs.return_value = runs
 
         pr = self._make_pr()
         series = self._make_series()
 
         with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=runs),
             patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
             patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
         ):
@@ -2085,12 +2085,12 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
             self._make_run(1, "Build and Test", "success"),
             self._make_run(2, "AI Code Review", "failure"),
         ]
-        bw.repo.get_workflow_runs.return_value = runs
 
         pr = self._make_pr()
         series = self._make_series()
 
         with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=runs),
             patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
             patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
         ):
@@ -2108,12 +2108,12 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
         runs = [
             self._make_run(1, "Lint", "success"),
         ]
-        bw.repo.get_workflow_runs.return_value = runs
 
         pr = self._make_pr()
         series = self._make_series()
 
         with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=runs),
             patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
             patch.object(
                 bw, "submit_pr_summary", new_callable=AsyncMock
@@ -2128,3 +2128,27 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
 
             eval_status = mock_eval.call_args[0][0]
             self.assertEqual(eval_status, Status.SKIPPED)
+
+    async def test_regex_pattern_matches_workflow(self):
+        """A regex pattern should match workflow names via search()."""
+        bw = BranchWorkerMock(
+            email=self._make_email_config(ignore_workflows=["AI.*"]),
+        )
+
+        runs = [
+            self._make_run(1, "Build and Test", "success"),
+            self._make_run(2, "AI Code Review", "failure"),
+        ]
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=runs),
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
+        ):
+            await bw.sync_checks(pr, series)
+
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.SUCCESS)
