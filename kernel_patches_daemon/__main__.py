@@ -89,6 +89,12 @@ def parse_args() -> argparse.Namespace:
         help="Specify external scripts which stdin will be fed with metrics",
     )
     parser.add_argument(
+        "--no-metrics",
+        action="store_true",
+        default=False,
+        help="Disable metrics logging",
+    )
+    parser.add_argument(
         "--action",
         default="start",
         choices=["start", "purge"],
@@ -108,14 +114,17 @@ if __name__ == "__main__":
     args: argparse.Namespace = parse_args()
     cfg_file = os.path.expanduser(args.config)
     labels_file = os.path.expanduser(args.label_colors)
-    metrics_logger_script = os.path.expanduser(args.metric_logger)
-    script_metrics_logger = ScriptMetricsExporter(metrics_logger_script)
+    metrics_logger = None
 
-    meter_provider = MeterProvider(
-        resource=Resource(attributes={"service_name": "kernel_patches_daemon"}),
-        metric_readers=[PeriodicExportingMetricReader(ConsoleMetricExporter())],
-    )
-    metrics.set_meter_provider(meter_provider)
+    if not args.no_metrics:
+        metrics_logger_script = os.path.expanduser(args.metric_logger)
+        metrics_logger = ScriptMetricsExporter(metrics_logger_script).export
+
+        meter_provider = MeterProvider(
+            resource=Resource(attributes={"service_name": "kernel_patches_daemon"}),
+            metric_readers=[PeriodicExportingMetricReader(ConsoleMetricExporter())],
+        )
+        metrics.set_meter_provider(meter_provider)
 
     kpd_config = KPDConfig.from_file(cfg_file)
 
@@ -133,6 +142,6 @@ if __name__ == "__main__":
     daemon = KernelPatchesDaemon(
         kpd_config=kpd_config,
         labels_cfg=labels_cfg,
-        metrics_logger=script_metrics_logger.export,
+        metrics_logger=metrics_logger,
     )
     daemon.start()
