@@ -25,7 +25,7 @@ aiohttp = ">=3.8,<3.14"
 aiohttp-retry = "^2.8"
 aioresponses = "^0.7"
 multidict = "^6.0"
-python = "^3.10"
+python = "^3.11"
 cachetools = "^5.3.0"
 gitpython = "^3.1"
 opentelemetry-api = "^1.18.0"
@@ -62,7 +62,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-target-version = ["py310", "py311", "py312"]
+target-version = ["py311", "py312"]
 
 [tool.pyrefly]
 project-includes = ["**/*"]
