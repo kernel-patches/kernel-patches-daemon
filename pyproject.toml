@@ -62,7 +62,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-target-version = ["py311", "py312"]
+target-version = ["py311", "py312", "py313"]
 
 [tool.pyrefly]
 project-includes = ["**/*"]
