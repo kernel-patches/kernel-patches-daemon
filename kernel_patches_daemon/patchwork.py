@@ -620,6 +620,12 @@ class Patchwork:
             # Here all a sudden, path is changed from a "relative path" to the full URL. Luckily, urljoin, which we use
             # in `__get` deal with this and compute the right URL.
             path = str(response.links["next"]["url"])
+            # The `next` URL already carries all the query parameters, so pass an
+            # empty mapping instead of the original filters: aiohttp appends
+            # (rather than replaces) params, so re-passing them would duplicate
+            # every filter on each page and grow the URL until the server rejects
+            # the request.
+            params = {}
         return items
 
     async def __post(self, path: AnyStr, data: Dict) -> aiohttp.ClientResponse:
