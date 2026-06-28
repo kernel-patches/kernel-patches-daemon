@@ -181,6 +181,49 @@ class TestPatchwork(PatchworkTestCase):
                     )
 
     @aioresponses()
+    async def test_get_objects_recursive_no_param_duplication(
+        self, m: aioresponses
+    ) -> None:
+        """Regression test: query params must not be duplicated across pages.
+
+        The `next` link returned by Patchwork already contains all the query
+        parameters. They must not be re-appended on the follow-up request, or
+        every filter would be duplicated on each page, growing the URL until
+        the server rejects it.
+        """
+        base = "https://127.0.0.1/api/1.1/projects/"
+        # Page 1: filtered request; its `next` link already carries the filters.
+        m.get(
+            base + "?k1=v1&k2=v2",
+            status=200,
+            headers={"Link": f'<{base}?k1=v1&k2=v2&page=2>; rel="next"'},
+            body=b'["a"]',
+        )
+        # Page 2: must be requested verbatim, with each filter present once.
+        m.get(
+            base + "?k1=v1&k2=v2&page=2",
+            status=200,
+            headers={},
+            body=b'["b"]',
+        )
+
+        # pyrefly: ignore  # missing-attribute
+        resp = await self._pw._Patchwork__get_objects_recursive(
+            "projects", params={"k1": "v1", "k2": "v2"}
+        )
+
+        self.assertEqual(resp, ["a", "b"])
+        # No request may carry a duplicated query parameter.
+        # pyrefly: ignore  # not-iterable
+        for method, req_url in m.requests:
+            for param in ("k1", "k2"):
+                self.assertLessEqual(
+                    len(req_url.query.getall(param, [])),
+                    1,
+                    f"param {param!r} duplicated in {req_url}",
+                )
+
+    @aioresponses()
     async def test_try_post_nocred_nomutation(self, m: aioresponses) -> None:
         """
         When pw_token is not set or is an empty string, we will not call post.
