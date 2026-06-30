@@ -106,3 +106,35 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         stats = LOGGED_METRICS[0][self.worker.project]
         self.assertEqual(stats["runs_failed"], 1)
         self.assertEqual(stats["unhandled_ValueError"], 1)
+
+    def _build_worker(self, metrics_logger) -> KernelPatchesWorker:
+        kpd_config = KPDConfig.from_json(TEST_CONFIG)
+        return KernelPatchesWorker(kpd_config, {}, metrics_logger=metrics_logger)
+
+    def test_disabled_metrics_logged_once_at_startup(self) -> None:
+        """When no metrics logger is configured, log about it once at startup."""
+        with patch("kernel_patches_daemon.daemon.logger") as logger_mock:
+            self._build_worker(None)
+
+        disabled_logs = [
+            call
+            for call in logger_mock.info.call_args_list
+            if "Metrics logging is disabled" in call.args[0]
+        ]
+        self.assertEqual(len(disabled_logs), 1)
+
+    async def test_submit_metrics_silent_without_logger(self) -> None:
+        """submit_metrics() must not warn on every call when metrics are off.
+
+        It is invoked on each iteration of the main loop, so a warning there
+        would spam the logs when running with --no-metrics.
+        """
+        worker = self._build_worker(None)
+
+        with patch("kernel_patches_daemon.daemon.logger") as logger_mock:
+            await worker.submit_metrics()
+            await worker.submit_metrics()
+
+        logger_mock.warning.assert_not_called()
+        logger_mock.warn.assert_not_called()
+        logger_mock.info.assert_not_called()
