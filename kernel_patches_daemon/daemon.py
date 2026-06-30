@@ -34,6 +34,10 @@ class KernelPatchesWorker:
         self.labels_cfg = labels_cfg
         self.loop_delay: Final[int] = loop_delay
         self.metrics_logger = metrics_logger
+        if self.metrics_logger is None:
+            logger.info(
+                "Metrics logging is disabled; run metrics will not be submitted"
+            )
         self.github_sync_worker: GithubSync = GithubSync(
             kpd_config=self.kpd_config, labels_cfg=self.labels_cfg
         )
@@ -53,10 +57,7 @@ class KernelPatchesWorker:
 
     async def submit_metrics(self) -> None:
         if self.metrics_logger is None:
-            # pyrefly: ignore  # deprecated
-            logger.warn(
-                "Not submitting run metrics because metrics logger is not configured"
-            )
+            # Metrics are intentionally disabled (see __init__); nothing to do.
             return
         try:
             self.metrics_logger(self.project, self.github_sync_worker.stats)
