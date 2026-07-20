@@ -25,8 +25,10 @@ import git
 from aioresponses import aioresponses
 from freezegun import freeze_time
 from git.exc import GitCommandError
+from github import GithubException
 from kernel_patches_daemon.branch_worker import (
     _is_branch_changed,
+    _is_outdated_pr,
     _series_already_applied,
     ALREADY_MERGED_LOOKBACK,
     BRANCH_TTL,
@@ -947,6 +949,78 @@ class TestSupportFunctions(unittest.TestCase):
             pr1 = create_mock_pr("Fix memory leak", "invalid-ref-format")
             pr2 = create_mock_pr("Different title", "also-invalid")
             self.assertFalse(prs_for_the_same_series(pr1, pr2))
+
+    def test_is_outdated_pr(self) -> None:
+        def create_mock_pr(
+            last_modified: str, head_sha: Optional[str] = "abc123"
+        ) -> MagicMock:
+            pr = MagicMock()
+            pr.head.sha = head_sha
+            commit = MagicMock()
+            commit.stats.last_modified = last_modified
+            pr.base.repo.get_commit.return_value = commit
+            return pr
+
+        # Freeze "now" so the ages below are deterministic (TTL is 7 days).
+        with freeze_time("2024-01-30 00:00:00"):
+            with self.subTest("recent_head_commit_not_outdated"):
+                # HEAD commit modified 1 day ago -> not outdated. Crucially, we
+                # fetch the HEAD commit by SHA and never paginate get_commits(),
+                # whose 250-commit cap made us wrongly age PRs with >250 commits.
+                pr = create_mock_pr("Mon, 29 Jan 2024 00:00:00 GMT")
+                self.assertFalse(_is_outdated_pr(pr))
+                pr.base.repo.get_commit.assert_called_once_with("abc123")
+                pr.get_commits.assert_not_called()
+
+            with self.subTest("old_head_commit_outdated"):
+                # HEAD commit modified 10 days ago -> outdated (older than TTL).
+                pr = create_mock_pr("Sat, 20 Jan 2024 00:00:00 GMT")
+                self.assertTrue(_is_outdated_pr(pr))
+                pr.get_commits.assert_not_called()
+
+            with self.subTest("head_commit_age_exactly_ttl_not_outdated"):
+                # Exactly PULL_REQUEST_TTL (7 days) old. The comparison is strict
+                # (`age > TTL`), so the boundary is NOT outdated; this pins the
+                # operator against an accidental flip to `>=`.
+                pr = create_mock_pr("Tue, 23 Jan 2024 00:00:00 GMT")
+                self.assertFalse(_is_outdated_pr(pr))
+
+            with self.subTest("stale_250th_commit_ignored_uses_head"):
+                # Directly reproduce the bug: for a PR with >250 commits,
+                # get_commits() is capped at 250 (oldest-first), so its "last"
+                # entry is a stale old commit while the true HEAD is fresh. The
+                # fix must judge the PR by HEAD, not by that stale entry. Against
+                # the old implementation this asserts False->True and fails
+                # cleanly, so it is a genuine regression guard.
+                pr = create_mock_pr("Mon, 29 Jan 2024 00:00:00 GMT")
+                stale_commit = MagicMock()
+                stale_commit.stats.last_modified = "Wed, 03 Jan 2024 00:00:00 GMT"
+                capped = MagicMock()
+                capped.totalCount = 250
+                capped.__getitem__.return_value = stale_commit
+                pr.get_commits.return_value = capped
+                self.assertFalse(_is_outdated_pr(pr))
+
+            with self.subTest("unresolvable_head_commit_not_outdated"):
+                # If the HEAD commit cannot be fetched (deleted branch, gc'd
+                # commit, or a force-push racing the open-PR snapshot), keep the
+                # PR rather than close one we cannot assess.
+                pr = create_mock_pr("Mon, 29 Jan 2024 00:00:00 GMT")
+                pr.base.repo.get_commit.side_effect = GithubException(404, None, None)
+                self.assertFalse(_is_outdated_pr(pr))
+
+            with self.subTest("missing_head_sha_not_outdated"):
+                # Defensive: a PR whose HEAD SHA is absent is not assessed.
+                pr = create_mock_pr("Sat, 20 Jan 2024 00:00:00 GMT", head_sha=None)
+                self.assertFalse(_is_outdated_pr(pr))
+                pr.base.repo.get_commit.assert_not_called()
+
+            with self.subTest("missing_head_not_outdated"):
+                # Defensive: a PR with no head part at all is not assessed.
+                pr = create_mock_pr("Sat, 20 Jan 2024 00:00:00 GMT")
+                pr.head = None
+                self.assertFalse(_is_outdated_pr(pr))
+                pr.base.repo.get_commit.assert_not_called()
 
 
 class TestGitSeriesAlreadyApplied(unittest.IsolatedAsyncioTestCase):

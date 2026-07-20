@@ -635,15 +635,31 @@ def _is_outdated_pr(pr: PullRequest) -> bool:
     """
     Check if a pull request is outdated, i.e., whether it has not seen an update recently.
     """
-    commits = pr.get_commits()
-    if commits.totalCount == 0:
+    # Defensive guard: without a resolvable HEAD SHA there is no commit to
+    # inspect, so treat the PR as not outdated.
+    if not pr.head or not pr.head.sha:
         return False
 
-    # We only look at the most recent commit, which should be the last one. If
-    # a user modified an earlier one, the magic of Git ensures that any commits
-    # that have it as a parent will also be changed.
-    commit = commits[commits.totalCount - 1]
-    last_modified = dateutil.parser.parse(commit.stats.last_modified)
+    # We only look at the most recent commit, i.e., the branch's HEAD. If a user
+    # modified an earlier one, the magic of Git ensures that any commits that
+    # have it as a parent will also be changed.
+    #
+    # We fetch the HEAD commit directly by SHA rather than paginating through
+    # pr.get_commits(): GitHub's "List PR commits" endpoint caps its result at
+    # 250 commits (returned oldest-first), so for PRs with more than 250 commits
+    # the last entry it hands back is the 250th *oldest* commit -- not the most
+    # recent one. Relying on it made us age active PRs past the TTL and close
+    # them as stale. Fetching by SHA has no such cap.
+    try:
+        head_commit = pr.base.repo.get_commit(pr.head.sha)
+    except GithubException as e:
+        # The HEAD commit may be transiently unresolvable -- e.g. the branch was
+        # deleted and the commit garbage collected, or a force-push raced with
+        # the open-PR snapshot we are iterating. Err on the side of keeping the
+        # PR: better to leave it open than to close a PR we cannot assess.
+        logger.warning(f"Could not fetch HEAD commit for {pr}: {e}")
+        return False
+    last_modified = dateutil.parser.parse(head_commit.stats.last_modified)
     # pyrefly: ignore  # unsupported-operation
     age = datetime.now(timezone.utc) - last_modified
     logger.info(f"Pull request {pr} has age {age}")
