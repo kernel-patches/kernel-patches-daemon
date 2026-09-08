@@ -146,6 +146,21 @@ class PRCommentsForwardingConfig:
         )
 
 
+def _reject_unknown_keys(json: Dict, known: Set[str], section: str) -> None:
+    """Refuse to run with entries we do not understand.
+
+    Silently ignoring them makes a typo, a misplaced entry or a config that is
+    newer than the daemon look like it took effect while the default behavior
+    is what is actually in force.
+    """
+    unknown = sorted(set(json) - known)
+    if unknown:
+        raise InvalidConfig(
+            f"Unknown `{section}` config entries: {unknown}; expected one of "
+            f"{sorted(known)}"
+        )
+
+
 def _parse_notify_on(json: Dict) -> Set[Status]:
     """Parse the `notify_on` email config entry into a set of statuses.
 
@@ -174,6 +189,26 @@ def _parse_notify_on(json: Dict) -> Set[Status]:
             raise InvalidConfig(f"`notify_on` status {name!r} cannot trigger an email")
         result.add(status)
     return result
+
+
+# Entries recognized in the `email` config section.
+EMAIL_CONFIG_KEYS: Set[str] = {
+    "host",
+    "port",
+    "user",
+    "from",
+    "pass",
+    "to",
+    "cc",
+    "http_proxy",
+    "submitter_allowlist",
+    "ignore_allowlist",
+    "pr_comments_forwarding",
+    "email_ignore_workflows",
+    "contact_name",
+    "contact_email",
+    "notify_on",
+}
 
 
 @dataclass
@@ -205,6 +240,7 @@ class EmailConfig:
 
     @classmethod
     def from_json(cls, json: Dict) -> "EmailConfig":
+        _reject_unknown_keys(json, EMAIL_CONFIG_KEYS, "email")
         return cls(
             smtp_host=json["host"],
             smtp_port=json.get("port", 465),
