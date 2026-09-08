@@ -10,7 +10,7 @@ import io
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Final, List, Optional, Sequence
+from typing import Final, List, Optional, Sequence, Tuple
 
 import aiohttp
 from github.WorkflowJob import WorkflowJob
@@ -19,13 +19,92 @@ from kernel_patches_daemon.status import gh_conclusion_to_status, Status
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+# Prefix that the GitHub Actions runner puts in front of every log line.
+LOG_TIMESTAMP: Final[re.Pattern] = re.compile(r"^\S+Z ")
+# The runner brackets the output of every `run:` step with these markers and
+# reports a failing step with `##[error]`. None of this is workflow specific.
+STEP_START: Final[re.Pattern] = re.compile(r"^##\[group\]Run (?P<command>.*)$")
+STEP_PREAMBLE_END: Final[str] = "##[endgroup]"
+STEP_ERROR: Final[re.Pattern] = re.compile(r"^##\[error\]")
+# The error the runner appends to every failing step. It carries no
+# information that the step output does not already convey.
+STEP_EXIT_ERROR: Final[re.Pattern] = re.compile(
+    r"^##\[error\]Process completed with exit code \d+\.?$"
+)
+
+
+def strip_log_timestamps(log: str) -> List[str]:
+    """Split a raw job log into lines, dropping the runner timestamps."""
+    return [LOG_TIMESTAMP.sub("", line.rstrip()) for line in log.splitlines()]
+
+
+def _failed_step_bounds(lines: Sequence[str]) -> List[Tuple[int, int]]:
+    """Locate the failing steps as (start, end) indices into `lines`."""
+    starts = [i for i, line in enumerate(lines) if STEP_START.match(line)]
+
+    bounds: List[Tuple[int, int]] = []
+    for end, line in enumerate(lines):
+        if not STEP_ERROR.match(line):
+            continue
+        # `##[error]` may also be emitted in the middle of a step, so attribute
+        # it to the step it appeared in and report every step just once.
+        preceding = [start for start in starts if start < end]
+        if not preceding:
+            continue
+        start = preceding[-1]
+        if not bounds or bounds[-1][0] != start:
+            bounds.append((start, end))
+
+    return bounds
+
+
+def extract_failed_steps(log: str) -> str:
+    """Extract the output of the steps that failed from a raw job log.
+
+    A failing step spans from the `##[group]Run ...` line that introduces it to
+    the `##[error]` line that concludes it. Everything else is checkout and
+    runner setup noise, which is by far the bulk of a job log.
+    """
+    lines = strip_log_timestamps(log)
+
+    steps = []
+    for start, end in _failed_step_bounds(lines):
+        # pyrefly: ignore  # missing-attribute
+        command = STEP_START.match(lines[start]).group("command")
+        # Skip the preamble in which the runner echoes the command it is about
+        # to run along with the environment it uses.
+        body_start = start + 1
+        for i in range(start, end):
+            if lines[i] == STEP_PREAMBLE_END:
+                body_start = i + 1
+                break
+
+        body = [
+            STEP_ERROR.sub("", line)
+            for line in lines[body_start : end + 1]
+            if not STEP_EXIT_ERROR.match(line)
+        ]
+        steps.append(f"Step '{command}' failed:\n" + "\n".join(body).strip())
+
+    return "\n\n".join(steps).strip()
+
+
 class GithubFailedJobLog:
-    def __init__(self, suite: str, arch: str, compiler: str, log: str, url: str):
+    def __init__(
+        self,
+        log: str,
+        url: str,
+        name: Optional[str] = None,
+        suite: str = "",
+        arch: str = "",
+        compiler: str = "",
+    ):
         self._suite: str = suite
         self._arch: str = arch
         self._compiler: str = compiler
         self._log: str = log
         self._url: str = url
+        self._name: Optional[str] = name
 
     @property
     def suite(self) -> str:
@@ -49,11 +128,33 @@ class GithubFailedJobLog:
 
     @property
     def name(self) -> str:
+        if self._name is not None:
+            return self._name
         return f"{self._suite}-{self._arch}-{self._compiler}"
 
 
 class GithubLogExtractor(ABC):
+    async def _download_job_log(
+        self, session: aiohttp.ClientSession, job: WorkflowJob
+    ) -> str:
+        url = job.logs_url()
+        async with session.get(url) as resp:
+            logger.info(f"Getting logs for {job.name} at {url}")
+            if resp.ok:
+                return await resp.text()
+
+            logger.warning(f"Failed to GET logs for {job.name}: HTTP {resp.status}")
+            return ""
+
     @abstractmethod
+    async def _extract_job_log(
+        self, session: aiohttp.ClientSession, job: WorkflowJob
+    ) -> Optional[GithubFailedJobLog]:
+        """
+        Extract the log of `job` if it failed, or return None otherwise.
+        """
+        raise NotImplementedError
+
     async def extract_failed_logs(
         self, jobs: Sequence[WorkflowJob]
     ) -> List[GithubFailedJobLog]:
@@ -63,7 +164,13 @@ class GithubLogExtractor(ABC):
         will be minimally filtered. For maximal filtering, see
         generate_inline_email_text().
         """
-        raise NotImplementedError
+        # Read the proxy from the environment.
+        async with aiohttp.ClientSession(trust_env=True) as session:
+            tasks = [
+                asyncio.create_task(self._extract_job_log(session, job)) for job in jobs
+            ]
+            results = await asyncio.gather(*tasks)
+        return [result for result in results if result is not None]
 
     @abstractmethod
     def generate_inline_email_text(self, logs: Sequence[GithubFailedJobLog]) -> str:
@@ -76,15 +183,40 @@ class GithubLogExtractor(ABC):
 
 
 class DefaultGithubLogExtractor(GithubLogExtractor):
-    async def extract_failed_logs(
-        self, jobs: Sequence[WorkflowJob]
-    ) -> List[GithubFailedJobLog]:
-        """Metadata parsing is tree-specific. So by default it's safer to do nothing."""
-        return []
+    """Extractor relying solely on the structure of GitHub Actions job logs.
+
+    The runner brackets each step and flags the failing ones, so the output of
+    a failed step can be recovered without knowing anything about the workflow
+    that produced it.
+    """
+
+    async def _extract_job_log(
+        self, session: aiohttp.ClientSession, job: WorkflowJob
+    ) -> Optional[GithubFailedJobLog]:
+        if gh_conclusion_to_status(job.conclusion) != Status.FAILURE:
+            return None
+
+        log = await self._download_job_log(session, job)
+        return GithubFailedJobLog(
+            name=job.name,
+            log=extract_failed_steps(log),
+            url=job.html_url,
+        )
 
     def generate_inline_email_text(self, logs: Sequence[GithubFailedJobLog]) -> str:
-        """Log parsing is also tree-specific."""
-        return ""
+        if not logs:
+            return ""
+
+        text = "Failed jobs:\n"
+        for log in logs:
+            text += f"{log.name}: {log.url}\n"
+
+        for log in logs:
+            if not log.log:
+                continue
+            text += f"\nFailure log for {log.name}:\n{log.log}\n"
+
+        return text
 
 
 class BpfGithubLogExtractor(GithubLogExtractor):
@@ -114,15 +246,8 @@ class BpfGithubLogExtractor(GithubLogExtractor):
         suite = parts[0]
         arch = parts[2]
         compiler = parts[4]
-        log = ""
 
-        url = job.logs_url()
-        async with session.get(url) as resp:
-            logger.info(f"Getting logs for {job.name} at {url}")
-            if resp.ok:
-                log = await resp.text()
-            else:
-                logger.warning(f"Failed to GET logs for {job.name}: HTTP {resp.status}")
+        log = await self._download_job_log(session, job)
 
         return GithubFailedJobLog(
             suite=suite,
@@ -131,17 +256,6 @@ class BpfGithubLogExtractor(GithubLogExtractor):
             log=log,
             url=job.html_url,
         )
-
-    async def extract_failed_logs(
-        self, jobs: Sequence[WorkflowJob]
-    ) -> List[GithubFailedJobLog]:
-        # Read the proxy from the environment.
-        async with aiohttp.ClientSession(trust_env=True) as session:
-            tasks = [
-                asyncio.create_task(self._extract_job_log(session, job)) for job in jobs
-            ]
-            results = await asyncio.gather(*tasks)
-        return [result for result in results if result is not None]
 
     def _parse_out_test_progs_failure(self, log: str) -> str:
         # Avoid keeping a duplicate copy of a possibly large file in-memory
