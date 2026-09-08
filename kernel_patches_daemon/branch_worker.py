@@ -1384,6 +1384,7 @@ class BranchWorker(GithubConnector):
         statuses: List[Status] = []
         email_statuses: List[Status] = []
         jobs = []
+        email_jobs: List[WorkflowJob] = []
         run_metadata: Dict[int, str] = {}
         ignored_email_patterns = (
             self.email_config.email_ignore_workflows if self.email_config else []
@@ -1426,6 +1427,7 @@ class BranchWorker(GithubConnector):
             statuses.append(status)
             if not any(pat.search(run.name) for pat in ignored_email_patterns):
                 email_statuses.append(status)
+                email_jobs += run_jobs
             jobs += run_jobs
 
         status = process_statuses(statuses)
@@ -1434,6 +1436,7 @@ class BranchWorker(GithubConnector):
         # of jobs by name and later use the index of the test in the array to
         # generate the context name.
         jobs = sorted(jobs, key=lambda job: job.name)
+        email_jobs = sorted(email_jobs, key=lambda job: job.name)
 
         has_ai_review_failures = any(
             run_metadata.get(job.run_id) == "AI Code Review"
@@ -1467,7 +1470,7 @@ class BranchWorker(GithubConnector):
         ]
         await gather_or_cancel(*tasks)
 
-        await self.evaluate_ci_result(email_status, series, pr, jobs)
+        await self.evaluate_ci_result(email_status, series, pr, email_jobs)
 
     async def evaluate_ci_result(
         self, status: Status, series: Series, pr: PullRequest, jobs: List[WorkflowJob]

@@ -2407,3 +2407,37 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
 
             eval_status = mock_eval.call_args[0][0]
             self.assertEqual(eval_status, Status.SUCCESS)
+
+    async def test_ignored_workflow_jobs_excluded_from_email(self):
+        """Jobs of an ignored workflow must not end up in the email either."""
+        bw = BranchWorkerMock(
+            email=self._make_email_config(ignore_workflows=["AI Code Review"]),
+        )
+
+        def job(name):
+            # NB: `name` is a MagicMock constructor argument, so it has to be
+            # assigned separately to become an attribute.
+            job = MagicMock(conclusion="failure")
+            job.name = name
+            return job
+
+        runs = [
+            self._make_run(1, "Build and Test", "failure"),
+            self._make_run(2, "AI Code Review", "failure"),
+        ]
+        runs[0].jobs.return_value = [job("build")]
+        runs[1].jobs.return_value = [job("review")]
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=runs),
+            patch.object(series, "set_check", new_callable=AsyncMock),
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
+        ):
+            await bw.sync_checks(pr, series)
+
+            email_jobs = mock_eval.call_args[0][3]
+            self.assertEqual([j.name for j in email_jobs], ["build"])
