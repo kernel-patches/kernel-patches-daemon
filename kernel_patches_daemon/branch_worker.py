@@ -734,6 +734,9 @@ class BranchWorker(GithubConnector):
         self.prs: Dict[str, PullRequest] = {}
         self.all_prs = {}
         self._closed_prs = None
+        # Last known job name -> Status on the "_test" (patch-free) branch;
+        # used to detect base-branch-only failures in sync_checks().
+        self.base_ci_status: Dict[str, Status] = {}
 
     def _create_new_pull_request(
         self, title: str, message: str, head: str, base: str
@@ -810,6 +813,35 @@ class BranchWorker(GithubConnector):
             pushed = True
 
         self._update_e2e_pr(title, base_branch, branch_name, pushed)
+
+    def refresh_base_ci_status(self) -> None:
+        """
+        Cache per-job CI status of the "_test" branch (upstream + CI files,
+        no series applied), used to recognize base-branch-only failures.
+        """
+        test_branch = f"{self.repo_branch}_test"
+        try:
+            head_sha = self.repo.get_branch(test_branch).commit.sha
+        except GithubException:
+            logger.info(
+                f"Could not find branch {test_branch}; skipping base CI status refresh"
+            )
+            self.base_ci_status = {}
+            return
+
+        base_ci_status: Dict[str, Status] = {}
+        for run in self.repo.get_workflow_runs(
+            # pyrefly: ignore  # bad-argument-type
+            actor=self.user_login,
+            head_sha=head_sha,
+        ):
+            for job in run.jobs():
+                base_ci_status[job.name] = gh_conclusion_to_status(job.conclusion)
+
+        logger.info(
+            f"Refreshed base CI status for {self.repo_branch}: {base_ci_status}"
+        )
+        self.base_ci_status = base_ci_status
 
     def can_do_sync(self) -> bool:
         github_ratelimit = self.git.get_rate_limit()
@@ -1424,6 +1456,27 @@ class BranchWorker(GithubConnector):
                             status = Status.PENDING
                             break
 
+                # If failures match known base-branch failures, don't report
+                # this run as a series failure; base is broken, not the patch.
+                if status == Status.FAILURE:
+                    failing_job_names = {
+                        job.name
+                        for job in run_jobs
+                        if gh_conclusion_to_status(job.conclusion) == Status.FAILURE
+                    }
+                    broken_base_jobs = {
+                        name
+                        for name, base_status in self.base_ci_status.items()
+                        if base_status == Status.FAILURE
+                    }
+                    if failing_job_names and failing_job_names <= broken_base_jobs:
+                        logger.info(
+                            f"{pr}: all failing jobs of {run} match known "
+                            "base-branch failures; suppressing series failure "
+                            "and email notification, reporting as pending"
+                        )
+                        status = Status.PENDING
+
             statuses.append(status)
             if not any(pat.search(run.name) for pat in ignored_email_patterns):
                 email_statuses.append(status)
@@ -1464,7 +1517,12 @@ class BranchWorker(GithubConnector):
                     job, run_metadata, pr_comments
                 ),
                 context=slugify_check_context(f"{ctx_prefix}_{job.name}"),
-                description=f"Logs for {job.name}",
+                description=(
+                    f"Logs for {job.name} (base branch is currently broken)"
+                    if gh_conclusion_to_status(job.conclusion) == Status.FAILURE
+                    and self.base_ci_status.get(job.name) == Status.FAILURE
+                    else f"Logs for {job.name}"
+                ),
             )
             for job in jobs
         ]

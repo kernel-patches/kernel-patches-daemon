@@ -325,6 +325,8 @@ class GithubSync(Stats):
                 await loop.run_in_executor(
                     None, worker.update_e2e_test_branch_and_update_pr, branch
                 )
+                # pyrefly: ignore  # bad-argument-type
+                await loop.run_in_executor(None, worker.refresh_base_ci_status)
 
             # fetch recent subjects
             self.subjects = await self.pw.get_relevant_subjects()
