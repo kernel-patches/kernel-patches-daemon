@@ -2441,3 +2441,163 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
 
             email_jobs = mock_eval.call_args[0][3]
             self.assertEqual([j.name for j in email_jobs], ["build"])
+
+
+class TestBaseBrokenCIStatus(unittest.IsolatedAsyncioTestCase):
+    """Tests for base-branch-failure detection to avoid spamming series PRs."""
+
+    def setUp(self) -> None:
+        patcher = patch("kernel_patches_daemon.github_connector.Github")
+        self._gh_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _make_run(self, run_id, name, conclusion, jobs=None):
+        run = MagicMock()
+        run.id = run_id
+        run.name = name
+        run.conclusion = conclusion
+        run.jobs.return_value = jobs or []
+        return run
+
+    def _make_job(self, name, conclusion, run_id=1):
+        job = MagicMock(conclusion=conclusion, run_id=run_id, steps=[])
+        job.name = name
+        job.html_url = f"https://github.com/org/repo/actions/runs/{run_id}/job/1"
+        return job
+
+    def _make_pr(self):
+        pr = MagicMock()
+        pr.html_url = "https://github.com/org/repo/pull/1"
+        pr.head.sha = "abc123"
+        pr.head.ref = "series/123=>branch"
+        pr.labels = []
+        pr.get_labels.return_value = []
+        pr.get_issue_comments.return_value = []
+        return pr
+
+    def _make_series(self):
+        pw = get_default_pw_client()
+        return Series(pw, SERIES_DATA)
+
+    def test_refresh_base_ci_status_maps_job_conclusions(self):
+        bw = BranchWorkerMock()
+
+        run = self._make_run(
+            1,
+            "Build and Test",
+            "failure",
+            jobs=[
+                self._make_job("build", "failure"),
+                self._make_job("test", "success"),
+            ],
+        )
+        branch_mock = MagicMock()
+        branch_mock.commit.sha = "deadbeef"
+
+        with (
+            patch.object(bw.repo, "get_branch", return_value=branch_mock) as get_branch,
+            patch.object(bw.repo, "get_workflow_runs", return_value=[run]),
+        ):
+            bw.refresh_base_ci_status()
+
+            get_branch.assert_called_once_with(f"{TEST_REPO_BRANCH}_test")
+            self.assertEqual(
+                bw.base_ci_status,
+                {"build": Status.FAILURE, "test": Status.SUCCESS},
+            )
+
+    def test_refresh_base_ci_status_missing_branch(self):
+        bw = BranchWorkerMock()
+        bw.base_ci_status = {"stale": Status.FAILURE}
+
+        with patch.object(
+            bw.repo, "get_branch", side_effect=GithubException(404, "Not found", None)
+        ):
+            bw.refresh_base_ci_status()
+
+            self.assertEqual(bw.base_ci_status, {})
+
+    async def test_series_failure_matching_broken_base_is_suppressed(self):
+        """A series PR failure that matches a known base-branch failure
+        should not flip the overall/email status to FAILURE."""
+        bw = BranchWorkerMock()
+        bw.base_ci_status = {"build": Status.FAILURE}
+
+        run = self._make_run(
+            1, "Build and Test", "failure", jobs=[self._make_job("build", "failure")]
+        )
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=[run]),
+            patch.object(series, "set_check", new_callable=AsyncMock),
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(
+                bw, "submit_pr_summary", new_callable=AsyncMock
+            ) as mock_summary,
+        ):
+            await bw.sync_checks(pr, series)
+
+            summary_status = mock_summary.call_args.kwargs.get(
+                "status", mock_summary.call_args[1].get("status")
+            )
+            self.assertEqual(summary_status, Status.PENDING)
+
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.PENDING)
+
+    async def test_series_failure_not_matching_base_is_reported(self):
+        """A failure that does not match a known base-branch failure should
+        still be reported as a real failure."""
+        bw = BranchWorkerMock()
+        bw.base_ci_status = {"unrelated_job": Status.FAILURE}
+
+        run = self._make_run(
+            1, "Build and Test", "failure", jobs=[self._make_job("build", "failure")]
+        )
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=[run]),
+            patch.object(series, "set_check", new_callable=AsyncMock),
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
+        ):
+            await bw.sync_checks(pr, series)
+
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.FAILURE)
+
+    async def test_partial_failure_beyond_base_is_reported(self):
+        """If a run has additional failing jobs beyond those known to fail on
+        the base, the failure must still be surfaced."""
+        bw = BranchWorkerMock()
+        bw.base_ci_status = {"build": Status.FAILURE}
+
+        run = self._make_run(
+            1,
+            "Build and Test",
+            "failure",
+            jobs=[
+                self._make_job("build", "failure"),
+                self._make_job("new_test", "failure"),
+            ],
+        )
+
+        pr = self._make_pr()
+        series = self._make_series()
+
+        with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=[run]),
+            patch.object(series, "set_check", new_callable=AsyncMock),
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock) as mock_eval,
+            patch.object(bw, "submit_pr_summary", new_callable=AsyncMock),
+        ):
+            await bw.sync_checks(pr, series)
+
+            eval_status = mock_eval.call_args[0][0]
+            self.assertEqual(eval_status, Status.FAILURE)
