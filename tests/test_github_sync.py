@@ -318,7 +318,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         subject_mock, pr_mock = self._setup_test_select_target_branches_for_subject()
         label = MagicMock()
         label.name = MERGE_CONFLICT_LABEL
-        pr_mock.get_labels = MagicMock(return_value=[label])
+        pr_mock.labels = [label]
         mapped_branches = [TEST_BRANCH, TEST_BPF_NEXT_BRANCH]
 
         selected_branches = await self._gh.select_target_branches_for_subject(

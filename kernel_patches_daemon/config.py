@@ -10,10 +10,16 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass
-from typing import Dict, List, Optional
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Set
+
+from kernel_patches_daemon.status import Status
 
 logger = logging.getLogger(__name__)
+
+# CI statuses that can result in an email notification. PENDING and SKIPPED
+# never trigger an email and are therefore not valid `notify_on` entries.
+EMAILABLE_STATUSES: Set[Status] = {Status.SUCCESS, Status.FAILURE, Status.CONFLICT}
 
 SERIES_TARGET_SEPARATOR = "=>"
 SERIES_ID_SEPARATOR = "/"
@@ -132,6 +138,36 @@ class PRCommentsForwardingConfig:
         )
 
 
+def _parse_notify_on(json: Dict) -> Set[Status]:
+    """Parse the `notify_on` email config entry into a set of statuses.
+
+    When the entry is absent we default to all emailable statuses, preserving
+    the historical behavior of notifying on success, failure and conflict.
+    """
+    if "notify_on" not in json:
+        return set(EMAILABLE_STATUSES)
+
+    notify_on = json["notify_on"]
+    if not isinstance(notify_on, list) or not all(
+        isinstance(name, str) for name in notify_on
+    ):
+        raise InvalidConfig("`notify_on` must be a list of status names")
+
+    result: Set[Status] = set()
+    for name in notify_on:
+        try:
+            status = Status(name)
+        except ValueError as e:
+            raise InvalidConfig(
+                f"Invalid `notify_on` status {name!r}; expected one of "
+                f"{sorted(s.value for s in EMAILABLE_STATUSES)}"
+            ) from e
+        if status not in EMAILABLE_STATUSES:
+            raise InvalidConfig(f"`notify_on` status {name!r} cannot trigger an email")
+        result.add(status)
+    return result
+
+
 @dataclass
 class EmailConfig:
     smtp_host: str
@@ -155,6 +191,9 @@ class EmailConfig:
     email_ignore_workflows: List[re.Pattern]
     contact_name: str = DEFAULT_EMAIL_CONTACT_NAME
     contact_email: str = DEFAULT_EMAIL_CONTACT_EMAIL
+    # CI statuses that trigger an email notification. Defaults to all emailable
+    # statuses (success, failure, conflict) when `notify_on` is not configured.
+    notify_on: Set[Status] = field(default_factory=lambda: set(EMAILABLE_STATUSES))
 
     @classmethod
     def from_json(cls, json: Dict) -> "EmailConfig":
@@ -180,6 +219,7 @@ class EmailConfig:
             ],
             contact_name=json.get("contact_name", DEFAULT_EMAIL_CONTACT_NAME),
             contact_email=json.get("contact_email", DEFAULT_EMAIL_CONTACT_EMAIL),
+            notify_on=_parse_notify_on(json),
         )
 
 
