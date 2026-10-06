@@ -43,7 +43,7 @@ from typing import (
 
 import dateutil.parser
 import git
-from github import Auth, GithubException
+from github import Auth, GithubException, UnknownObjectException
 from github.Label import Label as GithubLabel
 from github.PullRequest import PullRequest
 from github.Repository import Repository
@@ -56,7 +56,9 @@ from kernel_patches_daemon.config import (
 from kernel_patches_daemon.github_connector import GithubConnector
 from kernel_patches_daemon.github_logs import GithubLogExtractor
 from kernel_patches_daemon.patchwork import (
+    IRRELEVANT_STATES,
     Patchwork,
+    RELEVANT_STATES,
     Series,
     slugify_check_context,
     Subject,
@@ -105,6 +107,10 @@ KNOWN_OK_COMMENT_EXCEPTIONS = {
 CI_APP = 15368  # GithubApp(url="/apps/github-actions", id=15368)
 
 MERGE_CONFLICT_LABEL = "merge-conflict"
+_PATCHWORK_STATE_LABELS: Final[frozenset[str]] = frozenset(
+    (*RELEVANT_STATES, *IRRELEVANT_STATES)
+)
+_VERSION_LABEL_RE: Final[re.Pattern] = re.compile(r"V\d+(-ci-(pass|fail))?")
 UPSTREAM_REMOTE_NAME = "upstream"
 
 # We get 5k tokens per hour. When this value is checked, we should be
@@ -938,6 +944,14 @@ class BranchWorker(GithubConnector):
         # is:pr is:closed head:"series/358111=>bpf"
         return self.filter_closed_pr(branch)
 
+    def _is_kpd_label(self, name: str) -> bool:
+        """Labels KPD sets on series PRs; any other label belongs to someone else."""
+        return (
+            _VERSION_LABEL_RE.fullmatch(name) is not None
+            or name in _PATCHWORK_STATE_LABELS
+            or name in (MERGE_CONFLICT_LABEL, self.repo_branch)
+        )
+
     async def _comment_series_pr(
         self,
         series: Series,
@@ -952,6 +966,12 @@ class BranchWorker(GithubConnector):
         """
         title = f"{series.subject}"
         tags = await series.visible_tags()
+        if unknown_states := {tag for tag in tags if not self._is_kpd_label(tag)}:
+            logger.warning(
+                f"Series {series.web_url} has patches in unknown states "
+                f"{unknown_states}; add them to RELEVANT_STATES or "
+                f"IRRELEVANT_STATES, or their labels will never be removed"
+            )
         pr_labels = copy.copy(tags)
         pr_labels.add(self.repo_branch)
 
@@ -1023,11 +1043,13 @@ class BranchWorker(GithubConnector):
                     self._add_pull_request_comment(pr, message)
                     pr_updated.add(1)
 
-            # Make sure that we preserve any CI status labels.
+            # Only touch our own labels: others belong to people or other bots.
+            # pr.labels is a snapshot from the start of the sync loop, so
+            # replacing the whole set would also drop labels added since. The
+            # CI status labels of the current version are maintained elsewhere.
             status_labels = {
                 suffix.to_label(series.version) for suffix in StatusLabelSuffixes
             }
-            labels = {label.name for label in pr.labels if label.name in status_labels}
             # Failure and conflict share the FAIL label, so a transition between
             # them goes unnoticed unless we drop the label here.
             distinguish_failure_and_conflict = self.email_config is not None and (
@@ -1037,8 +1059,20 @@ class BranchWorker(GithubConnector):
                 has_merge_conflict != had_merge_conflict
                 and distinguish_failure_and_conflict
             ):
-                labels.discard(StatusLabelSuffixes.FAIL.to_label(series.version))
-            pr.set_labels(*pr_labels | labels)
+                status_labels.discard(StatusLabelSuffixes.FAIL.to_label(series.version))
+            current_labels = {label.name for label in pr.labels}
+            stale_labels = {
+                name
+                for name in current_labels - pr_labels - status_labels
+                if self._is_kpd_label(name)
+            }
+            for name in stale_labels:
+                try:
+                    pr.remove_from_labels(name)
+                except UnknownObjectException:
+                    logger.info(f"Label {name} already removed from {pr}")
+            if missing_labels := pr_labels - current_labels:
+                pr.add_to_labels(*missing_labels)
 
             if close:
                 pr_closed.add(1)
