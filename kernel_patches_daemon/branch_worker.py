@@ -479,10 +479,7 @@ async def send_pr_comment_email(
 
 
 def pr_has_label(pr: PullRequest, label: str) -> bool:
-    for pr_label in pr.get_labels():
-        if pr_label.name == label:
-            return True
-    return False
+    return any(pr_label.name == label for pr_label in pr.labels)
 
 
 def execute_command(cmd: str) -> None:
@@ -1018,8 +1015,9 @@ class BranchWorker(GithubConnector):
             return None
 
         if pr:
+            had_merge_conflict = pr_has_label(pr, MERGE_CONFLICT_LABEL)
             if (not has_merge_conflict) or (
-                has_merge_conflict and not pr_has_label(pr, MERGE_CONFLICT_LABEL)
+                has_merge_conflict and not had_merge_conflict
             ):
                 if message:
                     self._add_pull_request_comment(pr, message)
@@ -1030,6 +1028,16 @@ class BranchWorker(GithubConnector):
                 suffix.to_label(series.version) for suffix in StatusLabelSuffixes
             }
             labels = {label.name for label in pr.labels if label.name in status_labels}
+            # Failure and conflict share the FAIL label, so a transition between
+            # them goes unnoticed unless we drop the label here.
+            distinguish_failure_and_conflict = self.email_config is not None and (
+                Status.FAILURE in self.email_config.notify_on
+            ) != (Status.CONFLICT in self.email_config.notify_on)
+            if (
+                has_merge_conflict != had_merge_conflict
+                and distinguish_failure_and_conflict
+            ):
+                labels.discard(StatusLabelSuffixes.FAIL.to_label(series.version))
             pr.set_labels(*pr_labels | labels)
 
             if close:
@@ -1467,6 +1475,13 @@ class BranchWorker(GithubConnector):
             # way, send an email notifying the submitter.
             logger.info(f"{pr} is now {new_label}; adding label")
             pr.add_to_labels(new_label)
+
+            if status not in email_cfg.notify_on:
+                logger.info(
+                    f"Skipping email notification for {pr}: status "
+                    f"'{status.value}' is not in the configured notify_on set"
+                )
+                return
 
             logger.info(f"Sending email notification for {pr}")
             failed_logs = await self.log_extractor.extract_failed_logs(jobs)
