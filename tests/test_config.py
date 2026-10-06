@@ -24,6 +24,7 @@ from kernel_patches_daemon.config import (
     PatchworksConfig,
     PRCommentsForwardingConfig,
 )
+from kernel_patches_daemon.status import Status
 from tests.common.utils import read_fixture
 
 
@@ -302,3 +303,54 @@ class TestEmailConfig(unittest.TestCase):
             }
         )
         self.assertEqual(cfg.email_ignore_workflows, [])
+
+    # --- notify_on ---------------------------------------------------------
+
+    BASE_EMAIL_JSON = {
+        "host": "smtp.example.com",
+        "user": "u",
+        "from": "f@x.com",
+        "pass": "p",
+    }
+
+    def test_notify_on_default_is_all_emailable(self):
+        """notify_on defaults to all emailable statuses when not configured."""
+        cfg = EmailConfig.from_json(dict(self.BASE_EMAIL_JSON))
+        self.assertEqual(
+            cfg.notify_on,
+            {Status.SUCCESS, Status.FAILURE, Status.CONFLICT},
+        )
+
+    def test_notify_on_subset(self):
+        """notify_on can select a subset of statuses."""
+        cfg = EmailConfig.from_json(
+            {**self.BASE_EMAIL_JSON, "notify_on": ["failure", "conflict"]}
+        )
+        self.assertEqual(cfg.notify_on, {Status.FAILURE, Status.CONFLICT})
+
+    def test_notify_on_empty_list_disables_all(self):
+        """An explicit empty notify_on list disables all email notifications."""
+        cfg = EmailConfig.from_json({**self.BASE_EMAIL_JSON, "notify_on": []})
+        self.assertEqual(cfg.notify_on, set())
+
+    def test_notify_on_unknown_status_rejected(self):
+        """An unknown notify_on status is rejected."""
+        with self.assertRaises(InvalidConfig):
+            EmailConfig.from_json({**self.BASE_EMAIL_JSON, "notify_on": ["bogus"]})
+
+    def test_notify_on_non_emailable_status_rejected(self):
+        """A valid but non-emailable status (pending/skipped) is rejected."""
+        with self.assertRaises(InvalidConfig):
+            EmailConfig.from_json({**self.BASE_EMAIL_JSON, "notify_on": ["pending"]})
+
+    def test_notify_on_non_list_rejected(self):
+        """notify_on must be a list rather than another iterable."""
+        with self.assertRaises(InvalidConfig):
+            EmailConfig.from_json(
+                {**self.BASE_EMAIL_JSON, "notify_on": {"success": False}}
+            )
+
+    def test_notify_on_non_string_entry_rejected(self):
+        """notify_on entries must be status names."""
+        with self.assertRaises(InvalidConfig):
+            EmailConfig.from_json({**self.BASE_EMAIL_JSON, "notify_on": [1]})

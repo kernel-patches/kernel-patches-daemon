@@ -18,7 +18,8 @@ import tempfile
 import unittest
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Set
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import git
@@ -40,10 +41,12 @@ from kernel_patches_daemon.branch_worker import (
     EmailBodyContext,
     furnish_ci_email_body,
     get_ci_base,
+    MERGE_CONFLICT_LABEL,
     parse_pr_ref,
     prs_for_the_same_series,
     reply_email_recipients,
     same_series_different_target,
+    StatusLabelSuffixes,
     temporary_patch_file,
     UPSTREAM_REMOTE_NAME,
 )
@@ -1343,6 +1346,169 @@ class TestEmailNotificationBody(unittest.TestCase):
             body,
         )
         self.assertNotIn("Meta Kernel CI team", body)
+
+
+class TestEmailNotifyOn(unittest.IsolatedAsyncioTestCase):
+    """Tests for notify_on status filtering in evaluate_ci_result()."""
+
+    def setUp(self) -> None:
+        patcher = patch("kernel_patches_daemon.github_connector.Github")
+        self._gh_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _make_email_config(self, notify_on):
+        return EmailConfig(
+            smtp_host="smtp.example.com",
+            smtp_port=465,
+            smtp_user="user",
+            smtp_from="from@example.com",
+            smtp_pass="pass",
+            smtp_to=[],
+            smtp_cc=[],
+            smtp_http_proxy=None,
+            submitter_allowlist=[],
+            ignore_allowlist=False,
+            pr_comments_forwarding=None,
+            email_ignore_workflows=[],
+            notify_on=notify_on,
+        )
+
+    async def _evaluate(self, notify_on, status) -> bool:
+        """Run evaluate_ci_result and return whether an email was sent."""
+        bw = BranchWorkerMock(email=self._make_email_config(notify_on))
+        bw.log_extractor = MagicMock()
+        bw.log_extractor.extract_failed_logs = AsyncMock(return_value=[])
+        bw.log_extractor.generate_inline_email_text = MagicMock(return_value="")
+
+        pr = MagicMock()
+        pr.labels = []
+        series = Series(get_default_pw_client(), SERIES_DATA)
+
+        with (
+            patch(
+                "kernel_patches_daemon.branch_worker.send_ci_results_email",
+                new_callable=AsyncMock,
+            ) as send_mock,
+            patch(
+                "kernel_patches_daemon.branch_worker.get_ci_email_subject",
+                new_callable=AsyncMock,
+                return_value="subject",
+            ),
+            patch(
+                "kernel_patches_daemon.branch_worker.build_email_body_context",
+                return_value=None,
+            ),
+            patch(
+                "kernel_patches_daemon.branch_worker.furnish_ci_email_body",
+                return_value="body",
+            ),
+        ):
+            await bw.evaluate_ci_result(status, series, pr, [])
+
+        # The pass/fail label is always managed, regardless of notify_on.
+        pr.add_to_labels.assert_called_once()
+        return send_mock.called
+
+    async def test_failure_only_sends_for_failure(self):
+        self.assertTrue(await self._evaluate({Status.FAILURE}, Status.FAILURE))
+
+    async def test_failure_only_skips_success_and_conflict(self):
+        self.assertFalse(await self._evaluate({Status.FAILURE}, Status.SUCCESS))
+        self.assertFalse(await self._evaluate({Status.FAILURE}, Status.CONFLICT))
+
+    async def test_conflict_only_sends_only_for_conflict(self):
+        self.assertTrue(await self._evaluate({Status.CONFLICT}, Status.CONFLICT))
+        self.assertFalse(await self._evaluate({Status.CONFLICT}, Status.FAILURE))
+
+    async def test_default_all_statuses_send(self):
+        notify_on = {Status.SUCCESS, Status.FAILURE, Status.CONFLICT}
+        for status in (Status.SUCCESS, Status.FAILURE, Status.CONFLICT):
+            with self.subTest(status=status):
+                self.assertTrue(await self._evaluate(notify_on, status))
+
+    async def test_empty_notify_on_never_sends(self):
+        for status in (Status.SUCCESS, Status.FAILURE, Status.CONFLICT):
+            with self.subTest(status=status):
+                self.assertFalse(await self._evaluate(set(), status))
+
+    async def _comment_series_pr_labels(
+        self,
+        notify_on: Optional[Set[Status]],
+        has_merge_conflict: bool,
+        existing_labels: List[str],
+    ) -> Set[str]:
+        """Run _comment_series_pr() and return the labels it ends up setting."""
+        email = (
+            self._make_email_config(notify_on) if notify_on is not None else MagicMock()
+        )
+        bw = BranchWorkerMock(email=email)
+        if notify_on is None:
+            bw.email_config = None
+
+        series = MagicMock(version=1)
+        series.visible_tags = AsyncMock(return_value=set())
+
+        pr = MagicMock(state="open")
+        pr.labels = [SimpleNamespace(name=name) for name in existing_labels]
+        with patch.object(bw, "_guess_pr", new_callable=AsyncMock, return_value=pr):
+            await bw._comment_series_pr(
+                series,
+                "branch",
+                has_merge_conflict=has_merge_conflict,
+            )
+
+        return set(pr.set_labels.call_args.args)
+
+    async def test_failure_label_dropped_on_merge_conflict_transition(self):
+        fail_label = StatusLabelSuffixes.FAIL.to_label(1)
+
+        for has_merge_conflict, existing_labels in (
+            (True, [fail_label]),
+            (False, [fail_label, MERGE_CONFLICT_LABEL]),
+        ):
+            with self.subTest(has_merge_conflict=has_merge_conflict):
+                labels = await self._comment_series_pr_labels(
+                    {Status.CONFLICT}, has_merge_conflict, existing_labels
+                )
+                self.assertNotIn(fail_label, labels)
+
+    async def test_failure_label_kept_when_statuses_not_distinguished(self):
+        """Default configs treat failure and conflict alike, so keep the label."""
+        fail_label = StatusLabelSuffixes.FAIL.to_label(1)
+        notify_on_sets = [
+            {Status.SUCCESS, Status.FAILURE, Status.CONFLICT},
+            {Status.FAILURE, Status.CONFLICT},
+            {Status.SUCCESS},
+            set(),
+            # No email configuration at all: nothing is ever sent.
+            None,
+        ]
+
+        for notify_on in notify_on_sets:
+            for has_merge_conflict, existing_labels in (
+                (True, [fail_label]),
+                (False, [fail_label, MERGE_CONFLICT_LABEL]),
+            ):
+                with self.subTest(
+                    notify_on=notify_on, has_merge_conflict=has_merge_conflict
+                ):
+                    labels = await self._comment_series_pr_labels(
+                        notify_on, has_merge_conflict, existing_labels
+                    )
+                    self.assertIn(fail_label, labels)
+
+    async def test_failure_label_kept_without_merge_conflict_transition(self):
+        fail_label = StatusLabelSuffixes.FAIL.to_label(1)
+
+        for has_merge_conflict, existing_labels in (
+            (False, [fail_label]),
+            (True, [fail_label, MERGE_CONFLICT_LABEL]),
+        ):
+            with self.subTest(has_merge_conflict=has_merge_conflict):
+                labels = await self._comment_series_pr_labels(
+                    {Status.CONFLICT}, has_merge_conflict, existing_labels
+                )
+                self.assertIn(fail_label, labels)
 
 
 class TestEmailNotification(unittest.TestCase):
