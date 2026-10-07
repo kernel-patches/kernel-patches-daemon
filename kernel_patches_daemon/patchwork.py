@@ -36,7 +36,7 @@ RELEVANT_STATES: Dict[str, int] = {
     "rfc": 5,
     "changes-requested": 7,
     "queued": 13,
-    "needs_ack": 15,
+    "needs-ack": 15,
 }
 RFC_TAG: str = "RFC"
 # with these tags will be closed if no updates within TTL

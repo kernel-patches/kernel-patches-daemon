@@ -43,7 +43,7 @@ from typing import (
 
 import dateutil.parser
 import git
-from github import Auth, GithubException
+from github import Auth, GithubException, UnknownObjectException
 from github.Label import Label as GithubLabel
 from github.PullRequest import PullRequest
 from github.Repository import Repository
@@ -56,7 +56,9 @@ from kernel_patches_daemon.config import (
 from kernel_patches_daemon.github_connector import GithubConnector
 from kernel_patches_daemon.github_logs import GithubLogExtractor
 from kernel_patches_daemon.patchwork import (
+    IRRELEVANT_STATES,
     Patchwork,
+    RELEVANT_STATES,
     Series,
     slugify_check_context,
     Subject,
@@ -105,6 +107,10 @@ KNOWN_OK_COMMENT_EXCEPTIONS = {
 CI_APP = 15368  # GithubApp(url="/apps/github-actions", id=15368)
 
 MERGE_CONFLICT_LABEL = "merge-conflict"
+# Labels following the series state, removed from its PR once they no longer
+# apply. Version and branch labels never change, as each PR is for one series
+# version and target branch. Patch states missing from both tables stay.
+SERIES_STATE_LABELS = {*RELEVANT_STATES, *IRRELEVANT_STATES, MERGE_CONFLICT_LABEL}
 UPSTREAM_REMOTE_NAME = "upstream"
 
 # We get 5k tokens per hour. When this value is checked, we should be
@@ -912,29 +918,14 @@ class BranchWorker(GithubConnector):
     def _close_pr(self, pr: PullRequest) -> None:
         pr.edit(state="closed")
 
-    async def _guess_pr(
-        self, series: Series, branch: Optional[str] = None
-    ) -> Optional[PullRequest]:
-        """
-        Series could change name
-        first series in a subject could be changed as well
-        so we want to
-        - try to guess based on name first
-        - try to guess based on first series
-        """
-
-        if not branch:
-            # resolve branch: series -> subject -> branch
-            subject = Subject(series.subject, self.patchwork)
-            branch = await self.subject_to_branch(subject)
-
+    def _pr_for_series_branch(self, branch: str) -> Optional[PullRequest]:
         try:
             # we assuming only one PR can be active for one head->base
             return self.all_prs[branch][self.repo_pr_base_branch][0]
         except (KeyError, IndexError):
             pass
 
-        # we failed to find active PR, now let's try to guess closed PR
+        # we failed to find active PR, now let's try to find a closed PR
         # is:pr is:closed head:"series/358111=>bpf"
         return self.filter_closed_pr(branch)
 
@@ -948,7 +939,8 @@ class BranchWorker(GithubConnector):
         has_merge_conflict: bool = False,
     ) -> Optional[PullRequest]:
         """
-        Appends comment to a PR.
+        Comment on the series' PR and update its labels, reopening or creating
+        the PR if can_create and closing it if close.
         """
         title = f"{series.subject}"
         tags = await series.visible_tags()
@@ -958,7 +950,7 @@ class BranchWorker(GithubConnector):
         if has_merge_conflict:
             pr_labels.add(MERGE_CONFLICT_LABEL)
 
-        pr = await self._guess_pr(series, branch=branch_name)
+        pr = self._pr_for_series_branch(branch_name)
 
         if pr and pr.state == "closed":
             if can_create:
@@ -1023,11 +1015,11 @@ class BranchWorker(GithubConnector):
                     self._add_pull_request_comment(pr, message)
                     pr_updated.add(1)
 
-            # Make sure that we preserve any CI status labels.
-            status_labels = {
-                suffix.to_label(series.version) for suffix in StatusLabelSuffixes
-            }
-            labels = {label.name for label in pr.labels if label.name in status_labels}
+            # pr.labels is a snapshot from the start of the sync loop, and people
+            # and CI workflows label PRs too: remove only our own stale labels
+            # instead of replacing the whole set.
+            current_labels = {label.name for label in pr.labels}
+            unwanted_labels = SERIES_STATE_LABELS - pr_labels
             # Failure and conflict share the FAIL label, so a transition between
             # them goes unnoticed unless we drop the label here.
             distinguish_failure_and_conflict = self.email_config is not None and (
@@ -1037,8 +1029,14 @@ class BranchWorker(GithubConnector):
                 has_merge_conflict != had_merge_conflict
                 and distinguish_failure_and_conflict
             ):
-                labels.discard(StatusLabelSuffixes.FAIL.to_label(series.version))
-            pr.set_labels(*pr_labels | labels)
+                unwanted_labels.add(StatusLabelSuffixes.FAIL.to_label(series.version))
+            for name in unwanted_labels & current_labels:
+                try:
+                    pr.remove_from_labels(name)
+                except UnknownObjectException:
+                    logger.info(f"Label {name} already removed from {pr}")
+            if missing_labels := pr_labels - current_labels:
+                pr.add_to_labels(*missing_labels)
 
             if close:
                 pr_closed.add(1)
@@ -1069,7 +1067,7 @@ class BranchWorker(GithubConnector):
         )
 
         # delete branch if there is no more PRs left from this branch
-        prs = self.all_prs.get(branch_name, [])
+        prs = self.all_prs.get(branch_name, {}).get(self.repo_pr_base_branch, [])
         if await series.is_closed() and len(prs) == 1 and branch_name in self.branches:
             self.delete_branch(branch_name)
 
@@ -1217,11 +1215,11 @@ class BranchWorker(GithubConnector):
         self, branch_name: str, series_to_apply: Series
     ) -> Optional[PullRequest]:
         """
-        Patch in place and push.
-        Returns true if whole series applied.
-        Return None if at least one patch in series failed.
-        Raises NewPRWithNoChangeException if series would not result in any changes.
-        If at least one patch in series failed nothing gets pushed.
+        Close the series' PR if the series is no longer relevant. Otherwise
+        apply the series, push it and update the PR, or mark the PR as a merge
+        conflict if the series does not apply. Return the PR, or None if it
+        was closed or not found. Raises NewPRWithNoChangeException if the
+        series would not result in any changes.
         """
         if await self._pr_closed(branch_name, series_to_apply):
             return None
