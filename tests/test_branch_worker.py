@@ -26,7 +26,7 @@ import git
 from aioresponses import aioresponses
 from freezegun import freeze_time
 from git.exc import GitCommandError
-from github import GithubException
+from github import GithubException, UnknownObjectException
 from kernel_patches_daemon.branch_worker import (
     _is_branch_changed,
     _is_outdated_pr,
@@ -705,6 +705,44 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(pr)
         self.assertEqual(pr, mymunch)
 
+    async def _sync_labels(self, tags, labels, remove_error=None) -> MagicMock:
+        series = MagicMock(version=2)
+        series.visible_tags = AsyncMock(return_value=tags)
+        pr = MagicMock(state="open", labels=[SimpleNamespace(name=n) for n in labels])
+        pr.remove_from_labels.side_effect = remove_error
+        with patch.object(self._bw, "_pr_for_series_branch", return_value=pr):
+            await self._bw._comment_series_pr(series, branch_name="mybranch")
+        return pr
+
+    async def test_comment_series_pr_labels(self) -> None:
+        br = TEST_REPO_BRANCH
+        for labels, tags, removed, added in (
+            # Others' labels and CI labels stay, stale series state labels go
+            (
+                ["V2", "new", MERGE_CONFLICT_LABEL, "ai-review", "V2-ci-pass"],
+                {"V2", "rfc"},
+                {"new", MERGE_CONFLICT_LABEL},
+                {"rfc", br},
+            ),
+            (["V2", "new", br, "ai-review"], {"V2", "new"}, set(), set()),
+            (["V2", "needs-ack", br], {"V2", "new"}, {"needs-ack"}, {"new"}),
+        ):
+            with self.subTest(labels=labels):
+                pr = await self._sync_labels(tags, labels)
+                self.assertEqual(
+                    {c.args[0] for c in pr.remove_from_labels.call_args_list}, removed
+                )
+                self.assertEqual(
+                    {n for c in pr.add_to_labels.call_args_list for n in c.args}, added
+                )
+
+    async def test_comment_series_pr_label_already_removed(self) -> None:
+        error = UnknownObjectException(404, None, None)
+        pr = await self._sync_labels(
+            {"V2", "new"}, ["V2", "rfc", TEST_REPO_BRANCH], error
+        )
+        pr.add_to_labels.assert_called_once_with("new")
+
 
 class TestSupportFunctions(unittest.TestCase):
     def test_temporary_patch_file(self) -> None:
@@ -1300,7 +1338,7 @@ class TestEmailNotifyOn(unittest.IsolatedAsyncioTestCase):
         has_merge_conflict: bool,
         existing_labels: List[str],
     ) -> Set[str]:
-        """Run _comment_series_pr() and return the labels it ends up setting."""
+        """Run _comment_series_pr() and return the labels the PR ends up with."""
         email = (
             self._make_email_config(notify_on) if notify_on is not None else MagicMock()
         )
@@ -1320,7 +1358,9 @@ class TestEmailNotifyOn(unittest.IsolatedAsyncioTestCase):
                 has_merge_conflict=has_merge_conflict,
             )
 
-        return set(pr.set_labels.call_args.args)
+        removed = {call.args[0] for call in pr.remove_from_labels.call_args_list}
+        added = {name for call in pr.add_to_labels.call_args_list for name in call.args}
+        return (set(existing_labels) - removed) | added
 
     async def test_failure_label_dropped_on_merge_conflict_transition(self):
         fail_label = StatusLabelSuffixes.FAIL.to_label(1)

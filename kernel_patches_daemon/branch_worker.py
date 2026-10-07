@@ -43,7 +43,7 @@ from typing import (
 
 import dateutil.parser
 import git
-from github import Auth, GithubException
+from github import Auth, GithubException, UnknownObjectException
 from github.Label import Label as GithubLabel
 from github.PullRequest import PullRequest
 from github.Repository import Repository
@@ -56,7 +56,9 @@ from kernel_patches_daemon.config import (
 from kernel_patches_daemon.github_connector import GithubConnector
 from kernel_patches_daemon.github_logs import GithubLogExtractor
 from kernel_patches_daemon.patchwork import (
+    IRRELEVANT_STATES,
     Patchwork,
+    RELEVANT_STATES,
     Series,
     slugify_check_context,
     Subject,
@@ -105,6 +107,10 @@ KNOWN_OK_COMMENT_EXCEPTIONS = {
 CI_APP = 15368  # GithubApp(url="/apps/github-actions", id=15368)
 
 MERGE_CONFLICT_LABEL = "merge-conflict"
+# Labels following the series state, removed from its PR once they no longer
+# apply. Version and branch labels never change, as each PR is for one series
+# version and target branch. Patch states missing from both tables stay.
+SERIES_STATE_LABELS = {*RELEVANT_STATES, *IRRELEVANT_STATES, MERGE_CONFLICT_LABEL}
 UPSTREAM_REMOTE_NAME = "upstream"
 
 # We get 5k tokens per hour. When this value is checked, we should be
@@ -1009,11 +1015,11 @@ class BranchWorker(GithubConnector):
                     self._add_pull_request_comment(pr, message)
                     pr_updated.add(1)
 
-            # Make sure that we preserve any CI status labels.
-            status_labels = {
-                suffix.to_label(series.version) for suffix in StatusLabelSuffixes
-            }
-            labels = {label.name for label in pr.labels if label.name in status_labels}
+            # pr.labels is a snapshot from the start of the sync loop, and people
+            # and CI workflows label PRs too: remove only our own stale labels
+            # instead of replacing the whole set.
+            current_labels = {label.name for label in pr.labels}
+            unwanted_labels = SERIES_STATE_LABELS - pr_labels
             # Failure and conflict share the FAIL label, so a transition between
             # them goes unnoticed unless we drop the label here.
             distinguish_failure_and_conflict = self.email_config is not None and (
@@ -1023,8 +1029,14 @@ class BranchWorker(GithubConnector):
                 has_merge_conflict != had_merge_conflict
                 and distinguish_failure_and_conflict
             ):
-                labels.discard(StatusLabelSuffixes.FAIL.to_label(series.version))
-            pr.set_labels(*pr_labels | labels)
+                unwanted_labels.add(StatusLabelSuffixes.FAIL.to_label(series.version))
+            for name in unwanted_labels & current_labels:
+                try:
+                    pr.remove_from_labels(name)
+                except UnknownObjectException:
+                    logger.info(f"Label {name} already removed from {pr}")
+            if missing_labels := pr_labels - current_labels:
+                pr.add_to_labels(*missing_labels)
 
             if close:
                 pr_closed.add(1)
