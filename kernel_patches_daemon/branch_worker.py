@@ -912,29 +912,14 @@ class BranchWorker(GithubConnector):
     def _close_pr(self, pr: PullRequest) -> None:
         pr.edit(state="closed")
 
-    async def _guess_pr(
-        self, series: Series, branch: Optional[str] = None
-    ) -> Optional[PullRequest]:
-        """
-        Series could change name
-        first series in a subject could be changed as well
-        so we want to
-        - try to guess based on name first
-        - try to guess based on first series
-        """
-
-        if not branch:
-            # resolve branch: series -> subject -> branch
-            subject = Subject(series.subject, self.patchwork)
-            branch = await self.subject_to_branch(subject)
-
+    def _pr_for_series_branch(self, branch: str) -> Optional[PullRequest]:
         try:
             # we assuming only one PR can be active for one head->base
             return self.all_prs[branch][self.repo_pr_base_branch][0]
         except (KeyError, IndexError):
             pass
 
-        # we failed to find active PR, now let's try to guess closed PR
+        # we failed to find active PR, now let's try to find a closed PR
         # is:pr is:closed head:"series/358111=>bpf"
         return self.filter_closed_pr(branch)
 
@@ -958,7 +943,7 @@ class BranchWorker(GithubConnector):
         if has_merge_conflict:
             pr_labels.add(MERGE_CONFLICT_LABEL)
 
-        pr = await self._guess_pr(series, branch=branch_name)
+        pr = self._pr_for_series_branch(branch_name)
 
         if pr and pr.state == "closed":
             if can_create:
