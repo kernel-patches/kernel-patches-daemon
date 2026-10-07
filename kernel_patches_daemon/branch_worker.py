@@ -933,7 +933,8 @@ class BranchWorker(GithubConnector):
         has_merge_conflict: bool = False,
     ) -> Optional[PullRequest]:
         """
-        Appends comment to a PR.
+        Comment on the series' PR and update its labels, reopening or creating
+        the PR if can_create and closing it if close.
         """
         title = f"{series.subject}"
         tags = await series.visible_tags()
@@ -1054,7 +1055,7 @@ class BranchWorker(GithubConnector):
         )
 
         # delete branch if there is no more PRs left from this branch
-        prs = self.all_prs.get(branch_name, [])
+        prs = self.all_prs.get(branch_name, {}).get(self.repo_pr_base_branch, [])
         if await series.is_closed() and len(prs) == 1 and branch_name in self.branches:
             self.delete_branch(branch_name)
 
@@ -1202,11 +1203,11 @@ class BranchWorker(GithubConnector):
         self, branch_name: str, series_to_apply: Series
     ) -> Optional[PullRequest]:
         """
-        Patch in place and push.
-        Returns true if whole series applied.
-        Return None if at least one patch in series failed.
-        Raises NewPRWithNoChangeException if series would not result in any changes.
-        If at least one patch in series failed nothing gets pushed.
+        Close the series' PR if the series is no longer relevant. Otherwise
+        apply the series, push it and update the PR, or mark the PR as a merge
+        conflict if the series does not apply. Return the PR, or None if it
+        was closed or not found. Raises NewPRWithNoChangeException if the
+        series would not result in any changes.
         """
         if await self._pr_closed(branch_name, series_to_apply):
             return None
