@@ -13,7 +13,7 @@ from enum import Enum
 from typing import Optional
 from urllib.parse import urlparse
 
-from github import Auth, Github, GithubException, GithubIntegration
+from github import Auth, Github, GithubIntegration
 from pyre_extensions import none_throws
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -82,8 +82,14 @@ class GithubConnector:
             auth=auth,
             retry=http_retries,
         )
-        gh_user = self.git.get_user()
+        parsed_url = urlparse(repo_url)
+        if not parsed_url.scheme and ":" in repo_url:
+            host, path = repo_url.rsplit(":", 1)
+            parsed_url = urlparse(f"ssh://{host}/{path}")
+        repo_owner = os.path.basename(os.path.dirname(parsed_url.path))
+
         if app_auth is None:
+            gh_user = self.git.get_user()
             self.auth_type = AuthType.OAUTH_TOKEN
             self.user_login = gh_user.login
             self.github_account_name = gh_user.login
@@ -116,24 +122,13 @@ class GithubConnector:
             # >>> g.get_user('kernel-patches-daemon-bpf[bot]').login
             # 'kernel-patches-daemon-bpf[bot]'
 
+        # Bare repository names refer to the authenticated user's repositories.
+        self.user_or_org: str = repo_owner or self.user_login
+        self.repo = self.git.get_repo(f"{self.user_or_org}/{self.repo_name}")
+
         logging.info(
             f"Using User login {self.user_login}, Github Account name {self.github_account_name}"
         )
-
-        self.user_or_org: str = self.user_login
-
-        try:
-            # When using app_auth, this will raise a GithubException
-            self.repo = gh_user.get_repo(self.repo_name)
-        except GithubException:
-            # are we working under org repo?
-            org = ""
-            if "https://" not in repo_url and "ssh://" not in repo_url:
-                org = repo_url.split(":")[-1].split("/")[0]
-            else:
-                org = repo_url.split("/")[-2]
-            self.user_or_org = org
-            self.repo = self.git.get_organization(org).get_repo(self.repo_name)
 
         assert (
             self.auth_type != AuthType.UNKNOWN
