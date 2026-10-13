@@ -1,4 +1,4 @@
-FROM python:3-slim as builder
+FROM python:3.14-slim as builder
 
 RUN pip install poetry
 
@@ -15,7 +15,7 @@ RUN touch README.md
 RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
 # The runtime image, used to just run the code provided its virtual environment
-FROM python:3-slim as runtime
+FROM python:3.14-slim as runtime
 LABEL maintainer="Ihor Solodrai <isolodrai@meta.com>"
 
 RUN apt update && \
