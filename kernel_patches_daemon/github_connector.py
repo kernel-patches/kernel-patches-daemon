@@ -14,6 +14,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from github import Auth, Github, GithubIntegration
+from github.GithubRetry import GithubRetry
 from pyre_extensions import none_throws
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -80,7 +81,15 @@ class GithubConnector:
         )
         self.git: Github = Github(
             auth=auth,
-            retry=http_retries,
+            retry=(
+                GithubRetry(
+                    total=http_retries,
+                    backoff_factor=1,
+                    allowed_methods=GithubRetry.DEFAULT_ALLOWED_METHODS,
+                )
+                if http_retries is not None
+                else None
+            ),
         )
         parsed_url = urlparse(repo_url)
         if not parsed_url.scheme and ":" in repo_url:
