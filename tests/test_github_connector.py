@@ -152,6 +152,14 @@ class TestGithubConnector(unittest.TestCase):
                 self.assertIs(gc.repo, github.get_repo.return_value)
                 self.assertEqual(gc.user_or_org, TEST_ORG)
 
+    def test_http_retries(self) -> None:
+        get_default_gc_app_auth_client(http_retries=3)
+        retry = self._gh_mock.call_args.kwargs["retry"]
+        self.assertEqual(retry.total, 3)
+        self.assertEqual(retry.backoff_factor, 1)
+        self.assertTrue(retry.is_retry("GET", 502))
+        self.assertFalse(retry.is_retry("POST", 502))
+
     def test_gc_connect_only_one_auth(self) -> None:
         """
         Make sure that only one github authentication mechanism is provided.
