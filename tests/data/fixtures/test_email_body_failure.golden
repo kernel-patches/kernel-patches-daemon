@@ -6,6 +6,10 @@ Name:       [bpf] Failing patchset
 Patchwork:  https://patchwork.com/failure
 Matrix:     https://github.com/failure
 
+To check out the tested tree, run:
+git fetch https://github.com/org/repo.git 0123456789abcdef0123456789abcdef01234567
+git checkout FETCH_HEAD
+
 Failed jobs:
 test_progs-x86_64-gcc: https://job1.com
 test_progs_no_alu32-x86_64-gcc: https://job2.com

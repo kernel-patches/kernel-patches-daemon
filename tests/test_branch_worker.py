@@ -1219,6 +1219,8 @@ class TestEmailNotificationBody(unittest.TestCase):
             patchwork_url="https://patchwork.com/failure",
             github_url="https://github.com/failure",
             inline_logs=inline_logs,
+            clone_url="https://github.com/org/repo.git",
+            head_sha="0123456789abcdef0123456789abcdef01234567",
         )
         body = furnish_ci_email_body(self.email_config, ctx)
 
