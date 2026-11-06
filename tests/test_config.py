@@ -38,6 +38,23 @@ class TestConfig(unittest.TestCase):
     def setUp(self) -> None:
         super().setUp()
 
+    def test_invalid_branch_subject_patterns(self) -> None:
+        for patterns in (
+            [],
+            {"oauth": ["slab"]},
+            {"app_auth_key_path": "slab"},
+            {"app_auth_key_path": [1]},
+            {"app_auth_key_path": ["["]},
+        ):
+            with self.subTest(patterns=patterns):
+                conf = {
+                    **load_kpd_config("kpd_config.json"),
+                    "tag_to_branch_mapping": {"__DEFAULT__": ["app_auth_key_path"]},
+                    "branch_subject_patterns": patterns,
+                }
+                with self.assertRaises(InvalidConfig):
+                    KPDConfig.from_json(conf)
+
     def test_invalid_tag_to_branch_mapping(self) -> None:
         """
         Tests that if a tag is mapped to a branch that doesn't exist, an exception is raised.
