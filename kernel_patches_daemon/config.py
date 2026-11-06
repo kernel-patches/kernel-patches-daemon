@@ -310,6 +310,7 @@ class KPDConfig:
     branches: Dict[str, BranchConfig]
     tag_to_branch_mapping: Dict[str, List[str]]
     base_directory: str
+    branch_subject_patterns: Dict[str, List[str]] = field(default_factory=dict)
 
     @classmethod
     def from_json(cls, json: Dict) -> "KPDConfig":
@@ -332,9 +333,32 @@ class KPDConfig:
                         f"Branch *{branch}* in `tag_to_branch_mapping` is not defined in `branches`"
                     )
 
+        branch_subject_patterns = json.get("branch_subject_patterns", {})
+        if not isinstance(branch_subject_patterns, dict):
+            raise InvalidConfig("`branch_subject_patterns` must be a mapping")
+        for branch, patterns in branch_subject_patterns.items():
+            if branch not in tag_to_branch_mapping.get("__DEFAULT__", []):
+                raise InvalidConfig(
+                    f"Branch *{branch}* in `branch_subject_patterns` is not in `__DEFAULT__`"
+                )
+            if not isinstance(patterns, list) or not all(
+                isinstance(pattern, str) for pattern in patterns
+            ):
+                raise InvalidConfig(
+                    f"Subject patterns for branch *{branch}* must be a list of strings"
+                )
+            for pattern in patterns:
+                try:
+                    re.compile(pattern, re.IGNORECASE)
+                except re.error as e:
+                    raise InvalidConfig(
+                        f"Invalid subject pattern {pattern!r} for branch *{branch}*: {e}"
+                    ) from e
+
         return cls(
             version=3,
             tag_to_branch_mapping=tag_to_branch_mapping,
+            branch_subject_patterns=branch_subject_patterns,
             patchwork=PatchworksConfig.from_json(json["patchwork"]),
             email=EmailConfig.from_json(json["email"]) if "email" in json else None,
             branches={
