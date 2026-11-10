@@ -42,6 +42,9 @@ MAX_PAUSE_SECS: Final[int] = 3600
 REQUEST_TIMEOUT_SECS: Final[int] = 60
 # How many checks the client remembers, see post_check_for_patch_id().
 CHECK_CACHE_SIZE: Final[int] = 65536
+# How much of a response body that is not JSON to log: all of a typical
+# error page.
+LOGGED_BODY_BYTES: Final[int] = 512
 # Tells the Patchwork admins who sends the requests and how to reach us.
 USER_AGENT: Final[str] = (
     "kernel-patches-daemon/1.0 "
@@ -160,7 +163,7 @@ async def log_response_content(
         content = json_pprint(await response.json())
     except (json.decoder.JSONDecodeError, aiohttp.ContentTypeError):
         payload = await response.read()
-        content = f"<binary content: {len(payload)} bytes>"
+        content = f"<{len(payload)} bytes> {payload[:LOGGED_BODY_BYTES]!r}"
     except Exception:
         logger.exception("Failed to handle Patchwork response")
         return
