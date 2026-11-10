@@ -69,7 +69,11 @@ from kernel_patches_daemon.status import (
     process_statuses,
     Status,
 )
-from kernel_patches_daemon.utils import redact_url, remove_unsafe_chars
+from kernel_patches_daemon.utils import (
+    gather_or_cancel,
+    redact_url,
+    remove_unsafe_chars,
+)
 from opentelemetry import metrics
 from pyre_extensions import none_throws
 
@@ -1430,7 +1434,7 @@ class BranchWorker(GithubConnector):
             )
             for job in jobs
         ]
-        await asyncio.gather(*tasks)
+        await gather_or_cancel(*tasks)
 
         await self.evaluate_ci_result(email_status, series, pr, jobs)
 

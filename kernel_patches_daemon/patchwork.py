@@ -23,6 +23,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 from cachetools import TTLCache
 from kernel_patches_daemon.config import SERIES_ID_SEPARATOR
 from kernel_patches_daemon.status import Status
+from kernel_patches_daemon.utils import gather_or_cancel
 from multidict import MultiDict
 from opentelemetry import metrics
 from pyre_extensions import none_throws
@@ -422,7 +423,7 @@ class Series:
         """
         tasks = [self.pw_client.get_patch_by_id(patch["id"]) for patch in self.patches]
         # pyrefly: ignore  # bad-return
-        return await asyncio.gather(*tasks)
+        return await gather_or_cancel(*tasks)
 
     async def is_closed(self) -> bool:
         """
@@ -495,7 +496,7 @@ class Series:
             )
             for patch in self.patches
         ]
-        await asyncio.gather(*tasks)
+        await gather_or_cancel(*tasks)
 
     def to_json(self) -> str:
         json_keys = {
@@ -810,7 +811,7 @@ class Patchwork:
                         continue
 
             tasks = [self.get_series_by_id(series_id) for series_id in series_ids]
-            all_series = await asyncio.gather(*tasks)
+            all_series = await gather_or_cancel(*tasks)
 
             for series in all_series:
                 if series.subject.strip() == "":
@@ -832,7 +833,7 @@ class Patchwork:
                 return (subject_name, subject_obj, await subject_obj.latest_series())
 
             tasks = [fetch_latest_series(k, v) for k, v in subjects.items()]
-            tasks = await asyncio.gather(*tasks)
+            tasks = await gather_or_cancel(*tasks)
 
             for subject_name, subject_obj, latest_series in tasks:
                 if not latest_series:
