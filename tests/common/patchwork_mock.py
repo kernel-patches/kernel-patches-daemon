@@ -66,6 +66,23 @@ def init_pw_responses(m: aioresponses, data: Dict[str, Any]) -> None:
     for url, content in data.items():
         m.get(url, status=200, payload=content, repeat=True)
 
+    # KPD lists the patches of a series with patches/?series=<id>. Serve
+    # these lists from the series and patch objects in `data`.
+    for url, content in data.items():
+        api_url = url.partition("series/")[0]
+        for series in content if isinstance(content, list) else [content]:
+            if not isinstance(series, dict) or "patches" not in series:
+                continue
+            patch_urls = [f"{api_url}patches/{p['id']}/" for p in series["patches"]]
+            m.get(
+                re.compile(
+                    rf"^{re.escape(api_url)}patches/\?(.*&)?series={series['id']}(&|$)"
+                ),
+                status=200,
+                payload=[data[u] for u in patch_urls if u in data],
+                repeat=True,
+            )
+
     # If we don't have the key and there is no search parameters assume (e.g no `?`` in URL)
     # we are querying a specific URL and it is not found.
     # This is a very rudimentation proxy, if we need to get more clever, aioresponses can take a function
@@ -87,7 +104,7 @@ FOO_SERIES_LAST = 10
 
 DEFAULT_FREEZE_DATE = "2010-07-23T00:00:00"
 DEFAULT_TEST_RESPONSES: Dict[str, Any] = {
-    "https://127.0.0.1/api/1.1/series/?q=foo": [
+    f"https://127.0.0.1/api/1.1/series/?project={PROJECT}&q=foo": [
         # Does not match the subject name
         {
             "id": 1,
@@ -174,7 +191,7 @@ DEFAULT_TEST_RESPONSES: Dict[str, Any] = {
         },
     ],
     # Multiple relevant series to test our guess_pr logic.
-    "https://127.0.0.1/api/1.1/series/?q=barv2": [
+    f"https://127.0.0.1/api/1.1/series/?project={PROJECT}&q=barv2": [
         # Matches and has relevant diff.
         {
             "id": 6,
@@ -201,7 +218,7 @@ DEFAULT_TEST_RESPONSES: Dict[str, Any] = {
         },
     ],
     # Single relevant series to test our guess_pr logic.
-    "https://127.0.0.1/api/1.1/series/?q=code": [
+    f"https://127.0.0.1/api/1.1/series/?project={PROJECT}&q=code": [
         # Matches, has one relevant diffs, and is the most recent series.
         {
             "id": 9,

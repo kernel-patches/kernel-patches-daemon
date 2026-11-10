@@ -6,17 +6,36 @@
 
 # pyre-unsafe
 
+import asyncio
 import copy
 import datetime
+import email.utils
 import os
 import re
+import time
 import unittest
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from types import SimpleNamespace
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Union
+from unittest.mock import patch
 
-from aioresponses import aioresponses
+import aiohttp
+from aioresponses import aioresponses, CallbackResult
 from freezegun import freeze_time
-from kernel_patches_daemon.patchwork import parse_tags, RELEVANT_STATES, Subject, TTL
+from kernel_patches_daemon import patchwork
+from kernel_patches_daemon.patchwork import (
+    MAX_CONCURRENT_REQUESTS,
+    MAX_PAUSE_SECS,
+    parse_tags,
+    PatchworkUnavailable,
+    RELEVANT_STATES,
+    REQUEST_TIMEOUT_SECS,
+    RETRY_BASE_DELAY_SECS,
+    Subject,
+    TTL,
+    USER_AGENT,
+)
 from kernel_patches_daemon.status import Status
 from multidict import MultiDict
 from pyre_extensions import none_throws
@@ -33,6 +52,23 @@ from tests.common.patchwork_mock import (
     PatchworkMock,
 )
 from tests.common.utils import load_test_data
+
+
+@contextmanager
+def fake_clock() -> Iterator[SimpleNamespace]:
+    """
+    Replace the clock of the Patchwork client and asyncio.sleep(). Only a
+    sleep moves the clock.
+    """
+    clock = SimpleNamespace(now=0.0, sleeps=[])
+
+    async def sleep(secs: float, *args: Any, **kwargs: Any) -> None:
+        clock.sleeps.append(secs)
+        clock.now += secs
+
+    monotonic = SimpleNamespace(monotonic=lambda: clock.now)
+    with patch("asyncio.sleep", sleep), patch.object(patchwork, "time", monotonic):
+        yield clock
 
 
 class PatchworkTestCase(unittest.IsolatedAsyncioTestCase):
@@ -59,6 +95,180 @@ class TestPatchwork(PatchworkTestCase):
 
         json_resp = await resp.json()
         self.assertEqual(json_resp["key1"], "value1")
+
+    async def test_get_identifies_kpd(self) -> None:
+        """
+        GET requests carry the User-Agent, and the API token when one is set.
+        """
+        for token, authorization in [("mocktoken", "Token mocktoken"), (None, None)]:
+            with self.subTest(token=token), aioresponses() as m:
+                m.get(re.compile(r"^.*$"), status=200, body=b"{}")
+                pw = get_default_pw_client(auth_token=token)
+                # pyrefly: ignore  # missing-attribute
+                await pw._Patchwork__get("object")
+                # pyrefly: ignore  # missing-attribute
+                headers = list(m.requests.values())[0][0].kwargs["headers"]
+                self.assertEqual(headers["User-Agent"], USER_AGENT)
+                self.assertEqual(headers.get("Authorization"), authorization)
+
+    @aioresponses()
+    async def test_get_limits_concurrent_requests(self, m: aioresponses) -> None:
+        """
+        At most MAX_CONCURRENT_REQUESTS requests are in flight at one time.
+        """
+        in_flight = peak = 0
+
+        async def respond(url, **kwargs) -> CallbackResult:
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.01)
+            in_flight -= 1
+            return CallbackResult(body=b"{}")
+
+        m.get(re.compile(r"^.*$"), callback=respond, repeat=True)
+        # pyrefly: ignore  # missing-attribute
+        await asyncio.gather(*[self._pw._Patchwork__get(f"o/{i}/") for i in range(10)])
+        self.assertEqual(peak, MAX_CONCURRENT_REQUESTS)
+
+    async def test_get_backs_off(self) -> None:
+        """
+        A 5xx, 429, timeout or connection error pauses requests for the
+        backoff delay, or for Retry-After (seconds or HTTP date) if that is
+        longer. A GET tries once more after the pause, then raises
+        PatchworkUnavailable.
+        """
+        url = "https://127.0.0.1/api/1.1/object"
+        in_30s = email.utils.format_datetime(
+            datetime.datetime.now(datetime.timezone.utc)
+            + datetime.timedelta(seconds=30),
+            usegmt=True,
+        )
+        delay = RETRY_BASE_DELAY_SECS
+        timeout, refused = asyncio.TimeoutError(), aiohttp.ClientConnectionError()
+        for responses, retry_after, sleeps in [
+            ([503, 200], "30", [30]),
+            ([429, 200], in_30s, [30]),
+            ([503, 200], "0", [delay]),
+            ([timeout, 200], "", [delay]),
+            ([500, refused], "", [delay]),
+        ]:
+            with (
+                self.subTest(responses=responses),
+                aioresponses() as m,
+                fake_clock() as clock,
+            ):
+                for response in responses:
+                    if isinstance(response, Exception):
+                        m.get(url, exception=response)
+                    else:
+                        headers = {"Retry-After": retry_after}
+                        m.get(url, status=response, headers=headers)
+                # pyrefly: ignore  # missing-attribute
+                get = get_default_pw_client()._Patchwork__get("object")
+                if responses[-1] == 200:
+                    await get
+                else:
+                    with self.assertRaises(PatchworkUnavailable):
+                        await get
+                self.assertEqual(len(clock.sleeps), len(sleeps))
+                for actual, expected in zip(clock.sleeps, sleeps):
+                    self.assertAlmostEqual(actual, expected, delta=1)
+
+    @aioresponses()
+    async def test_403_pauses_all_requests(self, m: aioresponses) -> None:
+        """
+        A 403 is not retried, and no later request is sent before Retry-After.
+        """
+        url = "https://127.0.0.1/api/1.1/object"
+        m.get(url, status=403, headers={"Retry-After": "60"})
+        m.get(url, status=200, body=b"{}")
+        # pyrefly: ignore  # missing-attribute
+        get = self._pw._Patchwork__get
+        with fake_clock() as clock:
+            with self.assertRaises(PatchworkUnavailable):
+                await get("object")
+            self.assertEqual(clock.sleeps, [])
+            await get("object")
+        self.assertEqual(clock.sleeps, [60])
+
+    @aioresponses()
+    async def test_backoff_doubles_until_a_good_response(self, m: aioresponses) -> None:
+        url = "https://127.0.0.1/api/1.1/object"
+        for status in (500, 500, 200, 500, 200):
+            m.get(url, status=status, body=b"{}")
+        # pyrefly: ignore  # missing-attribute
+        get = self._pw._Patchwork__get
+        with fake_clock() as clock:
+            with self.assertRaises(PatchworkUnavailable):
+                await get("object")
+            await get("object")
+            await get("object")
+        self.assertEqual(clock.sleeps, [5, 10, 5])
+
+    @aioresponses()
+    async def test_queued_requests_wait_for_the_pause(self, m: aioresponses) -> None:
+        """
+        Requests that wait for a slot when a 503 arrives also wait for the pause.
+        """
+        sent, failed_at = [], []
+
+        async def respond(url, **kwargs) -> CallbackResult:
+            first = not sent
+            sent.append(time.monotonic())
+            await asyncio.sleep(0.01)
+            if first:
+                failed_at.append(time.monotonic())
+                return CallbackResult(status=503)
+            return CallbackResult(body=b"{}")
+
+        m.get(re.compile(r"^.*$"), callback=respond, repeat=True)
+        # pyrefly: ignore  # missing-attribute
+        get = self._pw._Patchwork__get
+        with patch.object(patchwork, "RETRY_BASE_DELAY_SECS", 0.2):
+            await asyncio.gather(*[get(f"o/{i}/") for i in range(6)])
+        # After the 503, the 2 queued requests and the retry waited.
+        self.assertEqual(len(sent), 7)
+        self.assertGreaterEqual(min(sent[4:]), failed_at[0] + 0.2)
+
+    @aioresponses()
+    async def test_long_pause_raises_at_once(self, m: aioresponses) -> None:
+        """
+        A GET does not wait for a long pause: it raises, and sends nothing.
+        The pause is not longer than MAX_PAUSE_SECS.
+        """
+        m.get(re.compile(r"^.*$"), status=503, headers={"Retry-After": "86400"})
+        # pyrefly: ignore  # missing-attribute
+        get = self._pw._Patchwork__get
+        with fake_clock() as clock:
+            with self.assertRaises(PatchworkUnavailable):
+                await get("object")
+            with self.assertRaises(PatchworkUnavailable):
+                await get("object")
+        self.assertEqual(self._pw.resume_at, MAX_PAUSE_SECS)
+        self.assertEqual(clock.sleeps, [])
+        m.assert_called_once()
+
+    async def test_post_failures(self) -> None:
+        """
+        A POST is not retried. On 5xx KPD skips it, because the next cycle
+        posts it again. 403 and 429 raise.
+        """
+        for status, raises in [(503, False), (429, True), (403, True)]:
+            with self.subTest(status=status), aioresponses() as m:
+                m.post(re.compile(r"^.*$"), status=status)
+                # pyrefly: ignore  # missing-attribute
+                post = get_default_pw_client()._Patchwork__post("object", {})
+                if raises:
+                    with self.assertRaises(PatchworkUnavailable):
+                        await post
+                else:
+                    self.assertIsNone(await post)
+                m.assert_called_once()
+
+    async def test_requests_time_out(self) -> None:
+        session = await self._pw.get_http_session()
+        self.assertEqual(session.timeout.total, REQUEST_TIMEOUT_SECS)
 
     @aioresponses()
     async def test_post_wrapper(self, m: aioresponses) -> None:
@@ -244,6 +454,11 @@ class TestPatchwork(PatchworkTestCase):
         )
         m.assert_not_called()
 
+    def test_search_patterns_need_one_project(self) -> None:
+        for patterns in ([{"delegate": 1}], [{"project": 1}, {"project": 2}]):
+            with self.subTest(patterns=patterns), self.assertRaises(ValueError):
+                get_default_pw_client(search_patterns=patterns)
+
     def test_format_since(self) -> None:
         @dataclass
         class TestCase:
@@ -339,6 +554,22 @@ class TestPatchwork(PatchworkTestCase):
         If lookback is <= 0, the 'since' query parameter must not be present in the requests.
         """
         await self._test_lookback(m, -1, lambda url: self.assertNotIn("since=", url))
+
+    @aioresponses()
+    async def test_lookback_moves_with_time(self, m: aioresponses) -> None:
+        """
+        The client is used for many cycles, so each search computes 'since' again.
+        """
+        self._pw = get_default_pw_client(lookback_in_days=7)
+        m.get(re.compile(r"^.*$"), status=200, body=b"[]", repeat=True)
+        for today, since in [
+            ("2010-01-10", "2010-01-03"),
+            ("2010-01-11", "2010-01-04"),
+        ]:
+            with freeze_time(today):
+                await self._pw.get_relevant_subjects()
+            # pyrefly: ignore  # missing-attribute
+            self.assertIn(f"since={since}", str(list(m.requests)[-1][1]))
 
 
 class TestSeries(PatchworkTestCase):
@@ -438,6 +669,15 @@ class TestSeries(PatchworkTestCase):
                 "foo",
             ],
         )
+        # One request for the series, and one for all of its patches.
+        self.assertEqual(
+            # pyrefly: ignore  # not-iterable
+            [str(url) for _, url in m.requests],
+            [
+                "https://127.0.0.1/api/1.1/series/665/",
+                "https://127.0.0.1/api/1.1/patches/?project=1234&series=665",
+            ],
+        )
 
     @aioresponses()
     async def test_series_is_expired(self, m: aioresponses) -> None:
@@ -535,6 +775,17 @@ class TestSeries(PatchworkTestCase):
         # https://github.com/pnuckowski/aioresponses/blob/56b843319d5d0ae8a405f188e68d7ba8c7573bc8/aioresponses/core.py#L507
         # pyrefly: ignore  # missing-attribute
         self.assertEqual(len([x for x in m.requests.keys() if x[0] == "POST"]), 3)
+
+        # The client remembers the checks, so the same update sends nothing.
+        # pyrefly: ignore  # missing-attribute
+        requests = sum(len(calls) for calls in m.requests.values())
+        await series.set_check(
+            context=DEFAULT_CHECK_CTX,
+            status=Status.PENDING,
+            target_url="https://127.0.0.1/target",
+        )
+        # pyrefly: ignore  # missing-attribute
+        self.assertEqual(sum(len(calls) for calls in m.requests.values()), requests)
 
     @aioresponses()
     async def test_series_checks_no_update_same_state_target(

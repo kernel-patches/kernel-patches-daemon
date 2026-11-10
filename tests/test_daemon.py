@@ -9,7 +9,8 @@ from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from kernel_patches_daemon.config import KPDConfig
-from kernel_patches_daemon.daemon import KernelPatchesWorker
+from kernel_patches_daemon.daemon import KernelPatchesWorker, MAX_LOOP_DELAY
+from kernel_patches_daemon.patchwork import PatchworkUnavailable
 from kernel_patches_daemon.stats import Stats
 
 TEST_CONFIG: Dict[str, Any] = {
@@ -17,7 +18,7 @@ TEST_CONFIG: Dict[str, Any] = {
     "patchwork": {
         "project": "test",
         "server": "pw",
-        "search_patterns": ["pw-search-pattern"],
+        "search_patterns": [{"project": 1234}],
         "lookback": 7,
     },
     "branches": {
@@ -106,6 +107,25 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         stats = LOGGED_METRICS[0][self.worker.project]
         self.assertEqual(stats["runs_failed"], 1)
         self.assertEqual(stats["unhandled_ValueError"], 1)
+
+    async def test_run_backs_off_while_patchwork_is_unavailable(self) -> None:
+        """
+        The delay doubles after each cycle that failed because Patchwork was
+        unavailable, up to MAX_LOOP_DELAY. A good cycle resets it.
+        """
+        worker = KernelPatchesWorker(
+            KPDConfig.from_json(TEST_CONFIG), {}, loop_delay=1000
+        )
+        worker.reset_github_sync = MagicMock(return_value=True)
+        unavailable = PatchworkUnavailable("Patchwork GET url: 403")
+        worker.github_sync_worker.sync_patches = AsyncMock(
+            side_effect=[unavailable, unavailable, None]
+        )
+        sleep = AsyncMock(side_effect=[None, None, TestException("Test complete")])
+        with patch("asyncio.sleep", sleep), self.assertRaises(TestException):
+            await worker.run()
+        delays = [call.args[0] for call in sleep.await_args_list]
+        self.assertEqual(delays, [2000, MAX_LOOP_DELAY, 1000])
 
     def _build_worker(self, metrics_logger) -> KernelPatchesWorker:
         kpd_config = KPDConfig.from_json(TEST_CONFIG)

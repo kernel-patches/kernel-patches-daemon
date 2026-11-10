@@ -1313,6 +1313,22 @@ class TestEmailNotifyOn(unittest.IsolatedAsyncioTestCase):
     async def test_failure_only_sends_for_failure(self):
         self.assertTrue(await self._evaluate({Status.FAILURE}, Status.FAILURE))
 
+    async def test_no_label_when_email_subject_fails(self):
+        """The label marks the email as sent, so a failure before it adds none."""
+        bw = BranchWorkerMock(email=self._make_email_config({Status.FAILURE}))
+        pr = MagicMock(labels=[])
+        series = Series(get_default_pw_client(), SERIES_DATA)
+        with (
+            patch(
+                "kernel_patches_daemon.branch_worker.get_ci_email_subject",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Patchwork is down"),
+            ),
+            self.assertRaises(RuntimeError),
+        ):
+            await bw.evaluate_ci_result(Status.FAILURE, series, pr, [])
+        pr.add_to_labels.assert_not_called()
+
     async def test_failure_only_skips_success_and_conflict(self):
         self.assertFalse(await self._evaluate({Status.FAILURE}, Status.SUCCESS))
         self.assertFalse(await self._evaluate({Status.FAILURE}, Status.CONFLICT))
@@ -1896,6 +1912,13 @@ class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
             )
             self.assertEqual(mock_comment.body, body)
             self.assertEqual(f"<{mbox_msgid}>", in_reply_to)
+
+        # The comment marks the forward as done, so a failed fetch posts none.
+        self._pw.get_blob.side_effect = RuntimeError("Patchwork is down")
+        mock_pr.reset_mock()
+        with self.assertRaises(RuntimeError):
+            await self._bw.forward_pr_comments(mock_pr, series)
+        mock_pr.create_issue_comment.assert_not_called()
 
 
 class TestPRCommentBodyPreprocessor(unittest.TestCase):
