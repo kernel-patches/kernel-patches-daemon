@@ -31,6 +31,9 @@ from pyre_extensions import none_throws
 
 # patchwork.kernel.org asks clients to keep at most 4 requests in flight.
 MAX_CONCURRENT_REQUESTS: Final[int] = 4
+# At most this many requests start per second, so that catching up after
+# an outage or a restart is spread out instead of being a burst.
+MAX_REQUESTS_PER_SEC: Final[int] = 10
 # After failures in a row, pause requests for 5 s, then 10 s, 20 s and so on,
 # or longer if Retry-After asks for it.
 RETRY_BASE_DELAY_SECS: Final[int] = 5
@@ -607,7 +610,9 @@ class Patchwork:
         # We will differ this initialization to a separate function and memoize it during first call.
         self.http_session = None
         self.request_slots = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-        # time.monotonic() value before which no request is sent.
+        # time.monotonic() value before which no request is sent: the end of
+        # the pause after a failure, or the start of the last request plus
+        # 1 / MAX_REQUESTS_PER_SEC.
         self.resume_at = 0.0
         # Failed requests in a row.
         self.failures = 0
@@ -668,10 +673,12 @@ class Patchwork:
         self, method: str, path: AnyStr, **kwargs: Any
     ) -> aiohttp.ClientResponse:
         """
-        Send a request. A 5xx, 429 or 403, a timeout or a connection error
-        raises PatchworkUnavailable and pauses the requests of all callers. A
-        request waits for a pause up to MAX_WAIT_SECS, and raises
-        PatchworkUnavailable instead of waiting for a longer one.
+        Send a request. At most MAX_CONCURRENT_REQUESTS requests are in
+        flight, and at most MAX_REQUESTS_PER_SEC start per second. A 5xx, 429
+        or 403, a timeout or a connection error raises PatchworkUnavailable
+        and pauses the requests of all callers. A request waits for a pause
+        up to MAX_WAIT_SECS, and raises PatchworkUnavailable instead of
+        waiting for a longer one.
         """
         http_session = await self.get_http_session()
         # pyre-ignore
@@ -686,6 +693,9 @@ class Patchwork:
                         f"Patchwork requests are paused for {pause:.0f} s"
                     )
                 await asyncio.sleep(pause)
+            # The loop has just seen resume_at in the past, and nothing ran
+            # since, so this cannot shorten a pause.
+            self.resume_at = time.monotonic() + 1 / MAX_REQUESTS_PER_SEC
 
             # A failure starts the pause before we release the slot, so that
             # the requests that wait for the slot see it.
