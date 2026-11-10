@@ -6,6 +6,7 @@
 
 # pyre-unsafe
 
+import asyncio
 import copy
 import datetime
 import os
@@ -14,9 +15,10 @@ import unittest
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
-from aioresponses import aioresponses
+from aioresponses import aioresponses, CallbackResult
 from freezegun import freeze_time
 from kernel_patches_daemon.patchwork import (
+    MAX_CONCURRENT_REQUESTS,
     parse_tags,
     RELEVANT_STATES,
     Subject,
@@ -80,6 +82,26 @@ class TestPatchwork(PatchworkTestCase):
                 headers = list(m.requests.values())[0][0].kwargs["headers"]
                 self.assertEqual(headers["User-Agent"], USER_AGENT)
                 self.assertEqual(headers.get("Authorization"), authorization)
+
+    @aioresponses()
+    async def test_get_limits_concurrent_requests(self, m: aioresponses) -> None:
+        """
+        At most MAX_CONCURRENT_REQUESTS requests are in flight at one time.
+        """
+        in_flight = peak = 0
+
+        async def respond(url, **kwargs) -> CallbackResult:
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.01)
+            in_flight -= 1
+            return CallbackResult(body=b"{}")
+
+        m.get(re.compile(r"^.*$"), callback=respond, repeat=True)
+        # pyrefly: ignore  # missing-attribute
+        await asyncio.gather(*[self._pw._Patchwork__get(f"o/{i}/") for i in range(10)])
+        self.assertEqual(peak, MAX_CONCURRENT_REQUESTS)
 
     @aioresponses()
     async def test_post_wrapper(self, m: aioresponses) -> None:

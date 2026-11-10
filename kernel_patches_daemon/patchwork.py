@@ -28,6 +28,8 @@ from opentelemetry import metrics
 from pyre_extensions import none_throws
 
 DEFAULT_HTTP_RETRIES = 3
+# patchwork.kernel.org asks clients to keep at most 4 requests in flight.
+MAX_CONCURRENT_REQUESTS: Final[int] = 4
 # Tells the Patchwork admins who sends the requests and how to reach us.
 USER_AGENT: Final[str] = (
     "kernel-patches-daemon/1.0 "
@@ -552,6 +554,7 @@ class Patchwork:
         # We will differ this initialization to a separate function and memoize it during first call.
         self.http_retries = http_retries
         self.http_session = None
+        self.request_slots = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
     async def get_http_session(self) -> aiohttp.ClientSession:
         """
@@ -596,14 +599,17 @@ class Patchwork:
         self, path: AnyStr, allow_redirects=True, **kwargs: Dict
     ) -> aiohttp.ClientResponse:
         http_session = await self.get_http_session()
-        resp = await http_session.get(
-            # pyre-ignore
-            # pyrefly: ignore  # bad-argument-type
-            urljoin(self.api_url, path),
-            # pyre-ignore
-            # pyrefly: ignore  # bad-argument-type
-            **kwargs,
-        )
+        async with self.request_slots:
+            resp = await http_session.get(
+                # pyre-ignore
+                # pyrefly: ignore  # bad-argument-type
+                urljoin(self.api_url, path),
+                # pyre-ignore
+                # pyrefly: ignore  # bad-argument-type
+                **kwargs,
+            )
+            # Read the body while we hold the slot.
+            await resp.read()
         return resp
 
     async def __get_object_by_id(self, object_type: str, object_id: int) -> Dict:
@@ -639,12 +645,14 @@ class Patchwork:
 
     async def __post(self, path: AnyStr, data: Dict) -> aiohttp.ClientResponse:
         http_session = await self.get_http_session()
-        resp = await http_session.post(
-            # pyre-ignore
-            # pyrefly: ignore  # bad-argument-type
-            urljoin(self.api_url, path),
-            data=data,
-        )
+        async with self.request_slots:
+            resp = await http_session.post(
+                # pyre-ignore
+                # pyrefly: ignore  # bad-argument-type
+                urljoin(self.api_url, path),
+                data=data,
+            )
+            await resp.read()
         return resp
 
     async def __try_post(
