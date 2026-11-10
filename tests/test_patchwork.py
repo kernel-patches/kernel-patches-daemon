@@ -454,6 +454,11 @@ class TestPatchwork(PatchworkTestCase):
         )
         m.assert_not_called()
 
+    def test_search_patterns_need_one_project(self) -> None:
+        for patterns in ([{"delegate": 1}], [{"project": 1}, {"project": 2}]):
+            with self.subTest(patterns=patterns), self.assertRaises(ValueError):
+                get_default_pw_client(search_patterns=patterns)
+
     def test_format_since(self) -> None:
         @dataclass
         class TestCase:

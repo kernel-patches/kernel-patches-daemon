@@ -366,7 +366,9 @@ class Subject:
         where first element is first known version of same subject
         and last is the most recent
         """
-        series_list = await self.pw_client.get_series(params={"q": self.subject})
+        series_list = await self.pw_client.get_series(
+            params={"project": str(self.pw_client.project), "q": self.subject}
+        )
 
         logging.debug(
             f"All series for '{self.subject}' subject: {json_pprint([s.to_json() for s in series_list])}"
@@ -577,6 +579,13 @@ class Patchwork:
         if not auth_token:
             logger.warning("Patchwork client runs in read-only mode")
         self.search_patterns = search_patterns
+        # Patchwork wants `project` in each list query. A patch must match all
+        # search patterns (see Series._is_patch_matching()), so they can name
+        # only one project.
+        projects = {pattern.get("project") for pattern in search_patterns}
+        if len(projects) != 1 or None in projects:
+            raise ValueError("All search patterns must have the same `project`")
+        self.project = projects.pop()
         self.lookback_in_days = lookback_in_days
         self.since = (
             self.format_since(lookback_in_days) if lookback_in_days > 0 else None

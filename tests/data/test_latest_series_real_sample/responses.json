@@ -11,7 +11,7 @@
     "patch-14165573.json",
     "patch-14165574.json"
   ],
-  "https://patchwork.test/api/1.1/series/?q=Support+kCFI+%252B+BPF+on+arm64": [
+  "https://patchwork.test/api/1.1/series/?project=399&q=Support+kCFI+%252B+BPF+on+arm64": [
     "series-830310.json",
     "series-984880.json"
   ]

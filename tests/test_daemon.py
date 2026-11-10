@@ -18,7 +18,7 @@ TEST_CONFIG: Dict[str, Any] = {
     "patchwork": {
         "project": "test",
         "server": "pw",
-        "search_patterns": ["pw-search-pattern"],
+        "search_patterns": [{"project": 1234}],
         "lookback": 7,
     },
     "branches": {
