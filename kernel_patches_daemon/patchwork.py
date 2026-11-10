@@ -8,9 +8,11 @@
 
 import asyncio
 import datetime
+import email.utils
 import json
 import logging
 import re
+import time
 from functools import update_wrapper
 from types import SimpleNamespace
 from typing import Any, AnyStr, Dict, Final, List, Optional, Sequence, Set, Tuple
@@ -19,7 +21,6 @@ from urllib.parse import urljoin
 import aiohttp
 import cachetools.keys
 import dateutil.parser as dateparser
-from aiohttp_retry import ExponentialRetry, RetryClient
 from cachetools import TTLCache
 from kernel_patches_daemon.config import SERIES_ID_SEPARATOR
 from kernel_patches_daemon.status import Status
@@ -28,9 +29,17 @@ from multidict import MultiDict
 from opentelemetry import metrics
 from pyre_extensions import none_throws
 
-DEFAULT_HTTP_RETRIES = 3
 # patchwork.kernel.org asks clients to keep at most 4 requests in flight.
 MAX_CONCURRENT_REQUESTS: Final[int] = 4
+# After failures in a row, pause requests for 5 s, then 10 s, 20 s and so on,
+# or longer if Retry-After asks for it.
+RETRY_BASE_DELAY_SECS: Final[int] = 5
+# A request waits for a pause up to this long. A longer pause makes it raise
+# PatchworkUnavailable, so that the daemon waits instead.
+MAX_WAIT_SECS: Final[int] = 60
+# No pause is longer than this, whatever Retry-After asks for.
+MAX_PAUSE_SECS: Final[int] = 3600
+REQUEST_TIMEOUT_SECS: Final[int] = 60
 # Tells the Patchwork admins who sends the requests and how to reach us.
 USER_AGENT: Final[str] = (
     "kernel-patches-daemon/1.0 "
@@ -159,6 +168,31 @@ async def log_response_content(
         f"Patchwork {response.method} {response.url} "
         f"{response.status}, response: {content}",
     )
+
+
+class PatchworkUnavailable(Exception):
+    """Patchwork is overloaded or refuses KPD's requests."""
+
+    def __init__(self, message: str, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        # The HTTP status, or None for a timeout, a connection error or a pause.
+        self.status = status
+
+
+def retry_after_secs(response: aiohttp.ClientResponse) -> Optional[float]:
+    """Return the delay in the Retry-After header (seconds or HTTP date), if any."""
+    value = response.headers.get("Retry-After", "").strip()
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        pass
+    try:
+        delay = email.utils.parsedate_to_datetime(value) - datetime.datetime.now(
+            datetime.timezone.utc
+        )
+    except (TypeError, ValueError):
+        return None
+    return max(0.0, delay.total_seconds())
 
 
 def json_pprint(obj: Any, indent: int = 2) -> str:
@@ -537,7 +571,6 @@ class Patchwork:
         auth_token: Optional[str] = None,
         lookback_in_days: int = -1,
         api_version: str = "1.2",
-        http_retries: int = DEFAULT_HTTP_RETRIES,
     ) -> None:
         self.api_url = f"https://{server}/api/{api_version}/"
         self.auth_token = auth_token
@@ -554,9 +587,12 @@ class Patchwork:
 
         # aiohttp's ClientSession needs to be initialized within an async function.
         # We will differ this initialization to a separate function and memoize it during first call.
-        self.http_retries = http_retries
         self.http_session = None
         self.request_slots = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+        # time.monotonic() value before which no request is sent.
+        self.resume_at = 0.0
+        # Failed requests in a row.
+        self.failures = 0
 
     async def get_http_session(self) -> aiohttp.ClientSession:
         """
@@ -575,18 +611,13 @@ class Patchwork:
             headers = {"User-Agent": USER_AGENT}
             if self.auth_token:
                 headers["Authorization"] = f"Token {self.auth_token}"
-            client_session = aiohttp.ClientSession(
+            # pyrefly: ignore  # bad-assignment
+            self.http_session = aiohttp.ClientSession(
                 headers=headers,
                 trace_configs=[trace_config],
                 # Read proxy from env var
                 trust_env=True,
-            )
-
-            # Work around intermittent issues by adding some retry logic.
-            retry_options = ExponentialRetry(attempts=self.http_retries)
-            # pyrefly: ignore  # bad-assignment
-            self.http_session = RetryClient(
-                client_session=client_session, retry_options=retry_options
+                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECS),
             )
         # pyrefly: ignore  # bad-return
         return self.http_session
@@ -597,22 +628,76 @@ class Patchwork:
         lookback = today - datetime.timedelta(days=pw_lookback)
         return lookback.strftime("%Y-%m-%dT%H:%M:%S")
 
+    def __pause_after_failure(
+        self,
+        message: str,
+        status: Optional[int] = None,
+        retry_after: Optional[float] = None,
+    ) -> PatchworkUnavailable:
+        """
+        Pause the requests of all callers after a failed request, and return
+        the error to raise. The pause is 5 s, doubled for each failure in a
+        row, or the Retry-After time if that is longer, up to MAX_PAUSE_SECS.
+        """
+        self.failures += 1
+        delay = RETRY_BASE_DELAY_SECS * 2 ** min(self.failures - 1, 10)
+        delay = min(max(delay, retry_after or 0), MAX_PAUSE_SECS)
+        self.resume_at = max(self.resume_at, time.monotonic() + delay)
+        logger.warning(f"{message}; pausing requests for {delay:.0f} s")
+        return PatchworkUnavailable(message, status)
+
+    async def __request(
+        self, method: str, path: AnyStr, **kwargs: Any
+    ) -> aiohttp.ClientResponse:
+        """
+        Send a request. A 5xx, 429 or 403, a timeout or a connection error
+        raises PatchworkUnavailable and pauses the requests of all callers. A
+        request waits for a pause up to MAX_WAIT_SECS, and raises
+        PatchworkUnavailable instead of waiting for a longer one.
+        """
+        http_session = await self.get_http_session()
+        # pyre-ignore
+        # pyrefly: ignore  # bad-argument-type
+        url = urljoin(self.api_url, path)
+        async with self.request_slots:
+            # Check the pause after we got the slot: it can start or grow
+            # while we wait for the slot.
+            while (pause := self.resume_at - time.monotonic()) > 0:
+                if pause > MAX_WAIT_SECS:
+                    raise PatchworkUnavailable(
+                        f"Patchwork requests are paused for {pause:.0f} s"
+                    )
+                await asyncio.sleep(pause)
+
+            # A failure starts the pause before we release the slot, so that
+            # the requests that wait for the slot see it.
+            try:
+                resp = await http_session.request(method, url, **kwargs)
+                # Read the body while we hold the slot.
+                await resp.read()
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                raise self.__pause_after_failure(
+                    f"Patchwork {method} {url}: {e!r}"
+                ) from e
+            if resp.status in (403, 429) or resp.status >= 500:
+                raise self.__pause_after_failure(
+                    f"Patchwork {method} {url}: {resp.status}",
+                    resp.status,
+                    retry_after_secs(resp),
+                )
+            self.failures = 0
+        return resp
+
     async def __get(
         self, path: AnyStr, allow_redirects=True, **kwargs: Dict
     ) -> aiohttp.ClientResponse:
-        http_session = await self.get_http_session()
-        async with self.request_slots:
-            resp = await http_session.get(
-                # pyre-ignore
-                # pyrefly: ignore  # bad-argument-type
-                urljoin(self.api_url, path),
-                # pyre-ignore
-                # pyrefly: ignore  # bad-argument-type
-                **kwargs,
-            )
-            # Read the body while we hold the slot.
-            await resp.read()
-        return resp
+        try:
+            return await self.__request("GET", path, **kwargs)
+        except PatchworkUnavailable as e:
+            if e.status == 403:
+                raise
+            # Try once more, after the pause.
+            return await self.__request("GET", path, **kwargs)
 
     async def __get_object_by_id(self, object_type: str, object_id: int) -> Dict:
         resp = await self.__get(f"{object_type}/{object_id}/")
@@ -645,17 +730,18 @@ class Patchwork:
             params = {}
         return items
 
-    async def __post(self, path: AnyStr, data: Dict) -> aiohttp.ClientResponse:
-        http_session = await self.get_http_session()
-        async with self.request_slots:
-            resp = await http_session.post(
-                # pyre-ignore
-                # pyrefly: ignore  # bad-argument-type
-                urljoin(self.api_url, path),
-                data=data,
-            )
-            await resp.read()
-        return resp
+    async def __post(
+        self, path: AnyStr, data: Dict
+    ) -> Optional[aiohttp.ClientResponse]:
+        try:
+            return await self.__request("POST", path, data=data)
+        except PatchworkUnavailable as e:
+            # Skip a check that got a 5xx, so that one bad patch cannot stop
+            # each cycle. The next cycle posts it again, and the pause still
+            # delays the next requests.
+            if e.status is None or e.status < 500:
+                raise
+            return None
 
     async def __try_post(
         self, path: AnyStr, data: Dict
