@@ -22,7 +22,6 @@ classifiers = [
 # the test suite. Lift once aioresponses supports aiohttp 3.14.
 # https://github.com/pnuckowski/aioresponses
 aiohttp = ">=3.8,<3.14"
-aiohttp-retry = "^2.8"
 aioresponses = "^0.7"
 multidict = "^6.0"
 python = "^3.11"

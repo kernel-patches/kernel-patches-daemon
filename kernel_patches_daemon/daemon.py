@@ -14,11 +14,13 @@ from typing import Callable, Dict, Final, Optional
 
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.github_sync import GithubSync
+from kernel_patches_daemon.patchwork import Patchwork, PatchworkUnavailable
 from pyre_extensions import none_throws
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 DEFAULT_LOOP_DELAY: Final[int] = 120
+MAX_LOOP_DELAY: Final[int] = 3600
 
 
 class KernelPatchesWorker:
@@ -38,14 +40,21 @@ class KernelPatchesWorker:
             logger.info(
                 "Metrics logging is disabled; run metrics will not be submitted"
             )
+        # Unlike GithubSync, the Patchwork client lives as long as the daemon.
+        self.pw = Patchwork(
+            server=kpd_config.patchwork.base_url,
+            search_patterns=kpd_config.patchwork.search_patterns,
+            lookback_in_days=kpd_config.patchwork.lookback,
+            auth_token=kpd_config.patchwork.token,
+        )
         self.github_sync_worker: GithubSync = GithubSync(
-            kpd_config=self.kpd_config, labels_cfg=self.labels_cfg
+            kpd_config=self.kpd_config, labels_cfg=self.labels_cfg, pw=self.pw
         )
 
     def reset_github_sync(self) -> bool:
         try:
             self.github_sync_worker = GithubSync(
-                kpd_config=self.kpd_config, labels_cfg=self.labels_cfg
+                kpd_config=self.kpd_config, labels_cfg=self.labels_cfg, pw=self.pw
             )
             return True
         except Exception:
@@ -68,6 +77,8 @@ class KernelPatchesWorker:
             )
 
     async def run(self) -> None:
+        # Cycles in a row that failed because Patchwork was unavailable.
+        patchwork_failures = 0
         while True:
             ok = self.reset_github_sync()
             if not ok:
@@ -78,6 +89,7 @@ class KernelPatchesWorker:
             try:
                 await self.github_sync_worker.sync_patches()
                 self.github_sync_worker.increment_counter("runs_successful")
+                patchwork_failures = 0
             except Exception as e:
                 self.github_sync_worker.increment_counter("runs_failed")
                 exception_name = type(e).__name__
@@ -87,9 +99,15 @@ class KernelPatchesWorker:
                 logger.exception(
                     "Unhandled exception in KernelPatchesWorker.run()", exc_info=True
                 )
+                if isinstance(e, PatchworkUnavailable):
+                    patchwork_failures += 1
+                else:
+                    patchwork_failures = 0
             await self.submit_metrics()
-            logger.info(f"Waiting for {self.loop_delay} seconds before next run...")
-            await asyncio.sleep(self.loop_delay)
+            # Wait longer while Patchwork is overloaded or refuses KPD.
+            delay = min(self.loop_delay * 2**patchwork_failures, MAX_LOOP_DELAY)
+            logger.info(f"Waiting for {delay} seconds before next run...")
+            await asyncio.sleep(delay)
 
 
 class KernelPatchesDaemon:

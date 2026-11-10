@@ -6,8 +6,25 @@
 
 # pyre-unsafe
 
+import asyncio
+from typing import Any, Awaitable, List
 
 from git.util import remove_password_if_present
+
+
+async def gather_or_cancel(*aws: Awaitable[Any]) -> List[Any]:
+    """
+    Run the awaitables like asyncio.gather(). If one of them raises, cancel
+    the others, so that they do not keep sending requests after the caller
+    gave up.
+    """
+    tasks = [asyncio.ensure_future(aw) for aw in aws]
+    try:
+        return await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        raise
 
 
 def redact_url(url: str) -> str:

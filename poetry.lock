@@ -155,21 +155,6 @@ yarl = ">=1.17.0,<2.0"
 speedups = ["Brotli (>=1.2) ; platform_python_implementation == \"CPython\"", "aiodns (>=3.3.0)", "backports.zstd ; platform_python_implementation == \"CPython\" and python_version < \"3.14\"", "brotlicffi (>=1.2) ; platform_python_implementation != \"CPython\""]
 
 [[package]]
-name = "aiohttp-retry"
-version = "2.9.1"
-description = "Simple retry client for aiohttp"
-optional = false
-python-versions = ">=3.7"
-groups = ["main"]
-files = [
-    {file = "aiohttp_retry-2.9.1-py3-none-any.whl", hash = "sha256:66d2759d1921838256a05a3f80ad7e724936f083e35be5abb5e16eed6be6dc54"},
-    {file = "aiohttp_retry-2.9.1.tar.gz", hash = "sha256:8eb75e904ed4ee5c2ec242fefe85bf04240f685391c4879d8f541d6028ff01f1"},
-]
-
-[package.dependencies]
-aiohttp = "*"
-
-[[package]]
 name = "aioresponses"
 version = "0.7.8"
 description = "Mock out requests made by ClientSession from aiohttp package"
@@ -1840,4 +1825,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "25c7e62b1abe0b36d79296aa648b652568dc720e3a4b9a564a0728b50b15b502"
+content-hash = "1d9b6544a450d202b0dce2b3e98f72f099caaf5aa9661670a5468403be0e7291"

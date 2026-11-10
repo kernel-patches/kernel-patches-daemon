@@ -20,7 +20,11 @@ from kernel_patches_daemon.branch_worker import (
 )
 from kernel_patches_daemon.config import KPDConfig, SERIES_TARGET_SEPARATOR
 from kernel_patches_daemon.github_sync import GithubSync
-from tests.common.patchwork_mock import init_pw_responses, PatchworkMock
+from tests.common.patchwork_mock import (
+    get_default_pw_client,
+    init_pw_responses,
+    PatchworkMock,
+)
 from tests.common.utils import load_test_data
 
 TEST_BRANCH = "test-branch"
@@ -68,6 +72,7 @@ class GithubSyncMock(GithubSync):
         presets = {
             "kpd_config": kpd_config,
             "labels_cfg": {},
+            "pw": get_default_pw_client(),
             **kwargs,
         }
 
@@ -378,11 +383,11 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         self.assertIn("https://patchwork.test/api/1.1/series/970926/", touched_urls)
         self.assertIn("https://patchwork.test/api/1.1/series/970968/", touched_urls)
         self.assertIn("https://patchwork.test/api/1.1/series/970970/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114605/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114773/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114774/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114775/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114777/", touched_urls)
+        for series_id in (970926, 970968, 970970):
+            self.assertIn(
+                f"https://patchwork.test/api/1.1/patches/?project=399&series={series_id}",
+                touched_urls,
+            )
 
         # Verify that a single POST request was made to patchwork
         # Updating state of a patch 14114605

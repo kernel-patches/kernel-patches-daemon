@@ -6,11 +6,16 @@
 
 # pyre-unsafe
 
+import asyncio
 import unittest
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from kernel_patches_daemon.utils import redact_url, remove_unsafe_chars
+from kernel_patches_daemon.utils import (
+    gather_or_cancel,
+    redact_url,
+    remove_unsafe_chars,
+)
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -84,3 +89,15 @@ class UtilsTestCase(unittest.TestCase):
         for case in test_cases:
             with self.subTest(msg=case.s):
                 self.assertEqual(remove_unsafe_chars(case.s), case.safe_s)
+
+
+class GatherOrCancelTestCase(unittest.IsolatedAsyncioTestCase):
+    async def test_failure_cancels_the_others(self) -> None:
+        async def fail() -> None:
+            raise ValueError("failed")
+
+        other = asyncio.ensure_future(asyncio.sleep(60))
+        with self.assertRaises(ValueError):
+            await gather_or_cancel(fail(), other)
+        await asyncio.sleep(0)
+        self.assertTrue(other.cancelled())
