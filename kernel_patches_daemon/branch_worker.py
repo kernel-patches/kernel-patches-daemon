@@ -1471,10 +1471,16 @@ class BranchWorker(GithubConnector):
             # Either this is the first run we had for this patch version (no
             # label was there) or we switched states (pass <-> fail). Either
             # way, send an email notifying the submitter.
+            subject = None
+            if status in email_cfg.notify_on:
+                # The label marks the email as sent. Get the subject from
+                # Patchwork first, because that can fail.
+                subject = await get_ci_email_subject(series)
+
             logger.info(f"{pr} is now {new_label}; adding label")
             pr.add_to_labels(new_label)
 
-            if status not in email_cfg.notify_on:
+            if subject is None:
                 logger.info(
                     f"Skipping email notification for {pr}: status "
                     f"'{status.value}' is not in the configured notify_on set"
@@ -1484,7 +1490,6 @@ class BranchWorker(GithubConnector):
             logger.info(f"Sending email notification for {pr}")
             failed_logs = await self.log_extractor.extract_failed_logs(jobs)
             inline_logs = self.log_extractor.generate_inline_email_text(failed_logs)
-            subject = await get_ci_email_subject(series)
             ctx = build_email_body_context(self.repo, pr, status, series, inline_logs)
             body = furnish_ci_email_body(email_cfg, ctx)
             await send_ci_results_email(email_cfg, series, subject, body)
@@ -1626,18 +1631,19 @@ class BranchWorker(GithubConnector):
                 )
                 continue
 
-            # first, post a comment that the message is being forwarded
+            # first, load the message we are replying to: the comment below
+            # marks the forward as done, and this can fail
+            mbox = await series.pw_client.get_blob(patch["mbox"])
+            parser = email.parser.BytesParser(policy=email.policy.default)
+            patch_msg = parser.parsebytes(mbox, headersonly=True)
+
+            # then, post a comment that the message is being forwarded
             msg_id = patch["msgid"]
             patch_url = patch["web_url"]
             message = f"Forwarding comment [{comment.id}]({comment.html_url}) via email"
             message += f"\nIn-Reply-To: {msg_id}"
             message += f"\nPatch: {patch_url}"
             self._add_pull_request_comment(pr, message)
-
-            # then, load the message we are replying to
-            mbox = await series.pw_client.get_blob(patch["mbox"])
-            parser = email.parser.BytesParser(policy=email.policy.default)
-            patch_msg = parser.parsebytes(mbox, headersonly=True)
 
             # and forward the target comment via email
             email_body: str = self.pr_comment_body_to_email_body(cfg, comment.body)
