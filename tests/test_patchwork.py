@@ -16,7 +16,13 @@ from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from aioresponses import aioresponses
 from freezegun import freeze_time
-from kernel_patches_daemon.patchwork import parse_tags, RELEVANT_STATES, Subject, TTL
+from kernel_patches_daemon.patchwork import (
+    parse_tags,
+    RELEVANT_STATES,
+    Subject,
+    TTL,
+    USER_AGENT,
+)
 from kernel_patches_daemon.status import Status
 from multidict import MultiDict
 from pyre_extensions import none_throws
@@ -59,6 +65,21 @@ class TestPatchwork(PatchworkTestCase):
 
         json_resp = await resp.json()
         self.assertEqual(json_resp["key1"], "value1")
+
+    async def test_get_identifies_kpd(self) -> None:
+        """
+        GET requests carry the User-Agent, and the API token when one is set.
+        """
+        for token, authorization in [("mocktoken", "Token mocktoken"), (None, None)]:
+            with self.subTest(token=token), aioresponses() as m:
+                m.get(re.compile(r"^.*$"), status=200, body=b"{}")
+                pw = get_default_pw_client(auth_token=token)
+                # pyrefly: ignore  # missing-attribute
+                await pw._Patchwork__get("object")
+                # pyrefly: ignore  # missing-attribute
+                headers = list(m.requests.values())[0][0].kwargs["headers"]
+                self.assertEqual(headers["User-Agent"], USER_AGENT)
+                self.assertEqual(headers.get("Authorization"), authorization)
 
     @aioresponses()
     async def test_post_wrapper(self, m: aioresponses) -> None:

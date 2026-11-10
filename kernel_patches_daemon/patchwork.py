@@ -28,6 +28,11 @@ from opentelemetry import metrics
 from pyre_extensions import none_throws
 
 DEFAULT_HTTP_RETRIES = 3
+# Tells the Patchwork admins who sends the requests and how to reach us.
+USER_AGENT: Final[str] = (
+    "kernel-patches-daemon/1.0 "
+    "(+https://github.com/kernel-patches/kernel-patches-daemon; kernel-ci@meta.com)"
+)
 
 # when we want to push this patch through CI
 RELEVANT_STATES: Dict[str, int] = {
@@ -562,7 +567,11 @@ class Patchwork:
             # pyre-fixme[6]: In call `typing.MutableSequence.append`, for 1st positional argument, expected `_SignalCallback[TraceRequestEndParams]` but got `typing.Callable(on_request_end)[[Named(session, ClientSession), Named(trace_ctx, TraceContext), Named(params, TraceRequestEndParams)], Coroutine[typing.Any, typing.Any, None]]`.
             # pyrefly: ignore  # bad-argument-type
             trace_config.on_request_end.append(on_request_end)
+            headers = {"User-Agent": USER_AGENT}
+            if self.auth_token:
+                headers["Authorization"] = f"Token {self.auth_token}"
             client_session = aiohttp.ClientSession(
+                headers=headers,
                 trace_configs=[trace_config],
                 # Read proxy from env var
                 trust_env=True,
@@ -634,7 +643,6 @@ class Patchwork:
             # pyre-ignore
             # pyrefly: ignore  # bad-argument-type
             urljoin(self.api_url, path),
-            headers={"Authorization": f"Token {self.auth_token}"},
             data=data,
         )
         return resp
