@@ -543,6 +543,7 @@ class Patchwork:
         if not auth_token:
             logger.warning("Patchwork client runs in read-only mode")
         self.search_patterns = search_patterns
+        self.lookback_in_days = lookback_in_days
         self.since = (
             self.format_since(lookback_in_days) if lookback_in_days > 0 else None
         )
@@ -763,6 +764,9 @@ class Patchwork:
         return self.known_subjects[series.subject]
 
     async def get_relevant_subjects(self) -> Sequence[Subject]:
+        # The client is used for many cycles: move the lookback window along.
+        if self.lookback_in_days > 0:
+            self.since = self.format_since(self.lookback_in_days)
         subjects = {}
         filtered_subjects = []
         self.known_series = {}

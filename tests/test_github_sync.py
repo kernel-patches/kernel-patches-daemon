@@ -20,7 +20,11 @@ from kernel_patches_daemon.branch_worker import (
 )
 from kernel_patches_daemon.config import KPDConfig, SERIES_TARGET_SEPARATOR
 from kernel_patches_daemon.github_sync import GithubSync
-from tests.common.patchwork_mock import init_pw_responses, PatchworkMock
+from tests.common.patchwork_mock import (
+    get_default_pw_client,
+    init_pw_responses,
+    PatchworkMock,
+)
 from tests.common.utils import load_test_data
 
 TEST_BRANCH = "test-branch"
@@ -68,6 +72,7 @@ class GithubSyncMock(GithubSync):
         presets = {
             "kpd_config": kpd_config,
             "labels_cfg": {},
+            "pw": get_default_pw_client(),
             **kwargs,
         }
 

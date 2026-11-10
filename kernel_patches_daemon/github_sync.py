@@ -87,15 +87,10 @@ class GithubSync(Stats):
         self,
         kpd_config: KPDConfig,
         labels_cfg: Dict[str, str],
+        pw: Patchwork,
         http_retries: int = DEFAULT_HTTP_RETRIES,
     ) -> None:
-        self.pw = Patchwork(
-            server=kpd_config.patchwork.base_url,
-            search_patterns=kpd_config.patchwork.search_patterns,
-            lookback_in_days=kpd_config.patchwork.lookback,
-            auth_token=kpd_config.patchwork.token,
-            http_retries=http_retries,
-        )
+        self.pw = pw
         self.tag_to_branch_mapping = kpd_config.tag_to_branch_mapping
         self.workers: Dict[str, BranchWorker] = {
             branch: BranchWorker(

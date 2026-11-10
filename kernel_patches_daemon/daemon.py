@@ -14,6 +14,7 @@ from typing import Callable, Dict, Final, Optional
 
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.github_sync import GithubSync
+from kernel_patches_daemon.patchwork import Patchwork
 from pyre_extensions import none_throws
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -38,14 +39,21 @@ class KernelPatchesWorker:
             logger.info(
                 "Metrics logging is disabled; run metrics will not be submitted"
             )
+        # Unlike GithubSync, the Patchwork client lives as long as the daemon.
+        self.pw = Patchwork(
+            server=kpd_config.patchwork.base_url,
+            search_patterns=kpd_config.patchwork.search_patterns,
+            lookback_in_days=kpd_config.patchwork.lookback,
+            auth_token=kpd_config.patchwork.token,
+        )
         self.github_sync_worker: GithubSync = GithubSync(
-            kpd_config=self.kpd_config, labels_cfg=self.labels_cfg
+            kpd_config=self.kpd_config, labels_cfg=self.labels_cfg, pw=self.pw
         )
 
     def reset_github_sync(self) -> bool:
         try:
             self.github_sync_worker = GithubSync(
-                kpd_config=self.kpd_config, labels_cfg=self.labels_cfg
+                kpd_config=self.kpd_config, labels_cfg=self.labels_cfg, pw=self.pw
             )
             return True
         except Exception:

@@ -383,6 +383,22 @@ class TestPatchwork(PatchworkTestCase):
         """
         await self._test_lookback(m, -1, lambda url: self.assertNotIn("since=", url))
 
+    @aioresponses()
+    async def test_lookback_moves_with_time(self, m: aioresponses) -> None:
+        """
+        The client is used for many cycles, so each search computes 'since' again.
+        """
+        self._pw = get_default_pw_client(lookback_in_days=7)
+        m.get(re.compile(r"^.*$"), status=200, body=b"[]", repeat=True)
+        for today, since in [
+            ("2010-01-10", "2010-01-03"),
+            ("2010-01-11", "2010-01-04"),
+        ]:
+            with freeze_time(today):
+                await self._pw.get_relevant_subjects()
+            # pyrefly: ignore  # missing-attribute
+            self.assertIn(f"since={since}", str(list(m.requests)[-1][1]))
+
 
 class TestSeries(PatchworkTestCase):
     @aioresponses()
