@@ -27,6 +27,7 @@ from kernel_patches_daemon import patchwork
 from kernel_patches_daemon.patchwork import (
     MAX_CONCURRENT_REQUESTS,
     MAX_PAUSE_SECS,
+    MAX_REQUESTS_PER_SEC,
     parse_tags,
     PatchworkUnavailable,
     RELEVANT_STATES,
@@ -128,8 +129,28 @@ class TestPatchwork(PatchworkTestCase):
 
         m.get(re.compile(r"^.*$"), callback=respond, repeat=True)
         # pyrefly: ignore  # missing-attribute
-        await asyncio.gather(*[self._pw._Patchwork__get(f"o/{i}/") for i in range(10)])
+        get = self._pw._Patchwork__get
+        with patch.object(patchwork, "MAX_REQUESTS_PER_SEC", 10000):
+            await asyncio.gather(*[get(f"o/{i}/") for i in range(10)])
         self.assertEqual(peak, MAX_CONCURRENT_REQUESTS)
+
+    @aioresponses()
+    async def test_get_limits_request_rate(self, m: aioresponses) -> None:
+        """
+        At most MAX_REQUESTS_PER_SEC requests start per second.
+        """
+        starts = []
+        # pyrefly: ignore  # missing-attribute
+        get = self._pw._Patchwork__get
+        with fake_clock() as clock:
+            m.get(
+                re.compile(r"^.*$"),
+                repeat=True,
+                callback=lambda url, **kwargs: starts.append(clock.now),
+            )
+            await asyncio.gather(*[get(f"o/{i}/") for i in range(8)])
+        gaps = [b - a for a, b in zip(starts, starts[1:])]
+        self.assertAlmostEqual(min(gaps), 1 / MAX_REQUESTS_PER_SEC)
 
     async def test_get_backs_off(self) -> None:
         """
@@ -204,7 +225,8 @@ class TestPatchwork(PatchworkTestCase):
                 await get("object")
             await get("object")
             await get("object")
-        self.assertEqual(clock.sleeps, [5, 10, 5])
+        # The third request waits for the rate limit, not for a pause.
+        self.assertEqual([round(s, 3) for s in clock.sleeps], [5, 10, 0.1, 5])
 
     @aioresponses()
     async def test_queued_requests_wait_for_the_pause(self, m: aioresponses) -> None:
@@ -963,7 +985,7 @@ class TestSeries(PatchworkTestCase):
 
 
 class TestSubject(PatchworkTestCase):
-    @freeze_time(DEFAULT_FREEZE_DATE)
+    @freeze_time(DEFAULT_FREEZE_DATE, tick=True)
     @aioresponses()
     async def test_relevant_series(self, m: aioresponses) -> None:
         """
@@ -984,7 +1006,7 @@ class TestSubject(PatchworkTestCase):
         self.assertEqual(len(await series.get_patches()), 1)
         self.assertEqual([patch["id"] for patch in await series.get_patches()], [11])
 
-    @freeze_time(DEFAULT_FREEZE_DATE)
+    @freeze_time(DEFAULT_FREEZE_DATE, tick=True)
     @aioresponses()
     async def test_latest_series(self, m: aioresponses) -> None:
         """
@@ -999,7 +1021,7 @@ class TestSubject(PatchworkTestCase):
         # and has 3 diffs
         self.assertEqual(len(await latest_series.get_patches()), 3)
 
-    @freeze_time(DEFAULT_FREEZE_DATE)
+    @freeze_time(DEFAULT_FREEZE_DATE, tick=True)
     @aioresponses()
     async def test_branch_name(self, m: aioresponses) -> None:
         """
