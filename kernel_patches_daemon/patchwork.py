@@ -452,14 +452,14 @@ class Series:
         return time_since_secs(self.date)
 
     @cached(cache=TTLCache(maxsize=1, ttl=600))
-    async def get_patches(self) -> Tuple[Dict]:
+    async def get_patches(self) -> List[Dict]:
         """
         Returns patches preserving original order
         for the most recent relevant series
         """
-        tasks = [self.pw_client.get_patch_by_id(patch["id"]) for patch in self.patches]
-        # pyrefly: ignore  # bad-return
-        return await gather_or_cancel(*tasks)
+        patches = await self.pw_client.get_series_patches(self.id)
+        by_id = {patch["id"]: patch for patch in patches}
+        return [by_id[patch["id"]] for patch in self.patches if patch["id"] in by_id]
 
     async def is_closed(self) -> bool:
         """
@@ -956,8 +956,14 @@ class Patchwork:
         logger.info(f"Total relevant subjects found: {len(filtered_subjects)}")
         return filtered_subjects
 
-    async def get_patch_by_id(self, id: int) -> Dict:
-        return await self.__get_object_by_id("patches", id)
+    async def get_series_patches(self, series_id: int) -> List[Dict]:
+        """
+        Return the patches of a series with one list request. Unlike patch
+        details, list items do not include the patch content and diff.
+        """
+        return await self.__get_objects_recursive(
+            "patches", params={"project": str(self.project), "series": str(series_id)}
+        )
 
     async def get_series(self, params: Optional[Dict]) -> List[Series]:
         return [

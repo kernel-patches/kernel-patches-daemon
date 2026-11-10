@@ -66,6 +66,23 @@ def init_pw_responses(m: aioresponses, data: Dict[str, Any]) -> None:
     for url, content in data.items():
         m.get(url, status=200, payload=content, repeat=True)
 
+    # KPD lists the patches of a series with patches/?series=<id>. Serve
+    # these lists from the series and patch objects in `data`.
+    for url, content in data.items():
+        api_url = url.partition("series/")[0]
+        for series in content if isinstance(content, list) else [content]:
+            if not isinstance(series, dict) or "patches" not in series:
+                continue
+            patch_urls = [f"{api_url}patches/{p['id']}/" for p in series["patches"]]
+            m.get(
+                re.compile(
+                    rf"^{re.escape(api_url)}patches/\?(.*&)?series={series['id']}(&|$)"
+                ),
+                status=200,
+                payload=[data[u] for u in patch_urls if u in data],
+                repeat=True,
+            )
+
     # If we don't have the key and there is no search parameters assume (e.g no `?`` in URL)
     # we are querying a specific URL and it is not found.
     # This is a very rudimentation proxy, if we need to get more clever, aioresponses can take a function

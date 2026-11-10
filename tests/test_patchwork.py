@@ -669,6 +669,15 @@ class TestSeries(PatchworkTestCase):
                 "foo",
             ],
         )
+        # One request for the series, and one for all of its patches.
+        self.assertEqual(
+            # pyrefly: ignore  # not-iterable
+            [str(url) for _, url in m.requests],
+            [
+                "https://127.0.0.1/api/1.1/series/665/",
+                "https://127.0.0.1/api/1.1/patches/?project=1234&series=665",
+            ],
+        )
 
     @aioresponses()
     async def test_series_is_expired(self, m: aioresponses) -> None:

@@ -383,11 +383,11 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         self.assertIn("https://patchwork.test/api/1.1/series/970926/", touched_urls)
         self.assertIn("https://patchwork.test/api/1.1/series/970968/", touched_urls)
         self.assertIn("https://patchwork.test/api/1.1/series/970970/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114605/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114773/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114774/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114775/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/patches/14114777/", touched_urls)
+        for series_id in (970926, 970968, 970970):
+            self.assertIn(
+                f"https://patchwork.test/api/1.1/patches/?project=399&series={series_id}",
+                touched_urls,
+            )
 
         # Verify that a single POST request was made to patchwork
         # Updating state of a patch 14114605
