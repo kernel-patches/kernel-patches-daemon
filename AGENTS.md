@@ -28,8 +28,9 @@ These hold at the time of writing; check the code before relying on them.
 
 - **Lifetimes.** `GithubSync` and every `BranchWorker` are recreated on each iteration, so their
   caches (`prs`, `all_prs`, the closed-PR cache, `branches`) live for one iteration. The
-  `Patchwork` client is created once and lives as long as the daemon. Find out an object's
-  lifetime before reasoning about whether its data is stale.
+  `Patchwork` client is created once and lives as long as the daemon. It remembers the latest
+  check of each patch and context across iterations. Find out an object's lifetime before
+  reasoning about whether its data is stale.
 - **PyGithub objects are snapshots.** `pr.labels`, `pr.state` and `pr.head.sha` reflect the last
   fetch. Label API calls do not update `pr.labels`; `pr.update()` refetches.
 - **PR identity** is the head branch `series/<id>=><target>`, where `<id>` is the subject's latest

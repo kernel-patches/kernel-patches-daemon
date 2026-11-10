@@ -776,6 +776,17 @@ class TestSeries(PatchworkTestCase):
         # pyrefly: ignore  # missing-attribute
         self.assertEqual(len([x for x in m.requests.keys() if x[0] == "POST"]), 3)
 
+        # The client remembers the checks, so the same update sends nothing.
+        # pyrefly: ignore  # missing-attribute
+        requests = sum(len(calls) for calls in m.requests.values())
+        await series.set_check(
+            context=DEFAULT_CHECK_CTX,
+            status=Status.PENDING,
+            target_url="https://127.0.0.1/target",
+        )
+        # pyrefly: ignore  # missing-attribute
+        self.assertEqual(sum(len(calls) for calls in m.requests.values()), requests)
+
     @aioresponses()
     async def test_series_checks_no_update_same_state_target(
         self, m: aioresponses
