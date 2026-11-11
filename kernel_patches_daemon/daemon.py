@@ -145,7 +145,7 @@ class KernelPatchesDaemon:
     async def start_async(self) -> None:
         logger.info("Starting Kernel Patches Daemon...")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # pyrefly: ignore  # bad-argument-type
         loop.add_signal_handler(signal.SIGTERM, self.stop)

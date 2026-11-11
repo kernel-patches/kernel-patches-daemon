@@ -242,7 +242,7 @@ async def on_request_start(
     Handler called when an HTTP request starts.
     We currently use this to capture the start time of the request.
     """
-    trace_ctx.start = asyncio.get_event_loop().time()
+    trace_ctx.start = asyncio.get_running_loop().time()
 
 
 async def on_request_end(
@@ -255,7 +255,7 @@ async def on_request_end(
     We currently use this to capture the end time of the request and subsequently
     log the response content and metrics.
     """
-    trace_ctx.end = asyncio.get_event_loop().time()
+    trace_ctx.end = asyncio.get_running_loop().time()
     await log_response_content(params.response, trace_ctx)
     await log_response_metrics(params.response, trace_ctx)
 
