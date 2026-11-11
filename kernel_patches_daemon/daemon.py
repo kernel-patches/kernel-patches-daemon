@@ -10,6 +10,7 @@ import asyncio
 import logging
 import signal
 import threading
+import time
 from typing import Callable, Dict, Final, Optional
 
 from kernel_patches_daemon.config import KPDConfig
@@ -86,6 +87,8 @@ class KernelPatchesWorker:
                     "Most likely something went wrong connecting to GitHub or Patchwork. Skipping this iteration without submitting metrics."
                 )
                 continue
+            started = time.monotonic()
+            requests_sent = self.pw.requests_sent
             try:
                 await self.github_sync_worker.sync_patches()
                 self.github_sync_worker.increment_counter("runs_successful")
@@ -106,7 +109,11 @@ class KernelPatchesWorker:
             await self.submit_metrics()
             # Wait longer while Patchwork is overloaded or refuses KPD.
             delay = min(self.loop_delay * 2**patchwork_failures, MAX_LOOP_DELAY)
-            logger.info(f"Waiting for {delay} seconds before next run...")
+            logger.info(
+                f"Cycle took {time.monotonic() - started:.0f} s and sent "
+                f"{self.pw.requests_sent - requests_sent} Patchwork requests; "
+                f"waiting {delay} s before the next one"
+            )
             await asyncio.sleep(delay)
 
 
