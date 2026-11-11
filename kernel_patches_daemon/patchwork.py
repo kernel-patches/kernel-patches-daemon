@@ -620,6 +620,8 @@ class Patchwork:
         self.resume_at = 0.0
         # Failed requests in a row.
         self.failures = 0
+        # Requests sent, for the daemon's log of each cycle.
+        self.requests_sent = 0
 
     async def get_http_session(self) -> aiohttp.ClientSession:
         """
@@ -700,6 +702,7 @@ class Patchwork:
             # The loop has just seen resume_at in the past, and nothing ran
             # since, so this cannot shorten a pause.
             self.resume_at = time.monotonic() + 1 / MAX_REQUESTS_PER_SEC
+            self.requests_sent += 1
 
             # A failure starts the pause before we release the slot, so that
             # the requests that wait for the slot see it.
