@@ -41,8 +41,8 @@ from kernel_patches_daemon.status import Status
 from multidict import MultiDict
 from pyre_extensions import none_throws
 from tests.common.patchwork_mock import (
+    CHECKS_QUERY,
     DEFAULT_CHECK_CTX,
-    DEFAULT_CHECK_CTX_QUERY,
     DEFAULT_FREEZE_DATE,
     DEFAULT_TEST_RESPONSES,
     FOO_SERIES_FIRST,
@@ -732,33 +732,6 @@ class TestSeries(PatchworkTestCase):
             self.assertFalse(await series.is_expired())
 
     @aioresponses()
-    async def test_get_latest_check_for_patch(self, m: aioresponses) -> None:
-        """
-        Tests `get_latest_check_for_patch` function,
-        which now makes a GET request with additional queries to ensure that
-        it's fetching single latest data with matching context value
-        """
-        # space intentional to test urlencoding
-        CTX = "vmtest bpf-next-PR"
-        # not using requests.utils.requote_uri() since that encodes space to %20, while requests.get() encodes space to +
-        CTX_URLENCODED = "vmtest+bpf-next-PR"
-        EXPECTED_ID = 42
-        contexts_responses = {
-            f"https://127.0.0.1/api/1.1/patches/12859379/checks/?context={CTX_URLENCODED}&order=-date&per_page=1": [
-                {
-                    "context": CTX,
-                    "date": "2010-01-02T00:00:00",
-                    "state": "pending",
-                    "id": EXPECTED_ID,
-                },
-            ],
-        }
-        init_pw_responses(m, contexts_responses)
-
-        check = await self._pw.get_latest_check_for_patch(12859379, CTX)
-        self.assertEqual(check["id"], EXPECTED_ID)
-
-    @aioresponses()
     async def test_series_checks_update_all_diffs(self, m: aioresponses) -> None:
         """
         Test that we update all the diffs in a serie if there is either no existing check
@@ -768,7 +741,7 @@ class TestSeries(PatchworkTestCase):
         contexts_responses.update(
             {
                 # Patch with existing context
-                f"https://127.0.0.1/api/1.1/patches/6651/checks/{DEFAULT_CHECK_CTX_QUERY}": [
+                f"https://127.0.0.1/api/1.1/patches/6651/checks/{CHECKS_QUERY}": [
                     {
                         "context": DEFAULT_CHECK_CTX,
                         "date": "2010-01-01T00:00:00",
@@ -776,8 +749,8 @@ class TestSeries(PatchworkTestCase):
                     },
                 ],
                 # Patches without existing context
-                f"https://127.0.0.1/api/1.1/patches/6652/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
-                f"https://127.0.0.1/api/1.1/patches/6653/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6652/checks/{CHECKS_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6653/checks/{CHECKS_QUERY}": [],
             }
         )
 
@@ -810,6 +783,32 @@ class TestSeries(PatchworkTestCase):
         self.assertEqual(sum(len(calls) for calls in m.requests.values()), requests)
 
     @aioresponses()
+    async def test_series_checks_list_each_patch_once(self, m: aioresponses) -> None:
+        """
+        Checks of several contexts posted at the same time list the checks of
+        each patch once.
+        """
+        responses = copy.deepcopy(DEFAULT_TEST_RESPONSES)
+        for patch_id in (6651, 6652, 6653):
+            url = f"https://127.0.0.1/api/1.1/patches/{patch_id}/checks/{CHECKS_QUERY}"
+            responses[url] = []
+        init_pw_responses(m, responses)
+        m.post(re.compile(r"^.*$"), status=200, repeat=True)
+        series = await self._pw.get_series_by_id(665)
+        url = "https://127.0.0.1/target"
+        await asyncio.gather(
+            series.set_check(context="a", status=Status.PENDING, target_url=url),
+            series.set_check(context="b", status=Status.PENDING, target_url=url),
+        )
+        listings = [
+            len(calls)
+            # pyrefly: ignore  # missing-attribute
+            for (method, u), calls in m.requests.items()
+            if method == "GET" and "/checks/" in str(u)
+        ]
+        self.assertEqual(listings, [1, 1, 1])
+
+    @aioresponses()
     async def test_series_checks_no_update_same_state_target(
         self, m: aioresponses
     ) -> None:
@@ -821,7 +820,7 @@ class TestSeries(PatchworkTestCase):
         contexts_responses.update(
             {
                 # Patch with existing context
-                f"https://127.0.0.1/api/1.1/patches/6651/checks/{DEFAULT_CHECK_CTX_QUERY}": [
+                f"https://127.0.0.1/api/1.1/patches/6651/checks/{CHECKS_QUERY}": [
                     {
                         "context": DEFAULT_CHECK_CTX,
                         "date": "2010-01-01T00:00:00",
@@ -830,8 +829,8 @@ class TestSeries(PatchworkTestCase):
                     },
                 ],
                 # Patches without existing context
-                f"https://127.0.0.1/api/1.1/patches/6652/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
-                f"https://127.0.0.1/api/1.1/patches/6653/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6652/checks/{CHECKS_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6653/checks/{CHECKS_QUERY}": [],
             }
         )
 
@@ -863,7 +862,7 @@ class TestSeries(PatchworkTestCase):
         contexts_responses.update(
             {
                 # Patch with existing context
-                f"https://127.0.0.1/api/1.1/patches/6651/checks/{DEFAULT_CHECK_CTX_QUERY}": [
+                f"https://127.0.0.1/api/1.1/patches/6651/checks/{CHECKS_QUERY}": [
                     {
                         "context": DEFAULT_CHECK_CTX,
                         "date": "2010-01-01T00:00:00",
@@ -871,10 +870,17 @@ class TestSeries(PatchworkTestCase):
                         # target_url not matching
                         "target_url": TARGET_URL + "something",
                     },
+                    # Older, so it does not count.
+                    {
+                        "context": DEFAULT_CHECK_CTX,
+                        "date": "2009-01-01T00:00:00",
+                        "state": "pending",
+                        "target_url": TARGET_URL,
+                    },
                 ],
                 # Patches without existing context
-                f"https://127.0.0.1/api/1.1/patches/6652/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
-                f"https://127.0.0.1/api/1.1/patches/6653/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6652/checks/{CHECKS_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6653/checks/{CHECKS_QUERY}": [],
             }
         )
 
@@ -906,7 +912,7 @@ class TestSeries(PatchworkTestCase):
         contexts_responses.update(
             {
                 # Patch with existing context
-                f"https://127.0.0.1/api/1.1/patches/6651/checks/{DEFAULT_CHECK_CTX_QUERY}": [
+                f"https://127.0.0.1/api/1.1/patches/6651/checks/{CHECKS_QUERY}": [
                     {
                         "context": DEFAULT_CHECK_CTX,
                         "date": "2010-01-01T00:00:00",
@@ -918,8 +924,8 @@ class TestSeries(PatchworkTestCase):
                     },
                 ],
                 # Patches without existing context
-                f"https://127.0.0.1/api/1.1/patches/6652/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
-                f"https://127.0.0.1/api/1.1/patches/6653/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6652/checks/{CHECKS_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6653/checks/{CHECKS_QUERY}": [],
             }
         )
 
@@ -952,7 +958,7 @@ class TestSeries(PatchworkTestCase):
         contexts_responses.update(
             {
                 # Patch with existing context
-                f"https://127.0.0.1/api/1.1/patches/6651/checks/{DEFAULT_CHECK_CTX_QUERY}": [
+                f"https://127.0.0.1/api/1.1/patches/6651/checks/{CHECKS_QUERY}": [
                     {
                         "context": DEFAULT_CHECK_CTX,
                         "date": "2010-01-01T00:00:00",
@@ -962,8 +968,8 @@ class TestSeries(PatchworkTestCase):
                     },
                 ],
                 # Patches without existing context
-                f"https://127.0.0.1/api/1.1/patches/6652/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
-                f"https://127.0.0.1/api/1.1/patches/6653/checks/{DEFAULT_CHECK_CTX_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6652/checks/{CHECKS_QUERY}": [],
+                f"https://127.0.0.1/api/1.1/patches/6653/checks/{CHECKS_QUERY}": [],
             }
         )
 

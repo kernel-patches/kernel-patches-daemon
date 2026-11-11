@@ -43,8 +43,11 @@ MAX_WAIT_SECS: Final[int] = 60
 # No pause is longer than this, whatever Retry-After asks for.
 MAX_PAUSE_SECS: Final[int] = 3600
 REQUEST_TIMEOUT_SECS: Final[int] = 60
-# How many checks the client remembers, see post_check_for_patch_id().
-CHECK_CACHE_SIZE: Final[int] = 65536
+# For how many patches the client remembers the checks, see
+# post_check_for_patch_id().
+CHECK_CACHE_SIZE: Final[int] = 1024
+# patchwork.kernel.org serves at most this many items per page.
+MAX_PAGE_SIZE: Final[int] = 250
 # How much of a response body that is not JSON to log: all of a typical
 # error page.
 LOGGED_BODY_BYTES: Final[int] = 512
@@ -601,10 +604,11 @@ class Patchwork:
         # member variable initializations
         self.known_series: Dict[int, Series] = {}
         self.known_subjects: Dict[str, Subject] = {}
-        # (patch ID, context) -> latest check, or None if there is no check.
-        # Only KPD posts checks with its contexts, so it can remember them.
-        # The client lives as long as the daemon, so this lasts across cycles.
+        # Patch ID -> {context: latest check}. Only KPD posts checks with its
+        # contexts, so it can remember them. The client lives as long as the
+        # daemon, so this lasts across cycles.
         self.latest_checks: LRUCache = LRUCache(maxsize=CHECK_CACHE_SIZE)
+        self.latest_checks_lock = asyncio.Lock()
 
         # aiohttp's ClientSession needs to be initialized within an async function.
         # We will differ this initialization to a separate function and memoize it during first call.
@@ -785,36 +789,25 @@ class Patchwork:
         resp = await self.__get(url, allow_redirects=True)
         return await resp.read()
 
-    async def get_latest_check_for_patch(
-        self,
-        patch_id: int,
-        context: str,
-    ) -> Dict[str, Any]:
+    async def __get_latest_checks(self, patch_id: int) -> Dict[str, Dict]:
         """
-        Return dict of the latest check with matching context and patch_id if exists.
-        Returns None if such check does not exist.
+        Return the latest check of each context of a patch. The first call
+        for a patch lists all its checks, later calls use the cache.
         """
-        # get single latest one with matching context value
-        # patchwork.kernel.org api ignores case for context query
-        resp = await self.__get(
-            f"patches/{patch_id}/checks/",
-            params={
-                "context": context,
-                "order": "-date",
-                "per_page": "1",
-            },
-        )
-        checks = await resp.json()
-        logger.debug(
-            f"Received latest check for patch {patch_id} with context {context}: {json_pprint(checks)}"
-        )
-
-        if len(checks) == 0:
-            raise ValueError(
-                f"Patch {patch_id} doesn't have any checks with '{context}' context"
-            )
-
-        return checks[0]
+        # The checks of all contexts of a patch are posted at the same time:
+        # the lock makes them wait for one listing.
+        async with self.latest_checks_lock:
+            if patch_id not in self.latest_checks:
+                checks = await self.__get_objects_recursive(
+                    f"patches/{patch_id}/checks",
+                    params={"order": "-date", "per_page": str(MAX_PAGE_SIZE)},
+                )
+                latest: Dict[str, Dict] = {}
+                # Newest first, so the first check of a context is its latest.
+                for check in checks:
+                    latest.setdefault(check["context"], check)
+                self.latest_checks[patch_id] = latest
+            return self.latest_checks[patch_id]
 
     async def post_check_for_patch_id(
         self, patch_id: int, status: Status, check_data: Dict[str, Any]
@@ -827,18 +820,8 @@ class Patchwork:
         logger.debug(
             f"Trying to update check for {patch_id} with a new content: {json_pprint(updated_check_data)}"
         )
-        key = (patch_id, check_data["context"])
-        if key in self.latest_checks:
-            check = self.latest_checks[key]
-        else:
-            try:
-                check = await self.get_latest_check_for_patch(
-                    patch_id, check_data["context"]
-                )
-            except ValueError:
-                check = None
-            self.latest_checks[key] = check
-
+        latest_checks = await self.__get_latest_checks(patch_id)
+        check = latest_checks.get(check_data["context"])
         if check is None:
             logger.debug(f"Setting patch {patch_id} check to '{new_state}' state")
         else:
@@ -871,7 +854,7 @@ class Patchwork:
             data=updated_check_data,
         )
         if resp is not None and resp.ok:
-            self.latest_checks[key] = updated_check_data
+            latest_checks[check_data["context"]] = updated_check_data
         return resp
 
     async def get_series_by_id(self, series_id: int) -> Series:
