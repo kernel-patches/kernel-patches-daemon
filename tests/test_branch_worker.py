@@ -2193,6 +2193,25 @@ class TestEmailWorkflowFiltering(unittest.IsolatedAsyncioTestCase):
         pw = get_default_pw_client()
         return Series(pw, SERIES_DATA)
 
+    async def test_pr_summary_check(self):
+        """sync_checks() reports the overall CI status as the PR summary check."""
+        bw = BranchWorkerMock()
+        pr = self._make_pr()
+        series = self._make_series()
+        runs = [self._make_run(1, "Build and Test", "success")]
+        with (
+            patch.object(bw.repo, "get_workflow_runs", return_value=runs),
+            patch.object(bw, "evaluate_ci_result", new_callable=AsyncMock),
+            patch.object(series, "set_check", new_callable=AsyncMock) as set_check,
+        ):
+            await bw.sync_checks(pr, series)
+        set_check.assert_awaited_once_with(
+            status=Status.SUCCESS,
+            target_url=pr.html_url,
+            context=f"{TEST_REPO_BRANCH}-PR",
+            description="PR summary",
+        )
+
     async def test_ignored_workflow_excluded_from_email_status(self):
         """A failing ignored workflow should not affect the email status."""
         bw = BranchWorkerMock(
