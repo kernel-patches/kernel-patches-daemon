@@ -44,6 +44,7 @@ from tests.common.patchwork_mock import (
     DEFAULT_TEST_RESPONSES,
     FOO_SERIES_FIRST,
     FOO_SERIES_LAST,
+    PROJECT,
     get_default_pw_client,
     get_dict_key,
     init_pw_responses,
@@ -574,6 +575,63 @@ class TestPatchwork(PatchworkTestCase):
         If lookback is <= 0, the 'since' query parameter must not be present in the requests.
         """
         await self._test_lookback(m, -1, lambda url: self.assertNotIn("since=", url))
+
+    @freeze_time(DEFAULT_FREEZE_DATE, tick=True)
+    @aioresponses()
+    async def test_get_relevant_subjects(self, m: aioresponses) -> None:
+        """
+        Subjects are derived from the series IDs of the matching patches, ignoring
+        series entries with a missing name or a malformed ID.
+        """
+        # Exclude patches/?series=... : init_pw_responses() serves those
+        # lists from the series objects, and this broad mock would shadow it
+        # (aioresponses matches in registration order).
+        m.get(
+            re.compile(r"^.*/patches/\?(?!.*series=).*$"),
+            status=200,
+            payload=[
+                {
+                    # Real Patchwork list items always carry an id; Series.get_patches()
+                    # indexes the series list by it.
+                    "id": 1,
+                    "series": [
+                        {"id": FOO_SERIES_LAST, "name": "foo"},
+                        {"id": 7, "name": ""},
+                        {"id": "malformed", "name": "foo"},
+                    ],
+                }
+            ],
+            repeat=True,
+        )
+        foo_series = {
+            "id": FOO_SERIES_LAST,
+            "name": "foo",
+            "date": "2010-07-21T01:00:00",
+            "patches": [{"id": 11}],
+            "version": 0,
+            "url": "https://example.com",
+            "web_url": "https://example.com",
+            "submitter": {"email": "a-user@example.com"},
+            "mbox": "https://example.com",
+        }
+        init_pw_responses(
+            m,
+            {
+                **DEFAULT_TEST_RESPONSES,
+                f"https://127.0.0.1/api/1.1/series/?project={PROJECT}&q=foo": [
+                    foo_series
+                ],
+                f"https://127.0.0.1/api/1.1/series/{FOO_SERIES_LAST}/": foo_series,
+                "https://127.0.0.1/api/1.1/patches/11/": {
+                    **DEFAULT_TEST_RESPONSES["https://127.0.0.1/api/1.1/patches/11/"],
+                    "state": get_dict_key(RELEVANT_STATES),
+                },
+            },
+        )
+
+        subjects = await self._pw.get_relevant_subjects()
+        self.assertEqual([subject.subject for subject in subjects], ["foo"])
+        self.assertEqual(list(self._pw.known_series), [FOO_SERIES_LAST])
 
     @aioresponses()
     async def test_lookback_moves_with_time(self, m: aioresponses) -> None:
