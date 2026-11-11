@@ -306,50 +306,22 @@ def parse_subject(input: str) -> str:
 # An asyncio compatible cachetools.cached method.
 # https://github.com/tkem/cachetools/issues/137
 # We may want to use asyncache, aiocache or the likes.
-def cached(cache, key=cachetools.keys.hashkey, lock=None):
+def cached(cache):
     """
-    Decorator to wrap an async function with a memoizing callable that saves results in a cache.
+    Decorator for an async function: keep its results in `cache`, keyed by
+    its arguments.
     """
 
     def decorator(func):
-        if cache is None:
-
-            async def wrapper(*args, **kwargs):
-                return await func(*args, **kwargs)
-
-        elif lock is None:
-
-            async def wrapper(*args, **kwargs):
-                k = key(*args, **kwargs)
-                try:
-                    return cache[k]
-                except KeyError:
-                    pass  # key not found
-                v = await func(*args, **kwargs)
-                try:
-                    cache[k] = v
-                except ValueError:
-                    pass  # value too large
-                return v
-
-        else:
-
-            async def wrapper(*args, **kwargs):
-                k = key(*args, **kwargs)
-                try:
-                    # pyrefly: ignore  # bad-context-manager
-                    with lock:
-                        return cache[k]
-                except KeyError:
-                    pass  # key not found
-                v = await func(*args, **kwargs)
-                try:
-                    # pyrefly: ignore  # bad-context-manager
-                    with lock:
-                        cache[k] = v
-                except ValueError:
-                    pass  # value too large
-                return v
+        async def wrapper(*args, **kwargs):
+            k = cachetools.keys.hashkey(*args, **kwargs)
+            try:
+                return cache[k]
+            except KeyError:
+                pass  # key not found
+            v = await func(*args, **kwargs)
+            cache[k] = v
+            return v
 
         return update_wrapper(wrapper, func)
 
