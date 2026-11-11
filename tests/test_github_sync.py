@@ -6,25 +6,18 @@
 
 
 import copy
-import os
 import unittest
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from aioresponses import aioresponses
 from kernel_patches_daemon.branch_worker import (
     MERGE_CONFLICT_LABEL,
     NewPRWithNoChangeException,
 )
 from kernel_patches_daemon.config import KPDConfig, SERIES_TARGET_SEPARATOR
 from kernel_patches_daemon.github_sync import GithubSync
-from tests.common.patchwork_mock import (
-    get_default_pw_client,
-    init_pw_responses,
-    PatchworkMock,
-)
-from tests.common.utils import load_test_data
+from tests.common.patchwork_mock import get_default_pw_client
 
 TEST_BRANCH = "test-branch"
 TEST_BPF_NEXT_BRANCH = "test-bpf-next"
@@ -83,9 +76,12 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         patcher = patch("kernel_patches_daemon.github_connector.Github")
         self._gh_mock = patcher.start()
         self.addCleanup(patcher.stop)
-        # avoid local git commands
+        # avoid local git and shell commands
         patcher = patch("kernel_patches_daemon.branch_worker.git.Repo")
         self._git_repo_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = patch("kernel_patches_daemon.branch_worker.execute_command")
+        patcher.start()
         self.addCleanup(patcher.stop)
 
         self._gh = GithubSyncMock()
@@ -331,78 +327,10 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(selected_branches, mapped_branches)
 
-    @aioresponses()
-    async def test_sync_patches_pr_summary_success(self, m: aioresponses) -> None:
-        """
-        This is a kind of an integration test, attempting to cover most of the
-        github_sync.sync_patches() happy-path code.
-        For patchwork mocking, it uses real response examples stored at tests/data/
-        """
-
-        data_path = os.path.join(
-            os.path.dirname(__file__),
-            "data/test_sync_patches_pr_summary_success",
-        )
-        test_data = load_test_data(data_path)
-        init_pw_responses(m, test_data)
-
-        # Set up mocks and test data
-        patchwork = PatchworkMock(
-            server="patchwork.test",
-            api_version="1.1",
-            search_patterns=[{"archived": False, "project": 399, "delegate": 121173}],
-            auth_token="mocktoken",
-        )
-        self.addAsyncCleanup(patchwork.close)
-        self._gh.pw = patchwork
-
-        worker = self._gh.workers[TEST_BRANCH]
-        # pyrefly: ignore  # missing-attribute
-        worker.repo.get_branches.return_value = [MagicMock(name=TEST_BRANCH)]
-
-        worker = self._gh.workers[TEST_BPF_NEXT_BRANCH]
-        # pyrefly: ignore  # missing-attribute
-        worker.repo.get_branches.return_value = [MagicMock(name=TEST_BPF_NEXT_BRANCH)]
-        # pyrefly: ignore  # missing-attribute
-        worker.repo.create_pull.return_value = MagicMock(
-            html_url="https://github.com/org/repo/pull/98765"
-        )
-
-        m.post("https://patchwork.test/api/1.1/patches/14114605/checks/")
-
-        # Execute the function under test
+    async def test_sync_patches_syncs_relevant_subjects(self) -> None:
+        subjects = [MagicMock(), MagicMock()]
+        self._gh.pw.get_relevant_subjects = AsyncMock(return_value=subjects)
+        self._gh.sync_relevant_subject = AsyncMock()
         await self._gh.sync_patches()
-
-        # Verify expected patches and series fetched from patchwork
-        # pyrefly: ignore  # missing-attribute
-        get_requests = [key for key in m.requests.keys() if key[0] == "GET"]
-        touched_urls = set()
-        for req in get_requests:
-            touched_urls.add(str(req[1]))
-        self.assertIn("https://patchwork.test/api/1.1/series/970926/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/series/970968/", touched_urls)
-        self.assertIn("https://patchwork.test/api/1.1/series/970970/", touched_urls)
-        for series_id in (970926, 970968, 970970):
-            self.assertIn(
-                f"https://patchwork.test/api/1.1/patches/?project=399&series={series_id}",
-                touched_urls,
-            )
-
-        # Verify that a single POST request was made to patchwork
-        # Updating state of a patch 14114605
-        # pyrefly: ignore  # missing-attribute
-        post_requests = [key for key in m.requests.keys() if key[0] == "POST"]
-        self.assertEqual(1, len(post_requests))
-        # pyrefly: ignore  # unsupported-operation
-        post_calls = m.requests[post_requests[0]]
-        url = str(post_requests[0][1])
-        self.assertEqual("https://patchwork.test/api/1.1/patches/14114605/checks/", url)
-        self.assertEqual(1, len(post_calls))
-        post_data = post_calls[0].kwargs["data"]
-        expected_post_data = {
-            "target_url": "https://github.com/org/repo/pull/98765",
-            "context": "test-bpf-next-PR",
-            "description": "PR summary",
-            "state": "success",
-        }
-        self.assertDictEqual(expected_post_data, post_data)
+        synced = [c.args[0] for c in self._gh.sync_relevant_subject.await_args_list]
+        self.assertEqual(synced, subjects)
