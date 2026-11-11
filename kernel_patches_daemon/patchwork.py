@@ -855,7 +855,6 @@ class Patchwork:
             if self.lookback_in_days > 0
             else None
         )
-        subjects = {}
         filtered_subjects = []
         self.known_series = {}
         self.known_subjects = {}
@@ -905,13 +904,9 @@ class Patchwork:
                     logger.error(f"Malformed series name: {series.name}")
                     err_malformed_series.add(1)
                     continue
-                self.known_series[series.id] = series
+                self.get_subject_by_series(series)
 
-                if series.subject not in subjects:
-                    subjects[series.subject] = Subject(series.subject, self)
-                    self.known_subjects[series.subject] = subjects[series.subject]
-
-            logger.info(f"Total subjects found: {len(subjects)}")
+            logger.info(f"Total subjects found: {len(self.known_subjects)}")
 
             # async function used to fetch latest series for each subject concurrently
             async def fetch_latest_series(
@@ -919,7 +914,7 @@ class Patchwork:
             ) -> Tuple[str, Series, Optional[Series]]:
                 return (subject_name, subject_obj, await subject_obj.latest_series())
 
-            tasks = [fetch_latest_series(k, v) for k, v in subjects.items()]
+            tasks = [fetch_latest_series(k, v) for k, v in self.known_subjects.items()]
             tasks = await gather_or_cancel(*tasks)
 
             for subject_name, subject_obj, latest_series in tasks:
