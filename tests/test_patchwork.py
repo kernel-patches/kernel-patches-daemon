@@ -267,7 +267,7 @@ class TestPatchwork(PatchworkTestCase):
                 await get("object")
             with self.assertRaises(PatchworkUnavailable):
                 await get("object")
-        self.assertEqual(self._pw.resume_at, MAX_PAUSE_SECS)
+        self.assertEqual(self._pw.next_request_at, MAX_PAUSE_SECS)
         self.assertEqual(clock.sleeps, [])
         m.assert_called_once()
 
