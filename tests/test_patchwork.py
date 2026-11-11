@@ -101,20 +101,16 @@ class TestPatchwork(PatchworkTestCase):
         json_resp = await resp.json()
         self.assertEqual(json_resp["key1"], "value1")
 
-    async def test_get_identifies_kpd(self) -> None:
+    async def test_requests_identify_kpd(self) -> None:
         """
-        GET requests carry the User-Agent, and the API token when one is set.
+        Requests carry the User-Agent, and the API token when one is set. The
+        client sets them on its session, which sends them with every request.
         """
         for token, authorization in [("mocktoken", "Token mocktoken"), (None, None)]:
-            with self.subTest(token=token), aioresponses() as m:
-                m.get(re.compile(r"^.*$"), status=200, body=b"{}")
-                pw = self.new_client(auth_token=token)
-                # pyrefly: ignore  # missing-attribute
-                await pw._Patchwork__get("object")
-                # pyrefly: ignore  # missing-attribute
-                headers = list(m.requests.values())[0][0].kwargs["headers"]
-                self.assertEqual(headers["User-Agent"], USER_AGENT)
-                self.assertEqual(headers.get("Authorization"), authorization)
+            with self.subTest(token=token):
+                session = await self.new_client(auth_token=token).get_http_session()
+                self.assertEqual(session.headers["User-Agent"], USER_AGENT)
+                self.assertEqual(session.headers.get("Authorization"), authorization)
 
     @aioresponses()
     async def test_get_limits_concurrent_requests(self, m: aioresponses) -> None:
