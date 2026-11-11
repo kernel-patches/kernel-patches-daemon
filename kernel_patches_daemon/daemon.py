@@ -47,6 +47,8 @@ class KernelPatchesWorker:
             search_patterns=kpd_config.patchwork.search_patterns,
             lookback_in_days=kpd_config.patchwork.lookback,
             auth_token=kpd_config.patchwork.token,
+            max_concurrent_requests=kpd_config.patchwork.max_concurrent_requests,
+            max_requests_per_sec=kpd_config.patchwork.max_requests_per_sec,
         )
         self.github_sync_worker: GithubSync = GithubSync(
             kpd_config=self.kpd_config, labels_cfg=self.labels_cfg, pw=self.pw

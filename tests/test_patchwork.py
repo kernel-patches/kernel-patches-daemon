@@ -25,9 +25,7 @@ from aioresponses import aioresponses, CallbackResult
 from freezegun import freeze_time
 from kernel_patches_daemon import patchwork
 from kernel_patches_daemon.patchwork import (
-    MAX_CONCURRENT_REQUESTS,
     MAX_PAUSE_SECS,
-    MAX_REQUESTS_PER_SEC,
     parse_tags,
     PatchworkUnavailable,
     RELEVANT_STATES,
@@ -115,7 +113,7 @@ class TestPatchwork(PatchworkTestCase):
     @aioresponses()
     async def test_get_limits_concurrent_requests(self, m: aioresponses) -> None:
         """
-        At most MAX_CONCURRENT_REQUESTS requests are in flight at one time.
+        At most max_concurrent_requests requests are in flight at one time.
         """
         in_flight = peak = 0
 
@@ -128,20 +126,21 @@ class TestPatchwork(PatchworkTestCase):
             return CallbackResult(body=b"{}")
 
         m.get(re.compile(r"^.*$"), callback=respond, repeat=True)
+        pw = get_default_pw_client(max_concurrent_requests=2, max_requests_per_sec=1000)
         # pyrefly: ignore  # missing-attribute
-        get = self._pw._Patchwork__get
-        with patch.object(patchwork, "MAX_REQUESTS_PER_SEC", 10000):
-            await asyncio.gather(*[get(f"o/{i}/") for i in range(10)])
-        self.assertEqual(peak, MAX_CONCURRENT_REQUESTS)
+        get = pw._Patchwork__get
+        await asyncio.gather(*[get(f"o/{i}/") for i in range(10)])
+        self.assertEqual(peak, 2)
 
     @aioresponses()
     async def test_get_limits_request_rate(self, m: aioresponses) -> None:
         """
-        At most MAX_REQUESTS_PER_SEC requests start per second.
+        At most max_requests_per_sec requests start per second.
         """
         starts = []
+        pw = get_default_pw_client(max_requests_per_sec=5)
         # pyrefly: ignore  # missing-attribute
-        get = self._pw._Patchwork__get
+        get = pw._Patchwork__get
         with fake_clock() as clock:
             m.get(
                 re.compile(r"^.*$"),
@@ -150,7 +149,7 @@ class TestPatchwork(PatchworkTestCase):
             )
             await asyncio.gather(*[get(f"o/{i}/") for i in range(8)])
         gaps = [b - a for a, b in zip(starts, starts[1:])]
-        self.assertAlmostEqual(min(gaps), 1 / MAX_REQUESTS_PER_SEC)
+        self.assertAlmostEqual(min(gaps), 1 / 5)
 
     async def test_get_backs_off(self) -> None:
         """
