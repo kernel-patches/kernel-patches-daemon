@@ -354,7 +354,6 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
             search_patterns=[{"archived": False, "project": 399, "delegate": 121173}],
             auth_token="mocktoken",
         )
-        patchwork.since = "2025-06-11T00:00:00"
         self._gh.pw = patchwork
 
         worker = self._gh.workers[TEST_BRANCH]

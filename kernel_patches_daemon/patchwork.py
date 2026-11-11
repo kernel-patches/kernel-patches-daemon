@@ -573,9 +573,6 @@ class Patchwork:
             raise ValueError("All search patterns must have the same `project`")
         self.project = projects.pop()
         self.lookback_in_days = lookback_in_days
-        self.since = (
-            self.format_since(lookback_in_days) if lookback_in_days > 0 else None
-        )
         # member variable initializations
         self.known_series: Dict[int, Series] = {}
         self.known_subjects: Dict[str, Subject] = {}
@@ -853,8 +850,11 @@ class Patchwork:
 
     async def get_relevant_subjects(self) -> Sequence[Subject]:
         # The client is used for many cycles: move the lookback window along.
-        if self.lookback_in_days > 0:
-            self.since = self.format_since(self.lookback_in_days)
+        since = (
+            self.format_since(self.lookback_in_days)
+            if self.lookback_in_days > 0
+            else None
+        )
         subjects = {}
         filtered_subjects = []
         self.known_series = {}
@@ -868,8 +868,8 @@ class Patchwork:
                     *[("state", val) for val in RELEVANT_STATES.values()],
                 ]
             )
-            if self.since is not None:
-                patch_filters.add("since", self.since)
+            if since is not None:
+                patch_filters.add("since", since)
             patch_filters.update({k: str(v) for k, v in pattern.items()})
             logger.info(
                 f"Searching for Patchwork patches that match the criteria: {patch_filters}"
