@@ -85,21 +85,12 @@ IRRELEVANT_STATES: Dict[str, int] = {
     "handled-elsewhere": 17,
 }
 
-PW_CHECK_PENDING_STATES: Dict[Status, str] = {
+PW_CHECK_STATES: Dict[Status, str] = {
     Status.PENDING: "pending",
-}
-
-PW_CHECK_CONCLUSIVE_STATES: Dict[Status, str] = {
     Status.SUCCESS: "success",
     Status.SKIPPED: "success",
     Status.FAILURE: "fail",
     Status.CONFLICT: "fail",
-}
-
-
-PW_CHECK_STATES: Dict[Status, str] = {
-    **PW_CHECK_PENDING_STATES,
-    **PW_CHECK_CONCLUSIVE_STATES,
 }
 
 SUBJECT_REGEXP: Final[re.Pattern] = re.compile(r"(?P<header>\[[^\]]*\])? *(?P<name>.+)")
@@ -787,7 +778,7 @@ class Patchwork:
     async def post_check_for_patch_id(
         self, patch_id: int, status: Status, check_data: Dict[str, Any]
     ) -> Optional[aiohttp.ClientResponse]:
-        new_state = PW_CHECK_STATES.get(status, PW_CHECK_STATES[Status.PENDING])
+        new_state = PW_CHECK_STATES[status]
         updated_check_data = {
             **check_data,
             "state": new_state,
@@ -800,10 +791,7 @@ class Patchwork:
         if check is None:
             logger.debug(f"Setting patch {patch_id} check to '{new_state}' state")
         else:
-            if (
-                status in PW_CHECK_PENDING_STATES
-                and PW_CHECK_PENDING_STATES[status] != check["state"]
-            ):
+            if status == Status.PENDING and check["state"] != new_state:
                 logger.info(
                     f"Not posting state update for patch {patch_id}: "
                     f"existing state '{check['state']}' can't be changed "
