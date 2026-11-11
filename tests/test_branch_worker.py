@@ -8,7 +8,6 @@
 import email
 import email.parser
 import email.policy
-import json
 import os
 import random
 import re
@@ -51,7 +50,6 @@ from kernel_patches_daemon.branch_worker import (
 )
 from kernel_patches_daemon.config import (
     EmailConfig,
-    KPDConfig,
     PRCommentsForwardingConfig,
     SERIES_ID_SEPARATOR,
     SERIES_TARGET_SEPARATOR,
