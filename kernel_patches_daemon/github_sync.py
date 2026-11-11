@@ -268,6 +268,15 @@ class GithubSync(Stats):
             break
         pass
 
+    def _record_pr_metrics(
+        self, sync_workers: Sequence[tuple[str, BranchWorker]]
+    ) -> None:
+        for _, worker in sync_workers:
+            for pr in worker.prs.values():
+                if worker._is_relevant_pr(pr):
+                    self.increment_counter("prs_total")
+                    processed_prs.add(1)
+
     async def sync_patches(self) -> None:
         """
         One subject = one branch
@@ -389,8 +398,4 @@ class GithubSync(Stats):
         self.set_counter("mirror_duration", mirror_done - sync_start)
         self.set_counter("pw_fetch_duration", pw_done - mirror_done)
         self.set_counter("patch_and_update_duration", patches_done - pw_done)
-        for _, worker in sync_workers:
-            for pr in worker.prs.values():
-                if worker._is_relevant_pr(pr):
-                    self.increment_counter("prs_total")
-                    processed_prs.add(1)
+        self._record_pr_metrics(sync_workers)
