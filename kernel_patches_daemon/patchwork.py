@@ -577,10 +577,10 @@ class Patchwork:
         # We will differ this initialization to a separate function and memoize it during first call.
         self.http_session = None
         self.request_slots = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-        # time.monotonic() value before which no request is sent: the end of
+        # time.monotonic() value before which no request starts: the end of
         # the pause after a failure, or the start of the last request plus
-        # 1 / MAX_REQUESTS_PER_SEC.
-        self.resume_at = 0.0
+        # 1 / MAX_REQUESTS_PER_SEC, whichever is later.
+        self.next_request_at = 0.0
         # Failed requests in a row.
         self.failures = 0
         # Requests sent, for the daemon's log of each cycle.
@@ -634,7 +634,7 @@ class Patchwork:
         self.failures += 1
         delay = RETRY_BASE_DELAY_SECS * 2 ** min(self.failures - 1, 10)
         delay = min(max(delay, retry_after or 0), MAX_PAUSE_SECS)
-        self.resume_at = max(self.resume_at, time.monotonic() + delay)
+        self.next_request_at = max(self.next_request_at, time.monotonic() + delay)
         logger.warning(f"{message}; pausing requests for {delay:.0f} s")
         return PatchworkUnavailable(message, status)
 
@@ -656,15 +656,17 @@ class Patchwork:
         async with self.request_slots:
             # Check the pause after we got the slot: it can start or grow
             # while we wait for the slot.
-            while (pause := self.resume_at - time.monotonic()) > 0:
+            while (pause := self.next_request_at - time.monotonic()) > 0:
                 if pause > MAX_WAIT_SECS:
                     raise PatchworkUnavailable(
                         f"Patchwork requests are paused for {pause:.0f} s"
                     )
                 await asyncio.sleep(pause)
-            # The loop has just seen resume_at in the past, and nothing ran
-            # since, so this cannot shorten a pause.
-            self.resume_at = time.monotonic() + 1 / MAX_REQUESTS_PER_SEC
+            # Nothing awaits between the loop and here, so the other requests
+            # see the new value before they can start.
+            self.next_request_at = max(
+                self.next_request_at, time.monotonic() + 1 / MAX_REQUESTS_PER_SEC
+            )
             self.requests_sent += 1
 
             # A failure starts the pause before we release the slot, so that
