@@ -161,9 +161,11 @@ class TestPatchwork(PatchworkTestCase):
         PatchworkUnavailable.
         """
         url = "https://127.0.0.1/api/1.1/object"
+        # An HTTP date has whole seconds: start from the next one, so that
+        # the delay is 30 s less the time the test takes to parse it.
         in_30s = email.utils.format_datetime(
-            datetime.datetime.now(datetime.timezone.utc)
-            + datetime.timedelta(seconds=30),
+            datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+            + datetime.timedelta(seconds=31),
             usegmt=True,
         )
         delay = RETRY_BASE_DELAY_SECS
