@@ -6,7 +6,9 @@
 
 
 import unittest
+from unittest.mock import patch
 
+import aiohttp
 from aioresponses import aioresponses
 from github.WorkflowJob import WorkflowJob
 from kernel_patches_daemon.github_logs import BpfGithubLogExtractor, GithubFailedJobLog
@@ -70,7 +72,17 @@ class TestBpfGithubLogs(unittest.IsolatedAsyncioTestCase):
         ]
 
         extractor = BpfGithubLogExtractor()
-        logs = await extractor.extract_failed_logs(jobs)
+        sessions = []
+        new_session = aiohttp.ClientSession
+
+        def track_session(*args, **kwargs):
+            sessions.append(new_session(*args, **kwargs))
+            return sessions[-1]
+
+        with patch("aiohttp.ClientSession", side_effect=track_session):
+            logs = await extractor.extract_failed_logs(jobs)
+
+        self.assertTrue(sessions and all(session.closed for session in sessions))
 
         self.assertEqual(len(logs), 2)
         self.assertEqual(logs[0].suite, "suite1")

@@ -93,19 +93,9 @@ class BpfGithubLogExtractor(GithubLogExtractor):
     JOB_LOG_ERROR_END: Final[str] = "##[endgroup]"
     JOB_LOG_ERROR_MARKER: Final[str] = "##[error]"
 
-    def __init__(self) -> None:
-        # Needs to be initialized in async function
-        self._session: Optional[aiohttp.ClientSession] = None
-
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Return cached http session; creating if not already created"""
-        if not self._session:
-            # Read proxy from env var
-            self._session = aiohttp.ClientSession(trust_env=True)
-
-        return self._session
-
-    async def _extract_job_log(self, job: WorkflowJob) -> Optional[GithubFailedJobLog]:
+    async def _extract_job_log(
+        self, session: aiohttp.ClientSession, job: WorkflowJob
+    ) -> Optional[GithubFailedJobLog]:
         status = gh_conclusion_to_status(job.conclusion)
         if status != Status.FAILURE:
             return None
@@ -127,7 +117,6 @@ class BpfGithubLogExtractor(GithubLogExtractor):
         log = ""
 
         url = job.logs_url()
-        session = await self._get_session()
         async with session.get(url) as resp:
             logger.info(f"Getting logs for {job.name} at {url}")
             if resp.ok:
@@ -146,8 +135,12 @@ class BpfGithubLogExtractor(GithubLogExtractor):
     async def extract_failed_logs(
         self, jobs: Sequence[WorkflowJob]
     ) -> List[GithubFailedJobLog]:
-        tasks = [asyncio.create_task(self._extract_job_log(job)) for job in jobs]
-        results = await asyncio.gather(*tasks)
+        # Read the proxy from the environment.
+        async with aiohttp.ClientSession(trust_env=True) as session:
+            tasks = [
+                asyncio.create_task(self._extract_job_log(session, job)) for job in jobs
+            ]
+            results = await asyncio.gather(*tasks)
         return [result for result in results if result is not None]
 
     def _parse_out_test_progs_failure(self, log: str) -> str:
