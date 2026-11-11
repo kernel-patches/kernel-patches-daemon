@@ -932,6 +932,37 @@ class BranchWorker(GithubConnector):
         # is:pr is:closed head:"series/358111=>bpf"
         return self.filter_closed_pr(branch)
 
+    def _update_pr_labels(
+        self,
+        series: Series,
+        pr: PullRequest,
+        pr_labels: set[str],
+        merge_conflicts: Tuple[bool, bool],
+    ) -> None:
+        has_merge_conflict, had_merge_conflict = merge_conflicts
+        # pr.labels is a snapshot from the start of the sync loop, and people
+        # and CI workflows label PRs too: remove only our own stale labels
+        # instead of replacing the whole set.
+        current_labels = {label.name for label in pr.labels}
+        unwanted_labels = SERIES_STATE_LABELS - pr_labels
+        # Failure and conflict share the FAIL label, so a transition between
+        # them goes unnoticed unless we drop the label here.
+        distinguish_failure_and_conflict = self.email_config is not None and (
+            Status.FAILURE in self.email_config.notify_on
+        ) != (Status.CONFLICT in self.email_config.notify_on)
+        if (
+            has_merge_conflict != had_merge_conflict
+            and distinguish_failure_and_conflict
+        ):
+            unwanted_labels.add(StatusLabelSuffixes.FAIL.to_label(series.version))
+        for name in unwanted_labels & current_labels:
+            try:
+                pr.remove_from_labels(name)
+            except UnknownObjectException:
+                logger.info(f"Label {name} already removed from {pr}")
+        if missing_labels := pr_labels - current_labels:
+            pr.add_to_labels(*missing_labels)
+
     async def _comment_series_pr(
         self,
         series: Series,
@@ -1018,28 +1049,12 @@ class BranchWorker(GithubConnector):
                     self._add_pull_request_comment(pr, message)
                     pr_updated.add(1)
 
-            # pr.labels is a snapshot from the start of the sync loop, and people
-            # and CI workflows label PRs too: remove only our own stale labels
-            # instead of replacing the whole set.
-            current_labels = {label.name for label in pr.labels}
-            unwanted_labels = SERIES_STATE_LABELS - pr_labels
-            # Failure and conflict share the FAIL label, so a transition between
-            # them goes unnoticed unless we drop the label here.
-            distinguish_failure_and_conflict = self.email_config is not None and (
-                Status.FAILURE in self.email_config.notify_on
-            ) != (Status.CONFLICT in self.email_config.notify_on)
-            if (
-                has_merge_conflict != had_merge_conflict
-                and distinguish_failure_and_conflict
-            ):
-                unwanted_labels.add(StatusLabelSuffixes.FAIL.to_label(series.version))
-            for name in unwanted_labels & current_labels:
-                try:
-                    pr.remove_from_labels(name)
-                except UnknownObjectException:
-                    logger.info(f"Label {name} already removed from {pr}")
-            if missing_labels := pr_labels - current_labels:
-                pr.add_to_labels(*missing_labels)
+            self._update_pr_labels(
+                series,
+                pr,
+                pr_labels,
+                (has_merge_conflict, had_merge_conflict),
+            )
 
             if close:
                 pr_closed.add(1)
