@@ -1012,6 +1012,20 @@ class TestSubject(PatchworkTestCase):
         self.assertEqual(len(await series.get_patches()), 1)
         self.assertEqual([patch["id"] for patch in await series.get_patches()], [11])
 
+    @aioresponses()
+    async def test_relevant_series_cached_per_subject(self, m: aioresponses) -> None:
+        """
+        Looking up the series of another subject does not evict the cached
+        series of a subject.
+        """
+        init_pw_responses(m, DEFAULT_TEST_RESPONSES)
+        foo, bar = Subject("foo", self._pw), Subject("bar", self._pw)
+        for subject in (foo, bar, foo):
+            await subject.relevant_series()
+        # pyrefly: ignore  # missing-attribute
+        searches = [calls for (_, url), calls in m.requests.items() if "q=" in str(url)]
+        self.assertEqual(sum(map(len, searches)), 2)
+
     @freeze_time(DEFAULT_FREEZE_DATE, tick=True)
     @aioresponses()
     async def test_latest_series(self, m: aioresponses) -> None:

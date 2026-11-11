@@ -46,6 +46,9 @@ REQUEST_TIMEOUT_SECS: Final[int] = 60
 # For how many patches the client remembers the checks, see
 # post_check_for_patch_id().
 CHECK_CACHE_SIZE: Final[int] = 1024
+# How many objects each cached Series and Subject method keeps results for.
+# The objects compare by identity, so each one has its own entry.
+OBJECT_CACHE_SIZE: Final[int] = 4096
 # patchwork.kernel.org serves at most this many items per page.
 MAX_PAGE_SIZE: Final[int] = 250
 # How much of a response body that is not JSON to log: all of a typical
@@ -370,7 +373,7 @@ class Subject:
             return None
         return relevant_series[-1]
 
-    @cached(cache=TTLCache(maxsize=1, ttl=600))
+    @cached(cache=TTLCache(maxsize=OBJECT_CACHE_SIZE, ttl=600))
     async def relevant_series(self) -> List["Series"]:
         """
         cache and return sorted list of relevant series
@@ -462,7 +465,7 @@ class Series:
     def age(self) -> float:
         return time_since_secs(self.date)
 
-    @cached(cache=TTLCache(maxsize=1, ttl=600))
+    @cached(cache=TTLCache(maxsize=OBJECT_CACHE_SIZE, ttl=600))
     async def get_patches(self) -> List[Dict]:
         """
         Returns patches preserving original order
@@ -482,7 +485,7 @@ class Series:
                 return True
         return False
 
-    @cached(cache=TTLCache(maxsize=1, ttl=120))
+    @cached(cache=TTLCache(maxsize=OBJECT_CACHE_SIZE, ttl=120))
     async def all_tags(self) -> Set[str]:
         """
         Tags fetched from series name, diffs and cover letter
@@ -507,7 +510,7 @@ class Series:
             *[diff["state"] for diff in await self.get_patches()],
         }
 
-    @cached(cache=TTLCache(maxsize=1, ttl=120))
+    @cached(cache=TTLCache(maxsize=OBJECT_CACHE_SIZE, ttl=120))
     async def patch_subjects(self) -> List[str]:
         """
         Returns an ordered list of all patch subjects (tags removed)
@@ -521,7 +524,7 @@ class Series:
                     return True
         return False
 
-    @cached(cache=TTLCache(maxsize=1, ttl=120))
+    @cached(cache=TTLCache(maxsize=OBJECT_CACHE_SIZE, ttl=120))
     async def get_patch_binary_content(self) -> bytes:
         content = await self.pw_client.get_blob(self.mbox)
         logger.debug(
