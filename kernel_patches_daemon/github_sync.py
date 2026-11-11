@@ -289,7 +289,7 @@ class GithubSync(Stats):
             return
 
         # sync mirror and fetch current states of PRs
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         self.drop_counters()
         sync_start = time.time()
