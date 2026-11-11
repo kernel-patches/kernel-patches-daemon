@@ -157,6 +157,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         # Patchwork client
         self._pw = get_default_pw_client()
+        self.addAsyncCleanup(self._pw.close)
 
     def test_fetch_repo_branch(self) -> None:
         """
@@ -948,6 +949,7 @@ class TestGitSeriesAlreadyApplied(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         # Patchwork client
         self._pw = get_default_pw_client()
+        self.addAsyncCleanup(self._pw.close)
 
     async def _get_series(self, m: aioresponses, summaries: List[str]) -> Series:
         """
@@ -1830,6 +1832,7 @@ class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
             auth_token="mocktoken",
         )
         self._pw = patchwork
+        self.addAsyncCleanup(patchwork.close)
 
     @aioresponses()
     async def test_forward_pr_comments(self, m: aioresponses) -> None:

@@ -76,7 +76,13 @@ class PatchworkTestCase(unittest.IsolatedAsyncioTestCase):
     """
 
     async def asyncSetUp(self) -> None:
-        self._pw = get_default_pw_client()
+        self._pw = self.new_client()
+
+    def new_client(self, **kwargs: Any) -> PatchworkMock:
+        """Return a client that is closed when the test ends."""
+        pw = get_default_pw_client(**kwargs)
+        self.addAsyncCleanup(pw.close)
+        return pw
 
 
 class TestPatchwork(PatchworkTestCase):
@@ -102,7 +108,7 @@ class TestPatchwork(PatchworkTestCase):
         for token, authorization in [("mocktoken", "Token mocktoken"), (None, None)]:
             with self.subTest(token=token), aioresponses() as m:
                 m.get(re.compile(r"^.*$"), status=200, body=b"{}")
-                pw = get_default_pw_client(auth_token=token)
+                pw = self.new_client(auth_token=token)
                 # pyrefly: ignore  # missing-attribute
                 await pw._Patchwork__get("object")
                 # pyrefly: ignore  # missing-attribute
@@ -126,7 +132,7 @@ class TestPatchwork(PatchworkTestCase):
             return CallbackResult(body=b"{}")
 
         m.get(re.compile(r"^.*$"), callback=respond, repeat=True)
-        pw = get_default_pw_client(max_concurrent_requests=2, max_requests_per_sec=1000)
+        pw = self.new_client(max_concurrent_requests=2, max_requests_per_sec=1000)
         # pyrefly: ignore  # missing-attribute
         get = pw._Patchwork__get
         await asyncio.gather(*[get(f"o/{i}/") for i in range(10)])
@@ -138,7 +144,7 @@ class TestPatchwork(PatchworkTestCase):
         At most max_requests_per_sec requests start per second.
         """
         starts = []
-        pw = get_default_pw_client(max_requests_per_sec=5)
+        pw = self.new_client(max_requests_per_sec=5)
         # pyrefly: ignore  # missing-attribute
         get = pw._Patchwork__get
         with fake_clock() as clock:
@@ -185,7 +191,7 @@ class TestPatchwork(PatchworkTestCase):
                         headers = {"Retry-After": retry_after}
                         m.get(url, status=response, headers=headers)
                 # pyrefly: ignore  # missing-attribute
-                get = get_default_pw_client()._Patchwork__get("object")
+                get = self.new_client()._Patchwork__get("object")
                 if responses[-1] == 200:
                     await get
                 else:
@@ -279,7 +285,7 @@ class TestPatchwork(PatchworkTestCase):
             with self.subTest(status=status), aioresponses() as m:
                 m.post(re.compile(r"^.*$"), status=status)
                 # pyrefly: ignore  # missing-attribute
-                post = get_default_pw_client()._Patchwork__post("object", {})
+                post = self.new_client()._Patchwork__post("object", {})
                 if raises:
                     with self.assertRaises(PatchworkUnavailable):
                         await post
@@ -483,7 +489,7 @@ class TestPatchwork(PatchworkTestCase):
     def test_search_patterns_need_one_project(self) -> None:
         for patterns in ([{"delegate": 1}], [{"project": 1}, {"project": 2}]):
             with self.subTest(patterns=patterns), self.assertRaises(ValueError):
-                get_default_pw_client(search_patterns=patterns)
+                self.new_client(search_patterns=patterns)
 
     def test_format_since(self) -> None:
         @dataclass
@@ -559,7 +565,7 @@ class TestPatchwork(PatchworkTestCase):
     async def _test_lookback(
         self, m: aioresponses, lookback: int, assert_func: Callable[[str], None]
     ) -> None:
-        self._pw = get_default_pw_client(lookback_in_days=lookback)
+        self._pw = self.new_client(lookback_in_days=lookback)
         m.get(re.compile(r"^.*$"), status=200, body=b"[]")
         await self._pw.get_relevant_subjects()
         # pyrefly: ignore  # missing-attribute
@@ -643,7 +649,7 @@ class TestPatchwork(PatchworkTestCase):
         """
         The client is used for many cycles, so each search computes 'since' again.
         """
-        self._pw = get_default_pw_client(lookback_in_days=7)
+        self._pw = self.new_client(lookback_in_days=7)
         m.get(re.compile(r"^.*$"), status=200, body=b"[]", repeat=True)
         for today, since in [
             ("2010-01-10", "2010-01-03"),
@@ -1130,6 +1136,7 @@ class TestSubject(PatchworkTestCase):
             search_patterns=[{"archived": False, "project": 399, "delegate": 121173}],
             auth_token="mocktoken",
         )
+        self.addAsyncCleanup(patchwork.close)
         s = Subject("Support kCFI + BPF on arm64", patchwork)
 
         latest_series = none_throws(await s.latest_series())
