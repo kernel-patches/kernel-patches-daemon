@@ -154,6 +154,7 @@ class KernelPatchesDaemon:
 
         self._task = asyncio.create_task(self.worker.run())
         await asyncio.gather(self._task, return_exceptions=True)
+        await self.worker.pw.close()
 
     def start(self) -> None:
         asyncio.run(self.start_async())

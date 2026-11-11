@@ -635,6 +635,11 @@ class Patchwork:
         # pyrefly: ignore  # bad-return
         return self.http_session
 
+    async def close(self) -> None:
+        """Close the HTTP session, if a request has opened it."""
+        if self.http_session is not None:
+            await self.http_session.close()
+
     def format_since(self, pw_lookback: int) -> str:
         # pyrefly: ignore  # deprecated
         today = datetime.datetime.utcnow().date()
