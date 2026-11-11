@@ -127,6 +127,15 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         delays = [call.args[0] for call in sleep.await_args_list]
         self.assertEqual(delays, [2000, MAX_LOOP_DELAY, 1000])
 
+    def test_patchwork_request_limits_from_config(self) -> None:
+        limits = {"max_concurrent_requests": 2, "max_requests_per_sec": 5}
+        config = {**TEST_CONFIG, "patchwork": {**TEST_CONFIG["patchwork"], **limits}}
+        with patch("kernel_patches_daemon.daemon.Patchwork") as pw_mock:
+            KernelPatchesWorker(KPDConfig.from_json(config), {})
+        kwargs = pw_mock.call_args.kwargs
+        self.assertEqual(kwargs["max_concurrent_requests"], 2)
+        self.assertEqual(kwargs["max_requests_per_sec"], 5)
+
     def _build_worker(self, metrics_logger) -> KernelPatchesWorker:
         kpd_config = KPDConfig.from_json(TEST_CONFIG)
         return KernelPatchesWorker(kpd_config, {}, metrics_logger=metrics_logger)

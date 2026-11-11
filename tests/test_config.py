@@ -17,6 +17,8 @@ from kernel_patches_daemon.config import (
     BranchConfig,
     DEFAULT_EMAIL_CONTACT_EMAIL,
     DEFAULT_EMAIL_CONTACT_NAME,
+    DEFAULT_MAX_CONCURRENT_REQUESTS,
+    DEFAULT_MAX_REQUESTS_PER_SEC,
     EmailConfig,
     GithubAppAuthConfig,
     InvalidConfig,
@@ -78,6 +80,12 @@ class TestConfig(unittest.TestCase):
                 conf["tag_to_branch_mapping"] = case.tag_to_branch_mapping
                 with self.assertRaises(InvalidConfig):
                     KPDConfig.from_json(conf)
+
+    def test_invalid_patchwork_request_limits(self) -> None:
+        pw_json = {"server": "pw", "project": "p", "search_patterns": [], "lookback": 7}
+        for key in ("max_concurrent_requests", "max_requests_per_sec"):
+            with self.subTest(key=key), self.assertRaises(InvalidConfig):
+                PatchworksConfig.from_json({**pw_json, key: 0})
 
     def test_valid_tag_to_branch_mapping(self) -> None:
         """
@@ -159,6 +167,8 @@ class TestConfig(unittest.TestCase):
                 token="unittest_token",
                 search_patterns=[{"key": "value"}],
                 lookback=1,
+                max_concurrent_requests=DEFAULT_MAX_CONCURRENT_REQUESTS,
+                max_requests_per_sec=DEFAULT_MAX_REQUESTS_PER_SEC,
             ),
             email=EmailConfig(
                 smtp_host="mail.example.com",

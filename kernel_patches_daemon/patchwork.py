@@ -22,18 +22,17 @@ import aiohttp
 import cachetools.keys
 import dateutil.parser as dateparser
 from cachetools import LRUCache, TTLCache
-from kernel_patches_daemon.config import SERIES_ID_SEPARATOR
+from kernel_patches_daemon.config import (
+    DEFAULT_MAX_CONCURRENT_REQUESTS,
+    DEFAULT_MAX_REQUESTS_PER_SEC,
+    SERIES_ID_SEPARATOR,
+)
 from kernel_patches_daemon.status import Status
 from kernel_patches_daemon.utils import gather_or_cancel
 from multidict import MultiDict
 from opentelemetry import metrics
 from pyre_extensions import none_throws
 
-# patchwork.kernel.org asks clients to keep at most 4 requests in flight.
-MAX_CONCURRENT_REQUESTS: Final[int] = 4
-# At most this many requests start per second, so that catching up after
-# an outage or a restart is spread out instead of being a burst.
-MAX_REQUESTS_PER_SEC: Final[int] = 10
 # After failures in a row, pause requests for 5 s, then 10 s, 20 s and so on,
 # or longer if Retry-After asks for it.
 RETRY_BASE_DELAY_SECS: Final[int] = 5
@@ -550,6 +549,8 @@ class Patchwork:
         auth_token: Optional[str] = None,
         lookback_in_days: int = -1,
         api_version: str = "1.2",
+        max_concurrent_requests: int = DEFAULT_MAX_CONCURRENT_REQUESTS,
+        max_requests_per_sec: int = DEFAULT_MAX_REQUESTS_PER_SEC,
     ) -> None:
         self.api_url = f"https://{server}/api/{api_version}/"
         self.auth_token = auth_token
@@ -576,10 +577,11 @@ class Patchwork:
         # aiohttp's ClientSession needs to be initialized within an async function.
         # We will differ this initialization to a separate function and memoize it during first call.
         self.http_session = None
-        self.request_slots = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+        self.request_slots = asyncio.Semaphore(max_concurrent_requests)
+        self.max_requests_per_sec = max_requests_per_sec
         # time.monotonic() value before which no request starts: the end of
         # the pause after a failure, or the start of the last request plus
-        # 1 / MAX_REQUESTS_PER_SEC, whichever is later.
+        # 1 / max_requests_per_sec, whichever is later.
         self.next_request_at = 0.0
         # Failed requests in a row.
         self.failures = 0
@@ -642,8 +644,8 @@ class Patchwork:
         self, method: str, path: AnyStr, **kwargs: Any
     ) -> aiohttp.ClientResponse:
         """
-        Send a request. At most MAX_CONCURRENT_REQUESTS requests are in
-        flight, and at most MAX_REQUESTS_PER_SEC start per second. A 5xx, 429
+        Send a request. At most max_concurrent_requests requests are in
+        flight, and at most max_requests_per_sec start per second. A 5xx, 429
         or 403, a timeout or a connection error raises PatchworkUnavailable
         and pauses the requests of all callers. A request waits for a pause
         up to MAX_WAIT_SECS, and raises PatchworkUnavailable instead of
@@ -665,7 +667,7 @@ class Patchwork:
             # Nothing awaits between the loop and here, so the other requests
             # see the new value before they can start.
             self.next_request_at = max(
-                self.next_request_at, time.monotonic() + 1 / MAX_REQUESTS_PER_SEC
+                self.next_request_at, time.monotonic() + 1 / self.max_requests_per_sec
             )
             self.requests_sent += 1
 

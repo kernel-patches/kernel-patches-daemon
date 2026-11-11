@@ -27,6 +27,12 @@ SERIES_ID_SEPARATOR = "/"
 DEFAULT_EMAIL_CONTACT_NAME = "Meta Kernel CI team"
 DEFAULT_EMAIL_CONTACT_EMAIL = "kernel-ci@meta.com"
 
+# patchwork.kernel.org asks clients to keep at most 4 requests in flight.
+DEFAULT_MAX_CONCURRENT_REQUESTS = 4
+# At most this many Patchwork requests start per second, so that catching up
+# after an outage or a restart is spread out instead of being a burst.
+DEFAULT_MAX_REQUESTS_PER_SEC = 10
+
 
 class UnsupportedConfigVersion(ValueError):
     def __init__(self, version: int) -> None:
@@ -231,17 +237,31 @@ class PatchworksConfig:
     lookback: int
     user: Optional[str]
     token: Optional[str]
+    max_concurrent_requests: int
+    max_requests_per_sec: int
 
     @classmethod
     def from_json(cls, json: Dict) -> "PatchworksConfig":
-        return cls(
+        config = cls(
             base_url=json["server"],
             project=json["project"],
             search_patterns=json["search_patterns"],
             lookback=json["lookback"],
             user=json.get("api_username", None),
             token=json.get("api_token", None),
+            max_concurrent_requests=json.get(
+                "max_concurrent_requests", DEFAULT_MAX_CONCURRENT_REQUESTS
+            ),
+            max_requests_per_sec=json.get(
+                "max_requests_per_sec", DEFAULT_MAX_REQUESTS_PER_SEC
+            ),
         )
+        # With 0, no request would ever start, or each one would fail.
+        if config.max_concurrent_requests < 1 or config.max_requests_per_sec < 1:
+            raise InvalidConfig(
+                "`max_concurrent_requests` and `max_requests_per_sec` must be at least 1"
+            )
+        return config
 
 
 @dataclass
