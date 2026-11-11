@@ -9,7 +9,11 @@ from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from kernel_patches_daemon.config import KPDConfig
-from kernel_patches_daemon.daemon import KernelPatchesWorker, MAX_LOOP_DELAY
+from kernel_patches_daemon.daemon import (
+    KernelPatchesDaemon,
+    KernelPatchesWorker,
+    MAX_LOOP_DELAY,
+)
 from kernel_patches_daemon.patchwork import PatchworkUnavailable
 from kernel_patches_daemon.stats import Stats
 
@@ -135,6 +139,14 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         kwargs = pw_mock.call_args.kwargs
         self.assertEqual(kwargs["max_concurrent_requests"], 2)
         self.assertEqual(kwargs["max_requests_per_sec"], 5)
+
+    async def test_stop_closes_patchwork_client(self) -> None:
+        daemon = KernelPatchesDaemon(KPDConfig.from_json(TEST_CONFIG), {})
+        daemon.worker.run = AsyncMock()
+        daemon.worker.pw.close = AsyncMock()
+        await daemon.start_async()
+        # pyrefly: ignore  # missing-attribute
+        daemon.worker.pw.close.assert_awaited_once()
 
     def _build_worker(self, metrics_logger) -> KernelPatchesWorker:
         kpd_config = KPDConfig.from_json(TEST_CONFIG)

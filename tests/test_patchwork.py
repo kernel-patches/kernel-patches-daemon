@@ -291,6 +291,11 @@ class TestPatchwork(PatchworkTestCase):
         session = await self._pw.get_http_session()
         self.assertEqual(session.timeout.total, REQUEST_TIMEOUT_SECS)
 
+    async def test_close_closes_session(self) -> None:
+        session = await self._pw.get_http_session()
+        await self._pw.close()
+        self.assertTrue(session.closed)
+
     @aioresponses()
     async def test_post_wrapper(self, m: aioresponses) -> None:
         """
