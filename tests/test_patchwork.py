@@ -552,6 +552,16 @@ class TestPatchwork(PatchworkTestCase):
                 title="[tag3, tag1  , tag2]title",
                 expected={"tag1", "tag2", "tag3"},
             ),
+            TestCase(
+                name="space-separated branch tag",
+                title="[PATCH mm-new]title",
+                expected={"mm-new"},
+            ),
+            TestCase(
+                name="mixed tag separators",
+                title="[patch\tbpf-next, v2, 1/3]title",
+                expected={"bpf-next"},
+            ),
         ]
         for case in test_cases:
             with self.subTest(msg=case.name):
