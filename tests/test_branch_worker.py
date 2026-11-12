@@ -33,6 +33,7 @@ from kernel_patches_daemon.branch_worker import (
     BRANCH_TTL,
     BranchWorker,
     build_email,
+    build_email_body_context,
     ci_results_email_recipients,
     create_color_labels,
     email_matches_any,
@@ -1246,6 +1247,17 @@ class TestEmailNotificationBody(unittest.TestCase):
             body,
         )
         self.assertNotIn("Meta Kernel CI team", body)
+
+    def test_email_body_context_patchwork_url(self):
+        web_url = "https://patchwork.example.com/series/1/"
+        data = {**SERIES_DATA, "web_url": web_url, "patches": [{"name": "foo"}]}
+        series = Series(MagicMock(), data)
+
+        ctx = build_email_body_context(
+            MagicMock(), MagicMock(), Status.SUCCESS, series, ""
+        )
+
+        self.assertEqual(web_url, ctx.patchwork_url)
 
 
 class TestEmailNotifyOn(unittest.IsolatedAsyncioTestCase):

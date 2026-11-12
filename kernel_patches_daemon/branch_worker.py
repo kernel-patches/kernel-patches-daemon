@@ -236,7 +236,7 @@ def build_email_body_context(
     return EmailBodyContext(
         status=status,
         submission_name=get_ci_base(series)["name"],
-        patchwork_url=series.web_url + "&state=*",
+        patchwork_url=series.web_url,
         github_url=get_github_actions_url(repo, pr, status),
         inline_logs=inline_logs,
     )
