@@ -125,6 +125,8 @@ class PRCommentsForwardingConfig:
     recipient_allowlist: List[re.Pattern]
     recipient_denylist: List[re.Pattern]
     body_preprocessor_func: Optional[str]
+    # Sender of the forwarded comments. The email `from` when unset.
+    smtp_from: Optional[str] = None
 
     @classmethod
     def from_json(cls, json: Dict) -> "PRCommentsForwardingConfig":
@@ -140,6 +142,7 @@ class PRCommentsForwardingConfig:
             ],
             commenter_allowlist=json.get("commenter_allowlist", []),
             body_preprocessor_func=json.get("body_preprocessor_func", None),
+            smtp_from=json.get("from"),
         )
 
 
