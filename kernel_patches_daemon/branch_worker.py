@@ -20,6 +20,7 @@ import tempfile
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
@@ -484,6 +485,8 @@ async def send_pr_comment_email(
     subject = "Re: " + msg.get("Subject")
     in_reply_to = msg.get("Message-Id")
 
+    if cfg.smtp_from is not None:
+        email_config = replace(email_config, smtp_from=cfg.smtp_from)
     return await send_email(email_config, to_list, cc_list, subject, body, in_reply_to)
 
 

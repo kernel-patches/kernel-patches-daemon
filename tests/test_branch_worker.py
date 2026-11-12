@@ -16,6 +16,7 @@ import tempfile
 import unittest
 from dataclasses import dataclass, field
 from datetime import datetime
+from email.message import EmailMessage
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -45,6 +46,7 @@ from kernel_patches_daemon.branch_worker import (
     prs_for_the_same_series,
     reply_email_recipients,
     same_series_different_target,
+    send_pr_comment_email,
     StatusLabelSuffixes,
     temporary_patch_file,
     UPSTREAM_REMOTE_NAME,
@@ -1931,6 +1933,18 @@ class TestForwardPrComments(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(RuntimeError):
             await self._bw.forward_pr_comments(mock_pr, series)
         mock_pr.create_issue_comment.assert_not_called()
+
+    async def test_pr_comment_email_sender(self) -> None:
+        forwarding = {"enabled": True, "from": "review@example.com"}
+        config = EmailConfig.from_json(
+            {"host": "h", "user": "u", "from": "ci@example.com", "pass": "p"}
+            | {"pr_comments_forwarding": forwarding}
+        )
+        msg = EmailMessage()
+        msg["From"], msg["Subject"] = "a@example.com", "s"
+        with patch("kernel_patches_daemon.branch_worker.send_email") as send_mock:
+            await send_pr_comment_email(config, msg, "body")
+        self.assertEqual("review@example.com", send_mock.call_args.args[0].smtp_from)
 
 
 class TestPRCommentBodyPreprocessor(unittest.TestCase):
