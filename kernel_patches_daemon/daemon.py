@@ -12,6 +12,7 @@ import threading
 import time
 from typing import Callable, Dict, Final, Optional
 
+from github import GithubException
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.github_sync import GithubSync
 from kernel_patches_daemon.patchwork import Patchwork, PatchworkUnavailable
@@ -21,6 +22,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 DEFAULT_LOOP_DELAY: Final[int] = 120
 MAX_LOOP_DELAY: Final[int] = 3600
+_HEARTBEAT_INTERVAL_SECS: Final[int] = 60
 
 
 class KernelPatchesWorker:
@@ -49,29 +51,21 @@ class KernelPatchesWorker:
             max_concurrent_requests=kpd_config.patchwork.max_concurrent_requests,
             max_requests_per_sec=kpd_config.patchwork.max_requests_per_sec,
         )
-        self.github_sync_worker: GithubSync = GithubSync(
+        self.github_sync_worker: Optional[GithubSync] = None
+
+    def reset_github_sync(self) -> None:
+        # Clear previous worker and attempt to assign a new one
+        self.github_sync_worker = None
+        self.github_sync_worker = GithubSync(
             kpd_config=self.kpd_config, labels_cfg=self.labels_cfg, pw=self.pw
         )
 
-    def reset_github_sync(self) -> bool:
-        try:
-            self.github_sync_worker = GithubSync(
-                kpd_config=self.kpd_config, labels_cfg=self.labels_cfg, pw=self.pw
-            )
-            return True
-        except Exception:
-            logger.exception(
-                "Unhandled exception while creating GithubSync object",
-                exc_info=True,
-            )
-            return False
-
-    async def submit_metrics(self) -> None:
+    async def submit_metrics(self, stats: dict[str, int | float]) -> None:
         if self.metrics_logger is None:
             # Metrics are intentionally disabled (see __init__); nothing to do.
             return
         try:
-            self.metrics_logger(self.project, self.github_sync_worker.stats)
+            self.metrics_logger(self.project, stats)
             logger.info("Submitted run metrics into metrics logger")
         except Exception:
             logger.exception(
@@ -82,32 +76,44 @@ class KernelPatchesWorker:
         # Cycles in a row that failed because Patchwork was unavailable.
         patchwork_failures = 0
         while True:
-            ok = self.reset_github_sync()
-            if not ok:
-                logger.error(
-                    "Most likely something went wrong connecting to GitHub or Patchwork. Skipping this iteration without submitting metrics."
-                )
-                continue
             started = time.monotonic()
             requests_sent = self.pw.requests_sent
+            stats = {
+                "runs_attempted": 1,
+                "runs_successful": 0,
+                "runs_failed": 0,
+                "patchwork_failed": 0,
+                "github_failed": 0,
+                "github_http_status": 0,
+                "other_failed": 0,
+            }
             try:
-                await self.github_sync_worker.sync_patches()
-                self.github_sync_worker.increment_counter("runs_successful")
+                self.reset_github_sync()
+                await none_throws(self.github_sync_worker).sync_patches()
+                stats["runs_successful"] = 1
                 patchwork_failures = 0
             except Exception as e:
-                self.github_sync_worker.increment_counter("runs_failed")
+                stats["runs_failed"] = 1
                 exception_name = type(e).__name__
-                self.github_sync_worker.increment_counter(
-                    f"unhandled_{exception_name}", create=True
-                )
+                stats[f"unhandled_{exception_name}"] = 1
                 logger.exception(
                     "Unhandled exception in KernelPatchesWorker.run()", exc_info=True
                 )
                 if isinstance(e, PatchworkUnavailable):
+                    stats["patchwork_failed"] = 1
                     patchwork_failures += 1
-                else:
+                elif isinstance(e, GithubException):
+                    stats["github_failed"] = 1
+                    stats["github_http_status"] = e.status or 0
                     patchwork_failures = 0
-            await self.submit_metrics()
+                else:
+                    stats["other_failed"] = 1
+                    patchwork_failures = 0
+            stats = {
+                **(self.github_sync_worker.stats if self.github_sync_worker else {}),
+                **stats,
+            }
+            await self.submit_metrics(stats)
             # Wait longer while Patchwork is overloaded or refuses KPD.
             delay = min(self.loop_delay * 2**patchwork_failures, MAX_LOOP_DELAY)
             logger.info(
@@ -142,6 +148,15 @@ class KernelPatchesDaemon:
             none_throws(self._task).cancel()
             logger.info("Kernel Patches Daemon stopped")
 
+    async def _publish_heartbeat(self) -> None:
+        while True:
+            # Keep liveness visible during sync work and retry backoff. These
+            # rows are excluded from completed-attempt and PR-count queries.
+            await self.worker.submit_metrics(
+                {"heartbeat": 1, "runs_attempted": 0, "runs_successful": 0}
+            )
+            await asyncio.sleep(_HEARTBEAT_INTERVAL_SECS)
+
     async def start_async(self) -> None:
         logger.info("Starting Kernel Patches Daemon...")
 
@@ -153,8 +168,13 @@ class KernelPatchesDaemon:
         loop.add_signal_handler(signal.SIGINT, self.stop)
 
         self._task = asyncio.create_task(self.worker.run())
-        await asyncio.gather(self._task, return_exceptions=True)
-        await self.worker.pw.close()
+        heartbeat = asyncio.create_task(self._publish_heartbeat())
+        try:
+            await asyncio.gather(self._task, return_exceptions=True)
+        finally:
+            heartbeat.cancel()
+            await asyncio.gather(heartbeat, return_exceptions=True)
+            await self.worker.pw.close()
 
     def start(self) -> None:
         asyncio.run(self.start_async())

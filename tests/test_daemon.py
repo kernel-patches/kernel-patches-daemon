@@ -4,10 +4,12 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import asyncio
 import unittest
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from github import GithubException
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.daemon import (
     KernelPatchesDaemon,
@@ -72,6 +74,8 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
             kpd_config, {}, metrics_logger=metrics_logger_mock
         )
 
+        self.worker.reset_github_sync()
+        assert self.worker.github_sync_worker is not None
         self.worker.github_sync_worker.sync_patches = AsyncMock()
         self.worker.reset_github_sync = MagicMock(return_value=True)
 
@@ -86,6 +90,7 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
             await self.worker.run()
 
         gh_sync = self.worker.github_sync_worker
+        assert gh_sync is not None
         # pyrefly: ignore  # missing-attribute
         gh_sync.sync_patches.assert_called_once()
         # pyrefly: ignore  # missing-attribute
@@ -97,6 +102,7 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
     async def test_run_exception(self) -> None:
         """Test that stats are correctly collected when an exception occurs."""
         gh_sync = self.worker.github_sync_worker
+        assert gh_sync is not None
         gh_sync.sync_patches = AsyncMock(side_effect=ValueError("Test exception"))
 
         with (
@@ -120,6 +126,8 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         worker = KernelPatchesWorker(
             KPDConfig.from_json(TEST_CONFIG), {}, loop_delay=1000
         )
+        worker.reset_github_sync()
+        assert worker.github_sync_worker is not None
         worker.reset_github_sync = MagicMock(return_value=True)
         unavailable = PatchworkUnavailable("Patchwork GET url: 403")
         worker.github_sync_worker.sync_patches = AsyncMock(
@@ -130,6 +138,45 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
             await worker.run()
         delays = [call.args[0] for call in sleep.await_args_list]
         self.assertEqual(delays, [2000, MAX_LOOP_DELAY, 1000])
+
+    async def test_dependency_failures_publish_completed_attempts(self) -> None:
+        gh_sync = self.worker.github_sync_worker
+        assert gh_sync is not None
+        for error, failure_flag, http_status in (
+            (PatchworkUnavailable("Patchwork unavailable"), "patchwork_failed", 0),
+            (GithubException(503, {}, {}), "github_failed", 503),
+        ):
+            with self.subTest(failure_flag=failure_flag):
+                LOGGED_METRICS.clear()
+                gh_sync.sync_patches = AsyncMock(side_effect=error)
+                with (
+                    patch(
+                        "asyncio.sleep",
+                        AsyncMock(side_effect=TestException("Test complete")),
+                    ),
+                    self.assertRaises(TestException),
+                ):
+                    await self.worker.run()
+
+                self.assertEqual(len(LOGGED_METRICS), 1)
+                stats = LOGGED_METRICS[0][self.worker.project]
+                self.assertEqual(stats["runs_attempted"], 1)
+                self.assertEqual(stats["runs_successful"], 0)
+                self.assertEqual(stats["runs_failed"], 1)
+                self.assertEqual(stats[failure_flag], 1)
+                self.assertEqual(stats["other_failed"], 0)
+                self.assertEqual(stats["github_http_status"], http_status)
+
+    async def test_initialization_failure_waits_before_retry(self) -> None:
+        worker = self._build_worker(None)
+        sleep = AsyncMock(side_effect=TestException("Test complete"))
+        with (
+            patch("kernel_patches_daemon.daemon.GithubSync", side_effect=ValueError),
+            patch("asyncio.sleep", sleep),
+            self.assertRaises(TestException),
+        ):
+            await worker.run()
+        sleep.assert_awaited_once_with(worker.loop_delay)
 
     def test_patchwork_request_limits_from_config(self) -> None:
         limits = {"max_concurrent_requests": 2, "max_requests_per_sec": 5}
@@ -146,6 +193,59 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         daemon.worker.pw.close = AsyncMock()
         await daemon.start_async()
         # pyrefly: ignore  # missing-attribute
+        daemon.worker.pw.close.assert_awaited_once()
+
+    async def test_heartbeat_continues_during_sync_and_retry_backoff(self) -> None:
+        daemon = KernelPatchesDaemon(KPDConfig.from_json(TEST_CONFIG), {})
+        daemon.worker = self.worker
+        daemon.worker.pw.close = AsyncMock()
+        heartbeats = asyncio.Queue()
+        sync_started = asyncio.Event()
+        release_sync = asyncio.Event()
+        backoff_started = asyncio.Event()
+        heartbeat_tick = asyncio.Event()
+
+        def record_metrics(project, stats):
+            metrics_logger_mock(project, stats)
+            if stats.get("heartbeat") == 1:
+                heartbeats.put_nowait(stats)
+
+        async def blocked_sync():
+            sync_started.set()
+            await release_sync.wait()
+            raise PatchworkUnavailable("Patchwork unavailable")
+
+        async def controlled_sleep(delay):
+            if delay == 60:
+                await heartbeat_tick.wait()
+                heartbeat_tick.clear()
+            else:
+                self.assertEqual(delay, self.worker.loop_delay * 2)
+                backoff_started.set()
+                await asyncio.Event().wait()
+
+        self.worker.metrics_logger = record_metrics
+        assert self.worker.github_sync_worker is not None
+        self.worker.github_sync_worker.sync_patches = AsyncMock(
+            side_effect=blocked_sync
+        )
+        with patch("asyncio.sleep", AsyncMock(side_effect=controlled_sleep)):
+            task = asyncio.create_task(daemon.start_async())
+            try:
+                await asyncio.wait_for(sync_started.wait(), 1)
+                first = await asyncio.wait_for(heartbeats.get(), 1)
+                release_sync.set()
+                await asyncio.wait_for(backoff_started.wait(), 1)
+                heartbeat_tick.set()
+                second = await asyncio.wait_for(heartbeats.get(), 1)
+            finally:
+                daemon.stop()
+                await asyncio.wait_for(task, 1)
+
+        for stats in (first, second):
+            self.assertEqual(
+                stats, {"heartbeat": 1, "runs_attempted": 0, "runs_successful": 0}
+            )
         daemon.worker.pw.close.assert_awaited_once()
 
     def _build_worker(self, metrics_logger) -> KernelPatchesWorker:
@@ -173,8 +273,8 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         worker = self._build_worker(None)
 
         with patch("kernel_patches_daemon.daemon.logger") as logger_mock:
-            await worker.submit_metrics()
-            await worker.submit_metrics()
+            await worker.submit_metrics({})
+            await worker.submit_metrics({})
 
         logger_mock.warning.assert_not_called()
         logger_mock.warn.assert_not_called()
