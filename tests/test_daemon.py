@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import asyncio
+import threading
 import unittest
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -172,6 +173,9 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(stats[failure_flag], 1)
                 self.assertEqual(stats["other_failed"], 0)
                 self.assertEqual(stats["github_http_status"], http_status)
+                if isinstance(error, GitCommandError):
+                    self.assertEqual(stats["git_command_failed"], 1)
+                    self.assertNotIn("unhandled_GitCommandError", stats)
 
     async def test_initialization_failure_waits_before_retry(self) -> None:
         worker = self._build_worker(None)
@@ -195,7 +199,7 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
 
     async def test_stop_closes_patchwork_client(self) -> None:
         daemon = KernelPatchesDaemon(KPDConfig.from_json(TEST_CONFIG), {})
-        daemon.worker.run = AsyncMock()
+        daemon.worker._run = AsyncMock()
         daemon.worker.pw.close = AsyncMock()
         await daemon.start_async()
         # pyrefly: ignore  # missing-attribute
@@ -207,9 +211,11 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         daemon.worker.pw.close = AsyncMock()
         heartbeats = asyncio.Queue()
         sync_started = asyncio.Event()
-        release_sync = asyncio.Event()
+        release_sync = threading.Event()
         backoff_started = asyncio.Event()
         heartbeat_tick = asyncio.Event()
+
+        loop = asyncio.get_running_loop()
 
         def record_metrics(project, stats):
             metrics_logger_mock(project, stats)
@@ -217,8 +223,9 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
                 heartbeats.put_nowait(stats)
 
         async def blocked_sync():
-            sync_started.set()
-            await release_sync.wait()
+            self.assertIsNot(asyncio.get_running_loop(), loop)
+            loop.call_soon_threadsafe(lambda _: sync_started.set(), None)
+            await asyncio.to_thread(release_sync.wait)
             raise PatchworkUnavailable("Patchwork unavailable")
 
         async def controlled_sleep(delay):
@@ -227,7 +234,7 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
                 heartbeat_tick.clear()
             else:
                 self.assertEqual(delay, self.worker.loop_delay * 2)
-                backoff_started.set()
+                loop.call_soon_threadsafe(lambda _: backoff_started.set(), None)
                 await asyncio.Event().wait()
 
         self.worker.metrics_logger = record_metrics

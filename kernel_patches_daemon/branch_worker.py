@@ -27,7 +27,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
 from pathlib import Path
-from subprocess import PIPE
+from subprocess import PIPE, run
 from typing import (
     Any,
     Callable,
@@ -313,6 +313,7 @@ def build_email(
     # proxy, which is something we require for production environments.
     args = [
         "curl",
+        "--max-time=60",
         "--silent",
         "--show-error",
         "--ssl-reqd",
@@ -496,7 +497,7 @@ def pr_has_label(pr: PullRequest, label: str) -> bool:
 
 def execute_command(cmd: str) -> None:
     logger.info(cmd)
-    os.system(cmd)
+    run(f"exec {cmd}", shell=True, timeout=300)
 
 
 def _uniq_tmp_folder(

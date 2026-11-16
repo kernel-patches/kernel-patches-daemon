@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import re
-from subprocess import PIPE, Popen
+from subprocess import DEVNULL, run
 from typing import Dict
 
 from github import Github, GithubException
@@ -35,8 +35,13 @@ class ScriptMetricsExporter:
 
     def export(self, project: str, metrics: Dict) -> None:
         if os.path.isfile(self.script) and os.access(self.script, os.X_OK):
-            p = Popen([self.script], stdout=PIPE, stdin=PIPE, stderr=PIPE)
-            p.communicate(input=json.dumps(metrics).encode())
+            run(
+                ["timeout", "-k", "1", "30", self.script],
+                input=json.dumps(metrics).encode(),
+                stdout=DEVNULL,
+                stderr=DEVNULL,
+                check=True,
+            )
 
 
 class PurgeAction:
