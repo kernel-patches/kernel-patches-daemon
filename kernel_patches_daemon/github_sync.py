@@ -263,7 +263,9 @@ class GithubSync(Stats):
             await worker.sync_checks(pr, series)
             await worker.forward_pr_comments(pr, series)
             # Close out other PRs if exists
-            self.close_existing_prs_for_series(list(self.workers.values()), pr)
+            await asyncio.to_thread(
+                self.close_existing_prs_for_series, list(self.workers.values()), pr
+            )
 
             break
         pass
@@ -363,14 +365,14 @@ class GithubSync(Stats):
                         logger.info(
                             f"Renaming {pr} from {subject_name} to {subject.subject} according to {series.id}"
                         )
-                        pr.edit(title=subject.subject)
+                        await asyncio.to_thread(pr.edit, title=subject.subject)
 
                     latest_series = await subject.latest_series()
                     if latest_series is None:
                         logger.warning(
                             f"Closing {pr} associated with irrelevent or outdated series {series_id}"
                         )
-                        pr.edit(state="close")
+                        await asyncio.to_thread(pr.edit, state="close")
                         continue
 
                     branch_name = await worker.subject_to_branch(subject)

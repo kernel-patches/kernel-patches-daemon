@@ -80,6 +80,7 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         patcher = patch("kernel_patches_daemon.branch_worker.git.Repo")
         self._git_repo_mock = patcher.start()
         self.addCleanup(patcher.stop)
+        self.enterContext(patch("kernel_patches_daemon.branch_worker.git.Git"))
         patcher = patch("kernel_patches_daemon.branch_worker.execute_command")
         patcher.start()
         self.addCleanup(patcher.stop)

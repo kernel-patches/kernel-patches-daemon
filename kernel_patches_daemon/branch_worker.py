@@ -27,7 +27,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
 from pathlib import Path
-from subprocess import PIPE
+from subprocess import PIPE, run
 from typing import (
     Any,
     Callable,
@@ -313,6 +313,7 @@ def build_email(
     # proxy, which is something we require for production environments.
     args = [
         "curl",
+        "--max-time=60",
         "--silent",
         "--show-error",
         "--ssl-reqd",
@@ -496,7 +497,7 @@ def pr_has_label(pr: PullRequest, label: str) -> bool:
 
 def execute_command(cmd: str) -> None:
     logger.info(cmd)
-    os.system(cmd)
+    run(f"exec {cmd}", shell=True, timeout=300)
 
 
 def _uniq_tmp_folder(
@@ -800,7 +801,7 @@ class BranchWorker(GithubConnector):
             branch_name, f"remotes/origin/{branch_name}"
         ):
             # pyrefly: ignore  # missing-attribute
-            self.repo_local.git.push("--force", "origin", branch_name)
+            self._push("--force", "origin", branch_name)
             pushed = True
 
         self._update_e2e_pr(title, base_branch, branch_name, pushed)
@@ -810,6 +811,10 @@ class BranchWorker(GithubConnector):
         if github_ratelimit.resources.core.remaining < MIN_REMAINING_GITHUB_TOKENS:
             return False
         return True
+
+    def _push(self, *args: str) -> None:
+        # pyrefly: ignore  # missing-attribute
+        self.repo_local.git.push(*args, kill_after_timeout=300)
 
     def do_sync(self) -> None:
         # fetch most recent upstream
@@ -828,11 +833,14 @@ class BranchWorker(GithubConnector):
             self.repo_local.create_remote(UPSTREAM_REMOTE_NAME, self.upstream_url)
         # pyrefly: ignore  # missing-attribute
         upstream_repo = self.repo_local.remote(UPSTREAM_REMOTE_NAME)
-        upstream_repo.fetch(self.upstream_branch)
+        # pyrefly: ignore  # missing-attribute
+        self.repo_local.git.fetch(
+            UPSTREAM_REMOTE_NAME, self.upstream_branch, kill_after_timeout=600
+        )
         upstream_branch = getattr(upstream_repo.refs, self.upstream_branch)
         _reset_repo(self.repo_local, f"{UPSTREAM_REMOTE_NAME}/{self.upstream_branch}")
         # pyrefly: ignore  # missing-attribute
-        self.repo_local.git.push(
+        self._push(
             "--force", "origin", f"{upstream_branch}:refs/heads/{self.repo_branch}"
         )
         self.upstream_sha = upstream_branch.object.hexsha
@@ -842,7 +850,8 @@ class BranchWorker(GithubConnector):
 
         with HistogramMetricTimer(git_clone_duration, {"branch": branch}):
             shutil.rmtree(path, ignore_errors=True)
-            repo = git.Repo.clone_from(url, path)
+            git.Git().clone(url, path, kill_after_timeout=600)
+            repo = git.Repo(path)
             _reset_repo(repo, f"origin/{branch}")
 
         git_clone_counter.add(1, {"branch": branch})
@@ -857,7 +866,7 @@ class BranchWorker(GithubConnector):
                 with HistogramMetricTimer(git_fetch_duration, {"branch": branch}):
                     # Update origin URL to support GH app token refreshes
                     repo.remote(name="origin").set_url(url)
-                    repo.git.fetch("--prune", "origin")
+                    repo.git.fetch("--prune", "origin", kill_after_timeout=600)
                     _reset_repo(repo, f"origin/{branch}")
 
                 git_fetch_counter.add(1)
@@ -904,7 +913,7 @@ class BranchWorker(GithubConnector):
             # pyrefly: ignore  # missing-attribute
             self.repo_local.git.checkout("-B", base_branch)
             # pyrefly: ignore  # missing-attribute
-            self.repo_local.git.push("--force", "origin", f"refs/heads/{base_branch}")
+            self._push("--force", "origin", f"refs/heads/{base_branch}")
         else:
             # pyrefly: ignore  # missing-attribute
             self.repo_local.git.checkout("-B", base_branch, f"origin/{base_branch}")
@@ -919,7 +928,7 @@ class BranchWorker(GithubConnector):
         # pyrefly: ignore  # missing-attribute
         self.repo_local.git.commit("--allow-empty", "--message", "Dummy commit")
         # pyrefly: ignore  # missing-attribute
-        self.repo_local.git.push("--force", "origin", branch_name)
+        self._push("--force", "origin", branch_name)
 
     def _close_pr(self, pr: PullRequest) -> None:
         pr.edit(state="closed")
@@ -1019,7 +1028,7 @@ class BranchWorker(GithubConnector):
             pr_created.add(1)
             if has_merge_conflict:
                 pr_merge_conflict.add(1)
-                self._create_dummy_commit(branch_name)
+                await asyncio.to_thread(self._create_dummy_commit, branch_name)
 
             pr = self._create_new_pull_request(
                 title=title,
@@ -1064,7 +1073,7 @@ class BranchWorker(GithubConnector):
                 if await series.is_expired():
                     pr_closed.add(1, {"reason": "expired"})
                 logger.warning(f"Closing {pr}: {pr.head.ref}")
-                self._close_pr(pr)
+                await asyncio.to_thread(self._close_pr, pr)
         return pr
 
     async def _pr_closed(self, branch_name: str, series: Series) -> bool:
@@ -1120,7 +1129,7 @@ class BranchWorker(GithubConnector):
         """Try to apply a mailbox series and return (True, None, None) if successful"""
         # The pull request will be created against `repo_pr_base_branch`. So
         # prepare it for that.
-        self._update_pr_base_branch(self.repo_pr_base_branch)
+        await asyncio.to_thread(self._update_pr_base_branch, self.repo_pr_base_branch)
         # pyrefly: ignore  # missing-attribute
         self.repo_local.git.checkout("-B", branch_name)
 
@@ -1198,7 +1207,7 @@ class BranchWorker(GithubConnector):
             )
             assert pr
             # pyrefly: ignore  # missing-attribute
-            self.repo_local.git.push("--force", "origin", branch_name)
+            await asyncio.to_thread(self._push, "--force", "origin", branch_name)
 
             # Metadata inside `pr` may be stale from the force push; refresh it
             pr.update()
@@ -1221,7 +1230,7 @@ class BranchWorker(GithubConnector):
                 # raise an exception so it bubbles up to the caller.
                 raise NewPRWithNoChangeException(self.repo_pr_base_branch, branch_name)
             # pyrefly: ignore  # missing-attribute
-            self.repo_local.git.push("--force", "origin", branch_name)
+            await asyncio.to_thread(self._push, "--force", "origin", branch_name)
             return await self._comment_series_pr(
                 series,
                 message=comment,

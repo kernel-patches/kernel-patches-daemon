@@ -12,11 +12,13 @@ import threading
 import time
 from typing import Callable, Dict, Final, Optional
 
+from git.exc import GitCommandError
 from github import GithubException
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.github_sync import GithubSync
 from kernel_patches_daemon.patchwork import Patchwork, PatchworkUnavailable
 from pyre_extensions import none_throws
+from requests.exceptions import RequestException
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -73,6 +75,28 @@ class KernelPatchesWorker:
             )
 
     async def run(self) -> None:
+        # Keep synchronous Git/GitHub calls off the service watchdog loop.
+        loop = asyncio.get_running_loop()
+        ready = loop.create_future()
+
+        async def work() -> None:
+            loop.call_soon_threadsafe(ready.set_result, asyncio.current_task())
+            try:
+                await self._run()
+            finally:
+                await self.pw.close()
+
+        task = asyncio.create_task(asyncio.to_thread(asyncio.run, work()))
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            worker = await ready
+            if worker is not None and not worker.done():
+                worker.get_loop().call_soon_threadsafe(worker.cancel)
+            await asyncio.gather(task, return_exceptions=True)
+            raise
+
+    async def _run(self) -> None:
         # Cycles in a row that failed because Patchwork was unavailable.
         patchwork_failures = 0
         while True:
@@ -88,23 +112,28 @@ class KernelPatchesWorker:
                 "other_failed": 0,
             }
             try:
-                self.reset_github_sync()
+                await asyncio.to_thread(self.reset_github_sync)
                 await none_throws(self.github_sync_worker).sync_patches()
                 stats["runs_successful"] = 1
                 patchwork_failures = 0
             except Exception as e:
                 stats["runs_failed"] = 1
-                exception_name = type(e).__name__
-                stats[f"unhandled_{exception_name}"] = 1
+                counter_name = f"unhandled_{type(e).__name__}"
+                if isinstance(e, GitCommandError):
+                    counter_name = "git_command_failed"
+                stats[counter_name] = 1
                 logger.exception(
                     "Unhandled exception in KernelPatchesWorker.run()", exc_info=True
                 )
                 if isinstance(e, PatchworkUnavailable):
                     stats["patchwork_failed"] = 1
                     patchwork_failures += 1
-                elif isinstance(e, GithubException):
+                elif isinstance(
+                    e, (GithubException, GitCommandError, RequestException)
+                ):
                     stats["github_failed"] = 1
-                    stats["github_http_status"] = e.status or 0
+                    if isinstance(e, GithubException):
+                        stats["github_http_status"] = e.status or 0
                     patchwork_failures = 0
                 else:
                     stats["other_failed"] = 1
@@ -174,7 +203,6 @@ class KernelPatchesDaemon:
         finally:
             heartbeat.cancel()
             await asyncio.gather(heartbeat, return_exceptions=True)
-            await self.worker.pw.close()
 
     def start(self) -> None:
         asyncio.run(self.start_async())

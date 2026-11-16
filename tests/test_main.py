@@ -86,10 +86,17 @@ class TestNoMetricsOption(unittest.TestCase):
             patch("opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader"),
             patch("opentelemetry.sdk.metrics.export.ConsoleMetricExporter"),
             patch("opentelemetry.metrics.set_meter_provider"),
+            patch("subprocess.run") as command,
         ):
             ns = self._run_main([])
         self.assertIsNotNone(ns["metrics_logger"])
         self.assertTrue(callable(ns["metrics_logger"]))
+        script = self._write_tmp_json({})
+        os.chmod(script, 0o700)
+        ns["ScriptMetricsExporter"](script).export("test", {})
+        self.assertEqual(
+            command.call_args.args[0], ["timeout", "-k", "1", "30", script]
+        )
 
 
 if __name__ == "__main__":

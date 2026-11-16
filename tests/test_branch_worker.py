@@ -154,6 +154,7 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
         patcher = patch("kernel_patches_daemon.branch_worker.git.Repo")
         self._git_repo_mock = patcher.start()
         self.addCleanup(patcher.stop)
+        self.enterContext(patch("kernel_patches_daemon.branch_worker.git.Git"))
 
         self._bw = BranchWorkerMock()
 
@@ -361,7 +362,10 @@ class TestBranchWorker(unittest.IsolatedAsyncioTestCase):
             rr.assert_called_once()
             # and pushed from upstream_url to downstream
             lr.git.push.assert_called_once_with(
-                "--force", "origin", f"{remote_ref}:refs/heads/{TEST_REPO_BRANCH}"
+                "--force",
+                "origin",
+                f"{remote_ref}:refs/heads/{TEST_REPO_BRANCH}",
+                kill_after_timeout=300,
             )
 
     def test_relevant_pr(self) -> None:
@@ -1513,6 +1517,7 @@ class TestEmailNotification(unittest.TestCase):
         )
         expected_cmd = [
             "curl",
+            "--max-time=60",
             "--silent",
             "--show-error",
             "--ssl-reqd",
@@ -1576,6 +1581,7 @@ class TestEmailNotification(unittest.TestCase):
         )
         expected_cmd = [
             "curl",
+            "--max-time=60",
             "--silent",
             "--show-error",
             "--ssl-reqd",
@@ -1637,6 +1643,7 @@ class TestEmailNotification(unittest.TestCase):
         )
         expected_cmd = [
             "curl",
+            "--max-time=60",
             "--silent",
             "--show-error",
             "--ssl-reqd",
