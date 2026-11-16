@@ -313,7 +313,8 @@ def build_email(
     # proxy, which is something we require for production environments.
     args = [
         "curl",
-        "--max-time=60",
+        "--max-time",
+        "60",
         "--silent",
         "--show-error",
         "--ssl-reqd",

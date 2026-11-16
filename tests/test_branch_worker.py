@@ -1517,7 +1517,8 @@ class TestEmailNotification(unittest.TestCase):
         )
         expected_cmd = [
             "curl",
-            "--max-time=60",
+            "--max-time",
+            "60",
             "--silent",
             "--show-error",
             "--ssl-reqd",
@@ -1581,7 +1582,8 @@ class TestEmailNotification(unittest.TestCase):
         )
         expected_cmd = [
             "curl",
-            "--max-time=60",
+            "--max-time",
+            "60",
             "--silent",
             "--show-error",
             "--ssl-reqd",
@@ -1643,7 +1645,8 @@ class TestEmailNotification(unittest.TestCase):
         )
         expected_cmd = [
             "curl",
-            "--max-time=60",
+            "--max-time",
+            "60",
             "--silent",
             "--show-error",
             "--ssl-reqd",
