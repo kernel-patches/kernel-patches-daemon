@@ -313,7 +313,8 @@ def build_email(
     # proxy, which is something we require for production environments.
     args = [
         "curl",
-        "--max-time=60",
+        "--max-time",
+        "60",
         "--silent",
         "--show-error",
         "--ssl-reqd",
@@ -671,7 +672,11 @@ def _is_outdated_pr(pr: PullRequest) -> bool:
         # PR: better to leave it open than to close a PR we cannot assess.
         logger.warning(f"Could not fetch HEAD commit for {pr}: {e}")
         return False
-    last_modified = dateutil.parser.parse(head_commit.stats.last_modified)
+    modified_at = head_commit.stats.last_modified
+    # Without a timestamp, keep the PR open because its age is unknown.
+    if modified_at is None:
+        return False
+    last_modified = dateutil.parser.parse(modified_at)
     # pyrefly: ignore  # unsupported-operation
     age = datetime.now(timezone.utc) - last_modified
     logger.info(f"Pull request {pr} has age {age}")

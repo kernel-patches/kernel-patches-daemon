@@ -16,7 +16,7 @@ import unittest
 from contextlib import contextmanager
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Set, Union
 from unittest.mock import patch
 
 import aiohttp
@@ -54,7 +54,7 @@ from tests.common.utils import load_test_data
 
 
 @contextmanager
-def fake_clock() -> Iterator[SimpleNamespace]:
+def fake_clock() -> Generator[SimpleNamespace, None, None]:
     """
     Replace the clock of the Patchwork client and asyncio.sleep(). Only a
     sleep moves the clock.
