@@ -12,11 +12,13 @@ import threading
 import time
 from typing import Callable, Dict, Final, Optional
 
+from git.exc import GitCommandError
 from github import GithubException
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.github_sync import GithubSync
 from kernel_patches_daemon.patchwork import Patchwork, PatchworkUnavailable
 from pyre_extensions import none_throws
+from requests.exceptions import RequestException
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -88,7 +90,7 @@ class KernelPatchesWorker:
                 "other_failed": 0,
             }
             try:
-                self.reset_github_sync()
+                await asyncio.to_thread(self.reset_github_sync)
                 await none_throws(self.github_sync_worker).sync_patches()
                 stats["runs_successful"] = 1
                 patchwork_failures = 0
@@ -102,9 +104,12 @@ class KernelPatchesWorker:
                 if isinstance(e, PatchworkUnavailable):
                     stats["patchwork_failed"] = 1
                     patchwork_failures += 1
-                elif isinstance(e, GithubException):
+                elif isinstance(
+                    e, (GithubException, GitCommandError, RequestException)
+                ):
                     stats["github_failed"] = 1
-                    stats["github_http_status"] = e.status or 0
+                    if isinstance(e, GithubException):
+                        stats["github_http_status"] = e.status or 0
                     patchwork_failures = 0
                 else:
                     stats["other_failed"] = 1

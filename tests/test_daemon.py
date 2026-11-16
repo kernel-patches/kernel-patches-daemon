@@ -9,7 +9,9 @@ import unittest
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from git.exc import GitCommandError
 from github import GithubException
+from requests.exceptions import Timeout
 from kernel_patches_daemon.config import KPDConfig
 from kernel_patches_daemon.daemon import (
     KernelPatchesDaemon,
@@ -80,6 +82,8 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         self.worker.reset_github_sync = MagicMock(return_value=True)
 
     async def test_run_ok(self) -> None:
+        initialize = lambda: self.assertRaises(RuntimeError, asyncio.get_running_loop)
+        self.worker.reset_github_sync = MagicMock(side_effect=initialize)
         with (
             patch(
                 "asyncio.sleep",
@@ -145,6 +149,8 @@ class TestKernelPatchesWorker(unittest.IsolatedAsyncioTestCase):
         for error, failure_flag, http_status in (
             (PatchworkUnavailable("Patchwork unavailable"), "patchwork_failed", 0),
             (GithubException(503, {}, {}), "github_failed", 503),
+            (GitCommandError("git push", -9), "github_failed", 0),
+            (Timeout("GitHub timeout"), "github_failed", 0),
         ):
             with self.subTest(failure_flag=failure_flag):
                 LOGGED_METRICS.clear()
