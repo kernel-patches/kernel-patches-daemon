@@ -55,20 +55,13 @@ TEST_CONFIG: Dict[str, Any] = {
 
 
 class GithubSyncMock(GithubSync):
-    def __init__(
-        self, kpd_config: Optional[KPDConfig] = None, *args: Any, **kwargs: Any
-    ) -> None:
+    def __init__(self, kpd_config: Optional[KPDConfig] = None) -> None:
         if kpd_config is None:
             kpd_config = KPDConfig.from_json(TEST_CONFIG)
 
-        presets = {
-            "kpd_config": kpd_config,
-            "labels_cfg": {},
-            "pw": get_default_pw_client(),
-            **kwargs,
-        }
-
-        super().__init__(*args, **presets)
+        super().__init__(
+            kpd_config=kpd_config, labels_cfg={}, pw=get_default_pw_client()
+        )
 
 
 class TestGithubSync(unittest.IsolatedAsyncioTestCase):

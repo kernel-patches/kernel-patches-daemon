@@ -861,7 +861,7 @@ class TestSupportFunctions(unittest.TestCase):
 
     def test_is_outdated_pr(self) -> None:
         def create_mock_pr(
-            last_modified: str, head_sha: Optional[str] = "abc123"
+            last_modified: Optional[str], head_sha: Optional[str] = "abc123"
         ) -> MagicMock:
             pr = MagicMock()
             pr.head.sha = head_sha
@@ -923,6 +923,10 @@ class TestSupportFunctions(unittest.TestCase):
                 pr = create_mock_pr("Sat, 20 Jan 2024 00:00:00 GMT", head_sha=None)
                 self.assertFalse(_is_outdated_pr(pr))
                 pr.base.repo.get_commit.assert_not_called()
+
+            with self.subTest("missing_last_modified_not_outdated"):
+                pr = create_mock_pr(None)
+                self.assertFalse(_is_outdated_pr(pr))
 
             with self.subTest("missing_head_not_outdated"):
                 # Defensive: a PR with no head part at all is not assessed.
