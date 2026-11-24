@@ -1,0 +1,37 @@
+2026-09-06T04:39:10.0000001Z ##[group]GITHUB_TOKEN Permissions
+2026-09-06T04:39:10.0000002Z Contents: read
+2026-09-06T04:39:10.0000003Z ##[endgroup]
+2026-09-06T04:39:11.0000001Z ##[group]Run actions/checkout@v6
+2026-09-06T04:39:11.0000002Z with:
+2026-09-06T04:39:11.0000003Z   repository: linux-mm/linux-mm
+2026-09-06T04:39:11.0000004Z ##[endgroup]
+2026-09-06T04:39:12.0000001Z [command]/usr/bin/git version
+2026-09-06T04:39:12.0000002Z git version 2.53.0
+2026-09-06T04:39:18.0300272Z ##[group]Run bash .github/scripts/run-memblock-tests.sh
+2026-09-06T04:39:18.0300273Z bash .github/scripts/run-memblock-tests.sh
+2026-09-06T04:39:18.0300274Z shell: /usr/bin/bash -e {0}
+2026-09-06T04:39:18.0300275Z ##[endgroup]
+2026-09-06T04:39:23.2067554Z ✓ memblock tests passed
+2026-09-06T04:39:23.2116492Z ##[group]Run bash .github/scripts/run-vma-tests.sh
+2026-09-06T04:39:23.2116493Z bash .github/scripts/run-vma-tests.sh
+2026-09-06T04:39:23.2116494Z shell: /usr/bin/bash -e {0}
+2026-09-06T04:39:23.2116495Z ##[endgroup]
+2026-09-06T04:39:24.0000001Z Building VMA tests...
+2026-09-06T04:39:31.0000001Z /usr/bin/ld: maple-shim.o: in function `ma_pivot_rcu':
+2026-09-06T04:39:31.0000002Z maple_tree.c:575: undefined reference to `data_race'
+2026-09-06T04:39:31.0000003Z collect2: error: ld returned 1 exit status
+2026-09-06T04:39:32.1369101Z make: *** [Makefile:18: vma] Error 1
+2026-09-06T04:39:32.1369102Z ✗ build of VMA tests failed
+2026-09-06T04:39:32.1379128Z ##[error]Process completed with exit code 1.
+2026-09-06T04:39:32.1424932Z ##[group]Run bash .github/scripts/run-datastructure-tests.sh
+2026-09-06T04:39:32.1424933Z bash .github/scripts/run-datastructure-tests.sh
+2026-09-06T04:39:32.1424934Z shell: /usr/bin/bash -e {0}
+2026-09-06T04:39:32.1424935Z ##[endgroup]
+2026-09-06T04:39:41.0000001Z collect2: error: ld returned 1 exit status
+2026-09-06T04:39:42.1276136Z make: *** [<builtin>: main] Error 1
+2026-09-06T04:39:42.1276137Z ✗ Build of data structure tests failed
+2026-09-06T04:39:42.1289041Z ##[error]Process completed with exit code 1.
+2026-09-06T04:39:42.5000001Z Post job cleanup.
+2026-09-06T04:39:43.0000001Z [command]/usr/bin/git version
+2026-09-06T04:39:43.0000002Z git version 2.53.0
+2026-09-06T04:39:44.0000001Z Cleaning up orphan processes

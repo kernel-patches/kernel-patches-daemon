@@ -269,6 +269,7 @@ def time_since_secs(date: str) -> float:
 
 def parse_tags(input: str) -> Set[str]:
     # "[tag1 ,tag2]title" -> "tag1,tags" -> ["tag1", "tag2"]
+    input = re.sub(r"^\[\s*PATCH\s+", "[", input, flags=re.IGNORECASE)
     try:
         parsed_tags = none_throws(re.match(TAG_REGEXP, input)).group("tags").split(",")
         logging.debug(f"Parsed tags from '{input}' string: {parsed_tags}")

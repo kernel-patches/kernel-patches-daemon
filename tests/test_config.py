@@ -38,6 +38,23 @@ class TestConfig(unittest.TestCase):
     def setUp(self) -> None:
         super().setUp()
 
+    def test_invalid_branch_subject_patterns(self) -> None:
+        for patterns in (
+            [],
+            {"oauth": ["slab"]},
+            {"app_auth_key_path": "slab"},
+            {"app_auth_key_path": [1]},
+            {"app_auth_key_path": ["["]},
+        ):
+            with self.subTest(patterns=patterns):
+                conf = {
+                    **load_kpd_config("kpd_config.json"),
+                    "tag_to_branch_mapping": {"__DEFAULT__": ["app_auth_key_path"]},
+                    "branch_subject_patterns": patterns,
+                }
+                with self.assertRaises(InvalidConfig):
+                    KPDConfig.from_json(conf)
+
     def test_invalid_tag_to_branch_mapping(self) -> None:
         """
         Tests that if a tag is mapped to a branch that doesn't exist, an exception is raised.
@@ -363,3 +380,33 @@ class TestEmailConfig(unittest.TestCase):
         """notify_on entries must be status names."""
         with self.assertRaises(InvalidConfig):
             EmailConfig.from_json({**self.BASE_EMAIL_JSON, "notify_on": [1]})
+
+    # --- unknown entries ---------------------------------------------------
+
+    def test_unknown_entry_rejected(self):
+        """A misspelled entry must not be silently ignored."""
+        with self.assertRaises(InvalidConfig) as ctx:
+            EmailConfig.from_json({**self.BASE_EMAIL_JSON, "notify_onn": ["failure"]})
+        self.assertIn("notify_onn", str(ctx.exception))
+
+    def test_every_recognized_entry_accepted(self):
+        """Every entry `from_json()` reads must be recognized as known."""
+        EmailConfig.from_json(
+            {
+                "host": "smtp.example.com",
+                "port": 465,
+                "user": "u",
+                "from": "f@x.com",
+                "pass": "p",
+                "to": ["to@x.com"],
+                "cc": ["cc@x.com"],
+                "http_proxy": "http://proxy:3128",
+                "submitter_allowlist": ["a@x.com"],
+                "ignore_allowlist": True,
+                "pr_comments_forwarding": {"enabled": True},
+                "email_ignore_workflows": ["AI Code Review"],
+                "contact_name": "Example Kernel CI team",
+                "contact_email": "kernel-ci@example.com",
+                "notify_on": ["failure"],
+            }
+        )

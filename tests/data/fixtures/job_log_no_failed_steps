@@ -1,0 +1,10 @@
+2026-09-06T04:39:10.0000001Z ##[group]GITHUB_TOKEN Permissions
+2026-09-06T04:39:10.0000002Z Contents: read
+2026-09-06T04:39:10.0000003Z ##[endgroup]
+2026-09-06T04:39:18.0300272Z ##[group]Run bash .github/scripts/run-memblock-tests.sh
+2026-09-06T04:39:18.0300273Z bash .github/scripts/run-memblock-tests.sh
+2026-09-06T04:39:18.0300274Z shell: /usr/bin/bash -e {0}
+2026-09-06T04:39:18.0300275Z ##[endgroup]
+2026-09-06T04:39:23.2067554Z ✓ memblock tests passed
+2026-09-06T04:39:42.5000001Z Post job cleanup.
+2026-09-06T04:39:44.0000001Z Cleaning up orphan processes

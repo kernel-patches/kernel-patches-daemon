@@ -1,0 +1,17 @@
+Failed jobs:
+Host tests (x86_64): https://job1.com
+VM tests: https://job2.com
+
+Failure log for Host tests (x86_64):
+Step 'bash .github/scripts/run-vma-tests.sh' failed:
+Building VMA tests...
+/usr/bin/ld: maple-shim.o: in function `ma_pivot_rcu':
+maple_tree.c:575: undefined reference to `data_race'
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:18: vma] Error 1
+✗ build of VMA tests failed
+
+Step 'bash .github/scripts/run-datastructure-tests.sh' failed:
+collect2: error: ld returned 1 exit status
+make: *** [<builtin>: main] Error 1
+✗ Build of data structure tests failed

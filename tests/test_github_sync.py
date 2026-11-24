@@ -202,6 +202,33 @@ class TestGithubSync(unittest.IsolatedAsyncioTestCase):
         self._gh.get_mapped_branches.assert_called_once_with(series_mock)
         self._gh.checkout_and_patch_safe.assert_not_called()
 
+    async def test_subject_pattern_branch_order(self) -> None:
+        config = copy.deepcopy(TEST_CONFIG)
+        config["tag_to_branch_mapping"]["__DEFAULT__"] = [
+            TEST_BRANCH,
+            TEST_BPF_NEXT_BRANCH,
+        ]
+        config["branch_subject_patterns"] = {
+            TEST_BPF_NEXT_BRANCH: ["slab", "slub"],
+            TEST_BRANCH: ["memcg"],
+        }
+        gh = GithubSyncMock(KPDConfig.from_json(config))
+        normal = [TEST_BRANCH, TEST_BPF_NEXT_BRANCH]
+        promoted = list(reversed(normal))
+        for name, patches, cover, tags, expected in (
+            ("mm/slab: fix", [], None, [], promoted),
+            ("generic", ["mm/SLUB: fix"], None, [], promoted),
+            ("generic", [], {"name": "[PATCH] slab: fix"}, [], promoted),
+            ("generic", ["memcg: fix", "slab: fix"], None, [], promoted),
+            ("mm/slab: fix", [], None, ["multibranch-tag"], normal),
+        ):
+            with self.subTest(name=name, patches=patches, cover=cover, tags=tags):
+                series = MagicMock(name=name)
+                series.name, series.cover_letter = name, cover
+                series.all_tags = AsyncMock(return_value=tags)
+                series.patch_subjects = AsyncMock(return_value=patches)
+                self.assertEqual(await gh.get_mapped_branches(series), expected)
+
     async def test_sync_relevant_subject_success_first_branch(self) -> None:
         series_prefix = "series/987654"
         series_branch_name = f"{series_prefix}{SERIES_TARGET_SEPARATOR}{TEST_BRANCH}"
